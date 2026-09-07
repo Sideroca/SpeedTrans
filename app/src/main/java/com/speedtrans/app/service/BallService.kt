@@ -80,6 +80,8 @@ class BallService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         mainHandler.post { showBall() }
+        // 后台预热 OCR 模型（消除首次识图的冷启动）
+        mainHandler.postDelayed({ warmUpOcr() }, 800)
     }
 
     override fun onDestroy() {
@@ -302,9 +304,9 @@ class BallService : AccessibilityService() {
 
     private var ocrBusy = false
 
-    fun captureAndOcr(force: Boolean) {
+    fun captureAndOcr(force: Boolean, scaled: Boolean = true, allowRetry: Boolean = true) {
         if (ocrBusy) return
-        val ov = TranslateCoordinator.overlay(this)
+        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
         ov.ensure()
 
         if (Build.VERSION.SDK_INT < 30) {
@@ -312,31 +314,49 @@ class BallService : AccessibilityService() {
             return
         }
         ocrBusy = true
-        ov.showStatus("📷 正在静默截屏并识别…")
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        ov.showStatus("📷 正在静默截屏…")
 
-        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+        takeScreenshot(mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(result: ScreenshotResult) {
+                val tShot = android.os.SystemClock.elapsedRealtime() - t0
                 val hw = result.hardwareBuffer
-                val bmp = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
+                val raw = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
                     ?.copy(Bitmap.Config.ARGB_8888, false)
                 hw.close()
-                if (bmp == null) {
+                if (raw == null) {
                     ocrBusy = false
                     mainHandler.post { ov.showStatus("⚠️ 截屏转换失败") }
                     return
                 }
-                // 非强制（自动回退）时：剔除文本层坐标，OCR 只认像素层内容，与文本路零重复
+                // 缩放到宽 ≤1080：识别速度提升数倍，常规文字精度足够
+                val bmp = if (scaled && raw.width > 1080) {
+                    val r = 1080f / raw.width
+                    Bitmap.createScaledBitmap(raw, 1080, (raw.height * r).toInt(), true)
+                } else raw
+                val tPrep = android.os.SystemClock.elapsedRealtime() - t0
+                mainHandler.post { ov.showStatus("🔍 识别中…（截屏 ${tShot}ms · 预处理 ${tPrep - tShot}ms）") }
+
+                // force（手动/双击入口已移除，现为仅识图模式）= 全屏 100% 内容；
+                // 自动回退 = 剔除文本层坐标，与文本路零重复
                 val exclude = if (force) emptyList() else lastRects
                 OcrEngine.recognize(
                     this@BallService, bmp, exclude,
                     onResult = { t ->
+                        val tAll = android.os.SystemClock.elapsedRealtime() - t0
                         ocrBusy = false
                         mainHandler.post {
-                            if (t.isEmpty()) {
-                                ov.showStatus("⚠️ 画面中没有识别到文字")
-                            } else {
-                                // OCR 结果走独立管线（与无障碍文本的增量状态互不干扰）
+                            if (t.isNotEmpty()) {
+                                ov.showStatus("✓ 识别 ${t.length} 字 · 耗时 ${tAll}ms")
                                 TranslateCoordinator.startTranslate(this@BallService, t)
+                            } else if (scaled && allowRetry) {
+                                // 缩放版识别为空 → 原尺寸重试一次（防小字丢失）
+                                ov.showStatus("🔍 缩放识别为空，原尺寸重试…")
+                                mainHandler.postDelayed({
+                                    captureAndOcr(force, scaled = false, allowRetry = false)
+                                }, 150)
+                            } else {
+                                ov.showStatus("⚠️ 画面中没有识别到文字")
                             }
                         }
                     },
@@ -348,12 +368,28 @@ class BallService : AccessibilityService() {
             }
 
             override fun onFailure(errorCode: Int) {
-                ocrBusy = false
-                mainHandler.post {
-                    ov.showStatus("⚠️ 截屏失败（code $errorCode），请稍后再试")
+                // 系统对连续截屏有最短间隔限制：400ms 后自动重试一次
+                if (allowRetry) {
+                    mainHandler.postDelayed({
+                        ocrBusy = false
+                        captureAndOcr(force, scaled = false, allowRetry = false)
+                    }, 400)
+                } else {
+                    ocrBusy = false
+                    mainHandler.post { ov.showStatus("⚠️ 截屏失败（code $errorCode）") }
                 }
             }
         })
+    }
+
+    /** 预热：服务连接后后台空跑一遍启用语言的模型，消除首次识别冷启动 */
+    private fun warmUpOcr() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                OcrEngine.warmUp(this)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun decodeScaled(path: String, target: Int): Bitmap {

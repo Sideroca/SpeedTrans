@@ -44,6 +44,18 @@ object OcrEngine {
      * 识别截屏中的文字（回调在主线程）。
      * @param excludeRects 文本层节点坐标，其内的识别行将被剔除
      */
+    /** 预热：空图跑一遍启用语言的识别器，提前完成模型加载（消除首次识图冷启动） */
+    fun warmUp(context: Context) {
+        val tiny = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        val image = InputImage.fromBitmap(tiny, 0)
+        SettingsStore(context).ocrLanguages.forEach { lang ->
+            try {
+                recognizer(context, lang).process(image)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     fun recognize(
         context: Context,
         bitmap: Bitmap,
