@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
  * OpenAI 兼容流式翻译引擎。
  * - qwen-mt-* ：翻译特化协议（单条 user 消息 + translation_options）
  * - 其他模型  ：标准协议；DashScope 域名自动关闭 qwen3 思考模式（enable_thinking=false）
+ * - 续段模式  ：增量翻译时带【续段】标记 + 规则重申，保证自定义规则对每个片段持续生效
  */
 class TranslateEngine(private val store: SettingsStore) {
 
@@ -33,10 +34,22 @@ class TranslateEngine(private val store: SettingsStore) {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    fun translate(text: String, onDelta: (String) -> Unit, onDone: (Throwable?) -> Unit): Call {
+    fun translate(
+        text: String,
+        isContinuation: Boolean = false,
+        onDelta: (String) -> Unit,
+        onDone: (Throwable?) -> Unit
+    ): Call {
         val isMtModel = store.model.startsWith("qwen-mt")
         val isDashScope =
             store.baseUrl.contains("dashscope") || store.baseUrl.contains("aliyun")
+
+        // 续段标记：让模型知道这是长文本的延续，所有规则对本段同样生效
+        val userContent = if (isContinuation && !isMtModel) "【续段】$text" else text
+        val systemPrompt = store.customPrompt.ifBlank { DEFAULT_SYS_PROMPT } +
+                if (isContinuation && !isMtModel)
+                    "\n(Note: the user message is a continuation segment of previously submitted content. ALL the same rules apply to this segment as well.)"
+                else ""
 
         val body = JSONObject().apply {
             put("model", store.model)
@@ -54,17 +67,14 @@ class TranslateEngine(private val store: SettingsStore) {
                         }
                 )
                 put("messages", JSONArray().apply {
-                    put(JSONObject().put("role", "user").put("content", text))
+                    put(JSONObject().put("role", "user").put("content", userContent))
                 })
             } else {
                 // qwen3 系列思考型模型默认先思考，强制关闭以获得最快首字
                 if (isDashScope) put("enable_thinking", false)
                 put("messages", JSONArray().apply {
-                    put(
-                        JSONObject().put("role", "system")
-                            .put("content", store.customPrompt.ifBlank { DEFAULT_SYS_PROMPT })
-                    )
-                    put(JSONObject().put("role", "user").put("content", text))
+                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    put(JSONObject().put("role", "user").put("content", userContent))
                 })
             }
         }

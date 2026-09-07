@@ -39,6 +39,12 @@ object TranslateCoordinator {
 
     val overlayVisible: Boolean get() = overlay?.visible == true
 
+    /** 立刻取消进行中的翻译请求（流式回调占用主线程，关面板前先取消） */
+    fun cancelActive() {
+        currentCall?.cancel()
+        currentCall = null
+    }
+
     fun startTranslate(context: Context, rawText: String) {
         ensureInit(context)
         val ov = overlay(context)
@@ -73,6 +79,7 @@ object TranslateCoordinator {
 
         currentCall = engine!!.translate(
             segment,
+            isContinuation = incremental,
             onDelta = { d -> mainHandler.post { ov.append(d) } },
             onDone = { err ->
                 mainHandler.post {

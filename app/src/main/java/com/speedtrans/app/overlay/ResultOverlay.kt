@@ -52,7 +52,10 @@ class ResultOverlay(private val context: Context) {
             textSize = 16f * bs
             setTextColor(pal.panelSub)
             setPadding(0, dp((8 * bs).toInt()), dp((10 * bs).toInt()), dp((8 * bs).toInt()))
-            setOnClickListener { close() }
+            setOnClickListener {
+                TranslateCoordinator.cancelActive()
+                close()
+            }
         }
         val status = TextView(ctx).apply {
             setTextColor(pal.panelSub)
@@ -76,9 +79,9 @@ class ResultOverlay(private val context: Context) {
                 }
             }
         }
-        top.addView(btnClose)
         top.addView(status)
         top.addView(btnCopy)
+        top.addView(btnClose)
 
         val scroll = ScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -146,10 +149,12 @@ class ResultOverlay(private val context: Context) {
     fun currentText(): String = tvOut?.text?.toString() ?: ""
 
     fun close() {
-        root?.let { try { wm?.removeView(it) } catch (_: Exception) {} }
+        val r = root
         root = null
         tvOut = null
         tvStatus = null
+        // 同步立即移除：removeView 是异步排程，主线程忙时会延迟数秒才消失
+        r?.let { try { wm?.removeViewImmediate(it) } catch (_: Exception) {} }
     }
 
     private fun scrollOutTop() {
