@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">闪译</string>
+    <string name="a11y_label">闪译悬浮球</string>
+    <string name="a11y_desc">提供悬浮球，点击立即抓取屏幕文字并流式翻译成中文</string>
+</resources>

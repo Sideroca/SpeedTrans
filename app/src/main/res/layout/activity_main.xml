@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚡ 闪译 SpeedTrans"
+            android:textColor="#222222"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="点一下悬浮球 → 立即流式翻译屏幕文字（英→中）"
+            android:textColor="#777777"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tvOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/card_bg"
+            android:padding="14dp"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tvA11y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/card_bg"
+            android:padding="14dp"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tvApi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/card_bg"
+            android:padding="14dp"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btnOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="① 去开启悬浮窗权限" />
+
+        <Button
+            android:id="@+id/btnA11y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="② 去开启无障碍服务" />
+
+        <Button
+            android:id="@+id/btnApi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="③ 配置翻译接口（API）" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/card_bg"
+            android:padding="14dp"
+            android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 用最新屏幕内容重新翻译\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 模型思考类持续增长的内容：自动增量翻译，只翻新增部分\n\n小米/MIUI 防杀后台（一次性设置）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启"
+            android:textColor="#555555"
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>
