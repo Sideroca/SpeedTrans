@@ -205,7 +205,7 @@ class SettingsActivity : AppCompatActivity() {
             val info = android.content.pm.ShortcutInfo.Builder(this, "entry_${name}")
                 .setShortLabel(name)
                 .setLongLabel(name)
-                .setIcon(android.content.pm.Icon.createWithBitmap(bmp))
+                .setIcon(android.graphics.drawable.Icon.createWithBitmap(bmp))
                 .setIntent(
                     Intent(this, MainActivity::class.java)
                         .setAction(Intent.ACTION_MAIN)
