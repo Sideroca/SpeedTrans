@@ -39,19 +39,27 @@ class ResultOverlay(private val context: Context) {
 
         val box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = ThemeEngine.cardDrawable(pal.panelBg, 16f, ctx.resources.displayMetrics.density)
-            elevation = dp(8).toFloat() // 空气感投影
+            background = ThemeEngine.cardDrawable(
+                pal.panelBg, pal.cardRadius.toFloat(),
+                ctx.resources.displayMetrics.density
+            )
+            elevation = dp(8).toFloat() // 空气感投影（iOS/线框主题为 0）
             setPadding(dp(16), dp(8), dp(16), dp(10))
         }
 
         val top = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            // 传统撞色条：每套主题配一个对撞的传统色
+            background = ThemeEngine.cardDrawable(
+                pal.barBg, pal.cardRadius.toFloat(),
+                ctx.resources.displayMetrics.density, pal.cardStroke
+            )
         }
         val btnClose = TextView(ctx).apply {
             text = "✕"
             textSize = 16f * bs
-            setTextColor(pal.panelSub)
+            setTextColor(pal.barText)
             setPadding(0, dp((8 * bs).toInt()), dp((10 * bs).toInt()), dp((8 * bs).toInt()))
             setOnClickListener {
                 TranslateCoordinator.cancelActive()
@@ -59,7 +67,7 @@ class ResultOverlay(private val context: Context) {
             }
         }
         val status = TextView(ctx).apply {
-            setTextColor(pal.panelSub)
+            setTextColor(pal.barText)
             textSize = 12f * bs
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -69,7 +77,7 @@ class ResultOverlay(private val context: Context) {
         val btnCopy = TextView(ctx).apply {
             text = "复制"
             textSize = 14f * bs
-            setTextColor(pal.accent)
+            setTextColor(pal.barText)
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), 0, dp((8 * bs).toInt()))
             setOnClickListener {

@@ -16,9 +16,13 @@
         <!-- 桌面入口由 activity-alias 承担（支持图标/名称预设切换） -->
         <activity
             android:name=".MainActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize" />
 
-        <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity-alias
             android:name=".main_red"

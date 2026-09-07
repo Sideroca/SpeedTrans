@@ -69,13 +69,17 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    /** 主界面快捷主题条：点色球即换装（当前主题带描边高亮） */
+    /** 主界面快捷主题条：点色球即换装（当前主题带描边高亮），撞色条背景 */
     private fun bindQuickTheme() {
         val row = findViewById<LinearLayout>(R.id.quickThemeRow)
         val pal = ThemeEngine.current(this)
         val cur = pal.id
-        val size = (30 * resources.displayMetrics.density).toInt()
-        val margin = (8 * resources.displayMetrics.density).toInt()
+        val d = resources.displayMetrics.density
+        // 撞色条背景：每套主题自己的传统色对撞
+        row.background = ThemeEngine.cardDrawable(pal.barBg, 14f, d)
+        row.setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
+        val size = (30 * d).toInt()
+        val margin = (8 * d).toInt()
         ThemeEngine.palettes.forEach { p ->
             val v = View(this)
             v.layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = margin }
@@ -83,8 +87,8 @@ class MainActivity : AppCompatActivity() {
                 shape = GradientDrawable.OVAL
                 setColor(p.accent)
                 setStroke(
-                    if (p.id == cur) (4 * resources.displayMetrics.density).toInt() else 0,
-                    if (Color.luminance(pal.bg) > 0.5f) 0xFF999999.toInt() else 0xFFFFFFFF.toInt()
+                    if (p.id == cur) (4 * d).toInt() else 0,
+                    if (Color.luminance(pal.barBg) > 0.5f) 0xFF777777.toInt() else 0xFFFFFFFF.toInt()
                 )
             }
             v.setOnClickListener {

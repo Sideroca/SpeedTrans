@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -34,7 +35,6 @@ import java.io.File
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var store: SettingsStore
-
     private var selectedColor = "#E6FF4757"
     private var selectedShapeCircle = true
     private var selectedSizeDp = 52
@@ -59,7 +59,7 @@ class SettingsActivity : AppCompatActivity() {
 
         applyTheme()
         bindTabs()
-        bindThemeRows()
+        bindThemePicker()
         bindApi()
         bindPrompt()
         bindBallAppearance()
@@ -69,7 +69,6 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
 
-        // 前台保活（与主界面一致，防止本页操作期间被杀）
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
     }
 
@@ -81,8 +80,12 @@ class SettingsActivity : AppCompatActivity() {
         ThemeEngine.applyTo(findViewById(R.id.rootSettings), pal)
     }
 
+    /** Tab 行 = 传统撞色条（每套主题自己的对撞色） */
     private fun bindTabs() {
         val pal = ThemeEngine.current(this)
+        val d = resources.displayMetrics.density
+        val tabRow = findViewById<LinearLayout>(R.id.tabRow)
+        tabRow.background = ThemeEngine.cardDrawable(pal.barBg, 0f, d)
         val pages = listOf(
             R.id.pageApi, R.id.pageTheme, R.id.pageBall,
             R.id.pageDesktop, R.id.pageMore
@@ -98,7 +101,7 @@ class SettingsActivity : AppCompatActivity() {
             tabs.forEachIndexed { i, id ->
                 val t = findViewById<TextView>(id)
                 t.background = null
-                t.setTextColor(if (i == idx) pal.accent else pal.subText)
+                t.setTextColor(if (i == idx) pal.barText else pal.barText and 0x8EFFFFFF.toInt())
                 t.typeface = if (i == idx) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             }
         }
@@ -106,48 +109,84 @@ class SettingsActivity : AppCompatActivity() {
         select(0)
     }
 
-    private fun bindThemeRows() {
-        val lightRow = findViewById<LinearLayout>(R.id.lightThemeRow)
-        val darkRow = findViewById<LinearLayout>(R.id.darkThemeRow)
-        val currentId = ThemeEngine.current(this).id
-        val size = (44 * resources.displayMetrics.density).toInt()
-        val margin = (8 * resources.displayMetrics.density).toInt()
+    // ---------- 主题选择：分类 + 整套配色预览卡 ----------
 
-        fun addTo(row: LinearLayout, list: List<Palette>) {
-            list.forEach { p ->
-                val item = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = android.view.Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply { marginEnd = margin }
-                }
-                val sw = View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(size, size)
-                    paintSwatch(this, p.accent, p.id == currentId)
-                    setOnClickListener {
-                        ThemeEngine.save(this@SettingsActivity, p.id)
-                        recreate()
-                    }
-                }
-                val name = TextView(this).apply {
-                    text = p.name
-                    textSize = 10f
-                    setTextColor(ThemeEngine.current(this@SettingsActivity).subText)
-                    gravity = android.view.Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() }
-                }
-                item.addView(sw)
-                item.addView(name)
-                row.addView(item)
+    private fun bindThemePicker() {
+        val pal = ThemeEngine.current(this)
+        val chipModern = findViewById<TextView>(R.id.chipModern)
+        val chipChinese = findViewById<TextView>(R.id.chipChinese)
+        val cardRow = findViewById<LinearLayout>(R.id.themeCardRow)
+
+        fun selectCategory(modern: Boolean) {
+            val list = if (modern) ThemeEngine.palettes.filter { it.group == "modern" }
+                       else ThemeEngine.palettes.filter { it.group == "chinese" }
+            // chip 高亮
+            fun style(chip: TextView, on: Boolean) {
+                chip.background = ThemeEngine.cardDrawable(
+                    if (on) pal.accent else pal.card, 18f, resources.displayMetrics.density, pal.cardStroke)
+                chip.setTextColor(if (on) {
+                    if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
+                } else pal.text)
+                chip.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             }
+            style(chipModern, modern)
+            style(chipChinese, !modern)
+
+            cardRow.removeAllViews()
+            list.forEach { p -> cardRow.addView(themeCard(p, p.id == ThemeEngine.current(this).id)) }
         }
-        addTo(lightRow, ThemeEngine.lightPalettes)
-        addTo(darkRow, ThemeEngine.darkPalettes)
+        chipModern.setOnClickListener { selectCategory(true) }
+        chipChinese.setOnClickListener { selectCategory(false) }
+        selectCategory(true)
+    }
+
+    /** 整套配色预览卡：三段色条（强调/卡片/背景）+ 主题名，点击即换装 */
+    private fun themeCard(p: Palette, selected: Boolean): View {
+        val d = resources.displayMetrics.density
+        val cur = ThemeEngine.current(this)
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (10 * d).toInt() }
+            background = ThemeEngine.cardDrawable(
+                pal.card, 12f, d,
+                if (selected) pal.accent else pal.cardStroke
+            )
+        }
+        // 三段配色条：accent 一半，card/bg 各四分之一 —— 整套搭配一目了然
+        val strip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams((72 * d).toInt(), (30 * d).toInt())
+            background = GradientDrawable().apply {
+                cornerRadius = (6 * d)
+                setColor(p.bg)
+            }
+            clipToOutline = true
+        }
+        listOf(p.accent to 0.5f, p.card to 0.25f, p.bg to 0.25f).forEach { (col, weight) ->
+            val seg = View(this).apply { setBackgroundColor(col) }
+            seg.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, weight)
+            strip.addView(seg)
+        }
+        card.addView(strip)
+
+        val name = TextView(this).apply {
+            text = p.name
+            textSize = 11f
+            gravity = Gravity.CENTER
+            setTextColor(if (selected) pal.accent else pal.subText)
+            typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (6 * d).toInt() }
+        }
+        card.addView(name)
+        return card
     }
 
     // ---------- 翻译接口 ----------
