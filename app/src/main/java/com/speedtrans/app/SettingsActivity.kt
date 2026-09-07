@@ -6,21 +6,27 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.speedtrans.app.service.BallService
+import com.speedtrans.app.service.KeepAliveService
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.theme.Palette
 import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.translate.TranslateCoordinator
 import java.io.File
@@ -52,16 +58,22 @@ class SettingsActivity : AppCompatActivity() {
         store = SettingsStore(this)
 
         applyTheme()
-        bindThemeRow()
-
+        bindTabs()
+        bindThemeRows()
         bindApi()
         bindPrompt()
         bindBallAppearance()
         bindPanelAppearance()
+        bindPanelButtons()
         bindLauncherSection()
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
+
+        // 前台保活（与主界面一致，防止本页操作期间被杀）
+        ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
     }
+
+    // ---------- 主题 ----------
 
     private fun applyTheme() {
         val pal = ThemeEngine.current(this)
@@ -69,21 +81,73 @@ class SettingsActivity : AppCompatActivity() {
         ThemeEngine.applyTo(findViewById(R.id.rootSettings), pal)
     }
 
-    private fun bindThemeRow() {
-        val row = findViewById<LinearLayout>(R.id.themeRow)
-        val currentId = ThemeEngine.current(this).id
-        val size = (40 * resources.displayMetrics.density).toInt()
-        val margin = (10 * resources.displayMetrics.density).toInt()
-        ThemeEngine.palettes.forEachIndexed { i, p ->
-            val v = View(this)
-            v.layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = margin }
-            paintSwatch(v, p.accent, p.id == currentId)
-            v.setOnClickListener {
-                ThemeEngine.save(this, p.id)
-                recreate()
+    private fun bindTabs() {
+        val pal = ThemeEngine.current(this)
+        val pages = listOf(
+            R.id.pageApi, R.id.pageTheme, R.id.pageBall,
+            R.id.pageDesktop, R.id.pageMore
+        )
+        val tabs = listOf(
+            R.id.tvTabApi, R.id.tvTabTheme, R.id.tvTabBall,
+            R.id.tvTabDesktop, R.id.tvTabMore
+        )
+        fun select(idx: Int) {
+            pages.forEachIndexed { i, id ->
+                findViewById<View>(id).visibility = if (i == idx) View.VISIBLE else View.GONE
             }
-            row.addView(v)
+            tabs.forEachIndexed { i, id ->
+                val t = findViewById<TextView>(id)
+                t.background = null
+                t.setTextColor(if (i == idx) pal.accent else pal.subText)
+                t.typeface = if (i == idx) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
         }
+        tabs.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { select(i) } }
+        select(0)
+    }
+
+    private fun bindThemeRows() {
+        val lightRow = findViewById<LinearLayout>(R.id.lightThemeRow)
+        val darkRow = findViewById<LinearLayout>(R.id.darkThemeRow)
+        val currentId = ThemeEngine.current(this).id
+        val size = (44 * resources.displayMetrics.density).toInt()
+        val margin = (8 * resources.displayMetrics.density).toInt()
+
+        fun addTo(row: LinearLayout, list: List<Palette>) {
+            list.forEach { p ->
+                val item = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = android.view.Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { marginEnd = margin }
+                }
+                val sw = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(size, size)
+                    paintSwatch(this, p.accent, p.id == currentId)
+                    setOnClickListener {
+                        ThemeEngine.save(this@SettingsActivity, p.id)
+                        recreate()
+                    }
+                }
+                val name = TextView(this).apply {
+                    text = p.name
+                    textSize = 10f
+                    setTextColor(ThemeEngine.current(this@SettingsActivity).subText)
+                    gravity = android.view.Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() }
+                }
+                item.addView(sw)
+                item.addView(name)
+                row.addView(item)
+            }
+        }
+        addTo(lightRow, ThemeEngine.lightPalettes)
+        addTo(darkRow, ThemeEngine.darkPalettes)
     }
 
     // ---------- 翻译接口 ----------
@@ -212,6 +276,29 @@ class SettingsActivity : AppCompatActivity() {
         )
     }
 
+    // ---------- 面板按钮自定义 ----------
+
+    private fun bindPanelButtons() {
+        findViewById<Switch>(R.id.swShowCopy).isChecked = store.showCopy
+        findViewById<Switch>(R.id.swShowClose).isChecked = store.showClose
+
+        val rgSide = findViewById<RadioGroup>(R.id.rgBtnSide)
+        rgSide.check(if (store.btnCloseLeft) R.id.rbSideLeft else R.id.rbSideRight)
+
+        val sbPad = findViewById<SeekBar>(R.id.sbBtnPad)
+        val tvPad = findViewById<TextView>(R.id.tvBtnPadVal)
+        sbPad.progress = store.btnPaddingDp.coerceIn(0, 24)
+        tvPad.text = "${store.btnPaddingDp}dp"
+        sbPad.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvPad.text = "${p}dp"
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+    }
+
     // ---------- App 图标 / 桌面入口 ----------
 
     private fun bindLauncherSection() {
@@ -255,7 +342,7 @@ class SettingsActivity : AppCompatActivity() {
                 )
                 .build()
             sm.requestPinShortcut(info, null)
-            toast("请在系统弹窗中确认添加到桌面")
+            toast("请在系统弹窗中确认添加到桌面。若未出现弹窗：\n系统设置 → 应用管理 → 闪译 → 权限管理 → 「桌面快捷方式」→ 允许，再试一次")
         }.onFailure {
             toast("创建失败：${it.message ?: "未知错误"}")
         }
@@ -293,6 +380,11 @@ class SettingsActivity : AppCompatActivity() {
             R.id.rbBtnBig -> 125
             else -> 100
         }
+        store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
+        store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked
+        store.btnCloseLeft =
+            findViewById<RadioGroup>(R.id.rgBtnSide).checkedRadioButtonId == R.id.rbSideLeft
+        store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress
 
         BallService.instance?.refreshBall()
         TranslateCoordinator.closeOverlay()

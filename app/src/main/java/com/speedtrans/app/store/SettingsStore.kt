@@ -75,6 +75,26 @@ class SettingsStore(context: Context) {
 
     // ---------- 译文面板外观 ----------
 
+    /** ✕ 关闭按钮位置：true=标题栏左侧 false=右侧（默认右上） */
+    var btnCloseLeft: Boolean
+        get() = sp.getBoolean("btn_close_left", false)
+        set(v) = sp.edit().putBoolean("btn_close_left", v).apply()
+
+    /** 标题栏按钮距面板边缘的距离（dp，0~24） */
+    var btnPaddingDp: Int
+        get() = sp.getInt("btn_padding", 8)
+        set(v) = sp.edit().putInt("btn_padding", v).apply()
+
+    /** 标题栏显示「复制」按钮 */
+    var showCopy: Boolean
+        get() = sp.getBoolean("show_copy", true)
+        set(v) = sp.edit().putBoolean("show_copy", v).apply()
+
+    /** 标题栏显示「✕」关闭按钮 */
+    var showClose: Boolean
+        get() = sp.getBoolean("show_close", true)
+        set(v) = sp.edit().putBoolean("show_close", v).apply()
+
     /** 面板高度占屏幕百分比（30~100） */
     var overlayHeightPct: Int
         get() = sp.getInt("overlay_height", 80)

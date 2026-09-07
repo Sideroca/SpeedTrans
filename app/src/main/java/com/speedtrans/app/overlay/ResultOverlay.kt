@@ -40,6 +40,7 @@ class ResultOverlay(private val context: Context) {
         val box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             background = ThemeEngine.cardDrawable(pal.panelBg, 16f, ctx.resources.displayMetrics.density)
+            elevation = dp(8).toFloat() // 空气感投影
             setPadding(dp(16), dp(8), dp(16), dp(10))
         }
 
@@ -79,9 +80,18 @@ class ResultOverlay(private val context: Context) {
                 }
             }
         }
-        top.addView(status)
-        top.addView(btnCopy)
-        top.addView(btnClose)
+        // 按钮配置：显示开关 + 左右位置 + 距边缘距离
+        val btns = mutableListOf<TextView>()
+        if (st.showCopy) btns.add(btnCopy)
+        if (st.showClose) btns.add(btnClose)
+        top.setPadding(dp(st.btnPaddingDp), 0, dp(st.btnPaddingDp), 0)
+        if (st.btnCloseLeft) {
+            btns.forEach { top.addView(it) }
+            top.addView(status)
+        } else {
+            top.addView(status)
+            btns.forEach { top.addView(it) }
+        }
 
         val scroll = ScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -101,18 +111,32 @@ class ResultOverlay(private val context: Context) {
 
         val screenH = ctx.resources.displayMetrics.heightPixels
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
+        // 可聚焦窗口：直接监听返回键（不依赖无障碍的按键过滤，ROM 兼容性最好）
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             panelH,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            0, // 无 FLAG_NOT_FOCUSABLE：接收返回键
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.BOTTOM or Gravity.START
         lp.x = 0
         lp.y = 0
 
+        box.isFocusable = true
+        box.isFocusableInTouchMode = true
+        box.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                event.action == android.view.KeyEvent.ACTION_DOWN
+            ) {
+                TranslateCoordinator.cancelActive()
+                close()
+                true
+            } else false
+        }
+
         wm?.addView(box, lp)
+        box.requestFocus()
         root = box
         tvStatus = status
         tvOut = out

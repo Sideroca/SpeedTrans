@@ -9,56 +9,86 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
-import com.speedtrans.app.R
 
 /**
- * 撞色主题引擎：内置 6 套预设（5 暗 1 浅），
- * 遵循"没人知道最好的 UI，让用户自己选"。
+ * 主题引擎 v3：十套经典配色图书馆。
+ * 每套 = 一条 Palette（语义色 + 质感：描边/投影），来源于各经典软件的公开设计语言。
  */
 data class Palette(
     val id: String,
     val name: String,
     val bg: Int,        // 页面背景
     val card: Int,      // 卡片背景
-    val accent: Int,    // 强调色（按钮/链接）
+    val accent: Int,    // 强调色
     val text: Int,      // 主文字
     val subText: Int,   // 次文字
     val panelBg: Int,   // 译文面板背景
     val panelText: Int, // 面板主文字
-    val panelSub: Int   // 面板次文字
+    val panelSub: Int,  // 面板次文字
+    val cardStroke: Int, // 卡片描边（0 = 无）
+    val elev: Int        // 卡片投影 dp（0 = 无，iOS 分组式为 0）
 )
 
 object ThemeEngine {
 
     private fun c(v: Long) = v.toInt()
 
-    val palettes = listOf(
-        Palette("light", "经典浅色",
-            c(0xFFFFFFFF), c(0xFFF4F5F7), c(0xFF1E88E5), c(0xFF222222), c(0xFF777777),
-            c(0xF7FFFFFF), c(0xFF222222), c(0xFF999999)),
-        Palette("neon", "暗夜霓虹",
-            c(0xFF0B1020), c(0xFF151B2E), c(0xFF35D0A0), c(0xFFEAEFF7), c(0xFF8B93A7),
-            c(0xF00F1526), c(0xFFEAEFF7), c(0xFF8B93A7)),
-        Palette("rose", "玫红夜",
-            c(0xFF120B10), c(0xFF1E1218), c(0xFFFF2E88), c(0xFFF7EAF1), c(0xFFA98CA0),
-            c(0xF01E1218), c(0xFFF7EAF1), c(0xFFA98CA0)),
-        Palette("azure", "蔚蓝夜",
-            c(0xFF0A0F1A), c(0xFF101A2C), c(0xFF2E9BFF), c(0xFFE8F1FB), c(0xFF7E93AD),
-            c(0xF0101A2C), c(0xFFE8F1FB), c(0xFF7E93AD)),
-        Palette("lemon", "明黄夜",
-            c(0xFF101008), c(0xFF1D1C0F), c(0xFFFFD60A), c(0xFFFBF6E3), c(0xFFA79F86),
-            c(0xF01D1C0F), c(0xFFFBF6E3), c(0xFFA79F86)),
-        Palette("violet", "紫电夜",
-            c(0xFF0D0A18), c(0xFF161129), c(0xFF9C5CFF), c(0xFFEFE9FB), c(0xFF9A8FB8),
-            c(0xF0161129), c(0xFFEFE9FB), c(0xFF9A8FB8))
+    // 分组：浅色系
+    val lightPalettes = listOf(
+        Palette("ios", "iOS 经典",
+            c(0xFFF2F2F7), c(0xFFFFFFFF), c(0xFF007AFF), c(0xFF000000), c(0xFF8E8E93),
+            c(0xFFFFFFFF), c(0xFF000000), c(0xFF8E8E93),
+            cardStroke = c(0xFFC6C6C8), elev = 0),
+        Palette("deepseek", "深海蓝",
+            c(0xFFF7F8FA), c(0xFFFFFFFF), c(0xFF4D6BFE), c(0xFF1F2329), c(0xFF828A9B),
+            c(0xFFFFFFFF), c(0xFF1F2329), c(0xFF828A9B),
+            cardStroke = c(0xFFE3E7EF), elev = 4),
+        Palette("kimi", "月白紫",
+            c(0xFFFFFFFF), c(0xFFF7F9FC), c(0xFF007CFF), c(0xFF002F5B), c(0xFF8A99AC),
+            c(0xFFFFFFFF), c(0xFF002F5B), c(0xFF8A99AC),
+            cardStroke = c(0xFFE3E9F4), elev = 4),
+        Palette("qq", "QQ 经典蓝",
+            c(0xFFF0F4F8), c(0xFFFFFFFF), c(0xFF12B7F5), c(0xFF1A1A1A), c(0xFF86909C),
+            c(0xFFFFFFFF), c(0xFF1A1A1A), c(0xFF86909C),
+            cardStroke = c(0xFFE1E8F0), elev = 4),
+        Palette("notion", "Notion 极简",
+            c(0xFFFFFFFF), c(0xFFF7F6F3), c(0xFF2EAADC), c(0xFF37352F), c(0xFF9B9A97),
+            c(0xFFFFFFFF), c(0xFF37352F), c(0xFF9B9A97),
+            cardStroke = c(0xFFE9E7E1), elev = 0)
     )
+
+    // 分组：暗色系
+    val darkPalettes = listOf(
+        Palette("github", "GitHub 夜",
+            c(0xFF0D1117), c(0xFF161B22), c(0xFF2F81F7), c(0xFFE6EDF3), c(0xFF8B949E),
+            c(0xFF161B22), c(0xFFE6EDF3), c(0xFF8B949E),
+            cardStroke = c(0xFF30363D), elev = 0),
+        Palette("discord", "Discord 夜",
+            c(0xFF313338), c(0xFF2B2D31), c(0xFF5865F2), c(0xFFDBDEE1), c(0xFF949BA4),
+            c(0xFF2B2D31), c(0xFFDBDEE1), c(0xFF949BA4),
+            cardStroke = c(0xFF3F4147), elev = 0),
+        Palette("oled", "OLED 纯黑",
+            c(0xFF000000), c(0xFF121212), c(0xFF0A84FF), c(0xFFFFFFFF), c(0xFF98989D),
+            c(0xFF121212), c(0xFFFFFFFF), c(0xFF98989D),
+            cardStroke = c(0xFF262626), elev = 0),
+        Palette("neon", "暗夜霓虹",
+            c(0xFF0B1A16), c(0xFF12251F), c(0xFF35D0A0), c(0xFFE7FFF6), c(0xFF7FA896),
+            c(0xFF12251F), c(0xFFE7FFF6), c(0xFF7FA896),
+            cardStroke = c(0xFF1F3A30), elev = 0),
+        Palette("violet", "紫电夜",
+            c(0xFF170F2B), c(0xFF221742), c(0xFF9C5CFF), c(0xFFF1EAFE), c(0xFF9E90C4),
+            c(0xFF221742), c(0xFFF1EAFE), c(0xFF9E90C4),
+            cardStroke = c(0xFF33265A), elev = 0)
+    )
+
+    val palettes: List<Palette> = lightPalettes + darkPalettes
 
     private const val KEY = "theme_id"
 
     fun current(context: Context): Palette {
         val id = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-            .getString(KEY, "light")!!
-        return palettes.firstOrNull { it.id == id } ?: palettes[0]
+            .getString(KEY, "deepseek")!!
+        return palettes.firstOrNull { it.id == id } ?: palettes[1] // 默认深海蓝
     }
 
     fun save(context: Context, id: String) {
@@ -66,12 +96,17 @@ object ThemeEngine {
             .edit().putString(KEY, id).apply()
     }
 
-    fun cardDrawable(color: Int, radiusDp: Float, density: Float): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(color)
-            cornerRadius = radiusDp * density
-        }
+    fun cardDrawable(
+        color: Int,
+        radiusDp: Float,
+        density: Float,
+        strokeColor: Int = 0
+    ): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        setColor(color)
+        cornerRadius = radiusDp * density
+        if (strokeColor != 0) setStroke((1 * density).toInt(), strokeColor)
+    }
 
     /**
      * 递归应用主题到视图树。
@@ -83,16 +118,21 @@ object ThemeEngine {
         when (view) {
             is ViewGroup -> for (i in 0 until view.childCount) applyTo(view.getChildAt(i), pal, cardIds, subIds)
             is Button -> {
-                view.backgroundTintList = ColorStateList.valueOf(pal.accent)
-                view.setTextColor(if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
+                if (view is android.widget.CompoundButton) {
+                    view.buttonTintList = ColorStateList.valueOf(pal.accent)
+                    view.setTextColor(pal.text)
+                } else {
+                    view.backgroundTintList = ColorStateList.valueOf(pal.accent)
+                    view.setTextColor(if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
+                }
             }
             is EditText -> {
-                view.background = cardDrawable(pal.card, 10f, density)
+                view.background = cardDrawable(pal.card, 10f, density, pal.cardStroke)
                 view.setTextColor(pal.text)
                 view.setHintTextColor(pal.subText)
             }
             is TextView -> {
-                view.background = cardDrawable(pal.card, 12f, density)
+                view.background = cardDrawable(pal.card, 12f, density, pal.cardStroke)
                 view.setTextColor(when (view.id) {
                     in cardIds -> pal.text
                     in subIds -> pal.subText
