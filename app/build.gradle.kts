@@ -15,9 +15,23 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // 固定签名密钥随仓库保存：任何环境构建的 APK 均可互相覆盖安装
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -33,12 +33,11 @@ class SettingsStore(context: Context) {
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
 
         /**
-         * 默认模型：千问翻译特化模型（官方通用首选档，支持流式与增量输出）。
-         * 追求极限延迟可改 qwen-mt-lite；要更高质量可改 qwen-mt-plus；
-         * 也可填任意通用对话模型（qwen3.8-flash / deepseek-chat 等），
-         * 引擎按模型名前缀 qwen-mt 自动切换翻译协议。
+         * 默认模型：qwen3.7-flash（百炼免费额度）。
+         * 可在设置页随时更换：翻译特化模型 qwen-mt-flash / qwen-mt-lite（引擎按
+         * qwen-mt 前缀自动切换协议），或 DeepSeek 等任意 OpenAI 兼容模型。
          */
-        const val DEFAULT_MODEL = "qwen-mt-flash"
+        const val DEFAULT_MODEL = "qwen3.7-flash"
 
         /** 预置 key（装完即用）。⚠️ 仓库须保持 Private，公开前必须清空此值 */
         const val DEFAULT_API_KEY =
