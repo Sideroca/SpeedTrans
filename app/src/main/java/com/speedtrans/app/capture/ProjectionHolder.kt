@@ -67,7 +67,7 @@ object ProjectionHolder {
         fun process(img: android.media.Image) {
             try {
                 val plane = img.planes[0]
-                val buf = plane.rowBuffer
+                val buf = plane.buffer
                 val rowStride = plane.rowStride
                 val pixStride = plane.pixelStride
                 val raw = Bitmap.createBitmap(rowStride / pixStride, img.height, Bitmap.Config.ARGB_8888)
