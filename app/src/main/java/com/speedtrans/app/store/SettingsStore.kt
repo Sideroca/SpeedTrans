@@ -36,7 +36,8 @@ class SettingsStore(context: Context) {
 
     /** 自定义翻译提示词（留空用默认） */
     var customPrompt: String
-        get() = sp.getString("custom_prompt", "")!!.trim()
+        // 未保存过时预填默认文案（可见可删可改）；用户保存空 = 真正为空，不发 system
+        get() = sp.getString("custom_prompt", DEFAULT_SYS_PROMPT)!!.trim()
         set(v) = sp.edit().putString("custom_prompt", v.trim()).apply()
 
     // ---------- 悬浮球外观 ----------
@@ -117,6 +118,12 @@ class SettingsStore(context: Context) {
 
         /** 默认模型：qwen3.7-flash（百炼免费额度）。qwen-mt-* 自动走翻译特化协议 */
         const val DEFAULT_MODEL = "qwen3.7-flash"
+
+        /** 提示词预填文案（用户可全删或自定义；空 = 不发送 system 消息） */
+        const val DEFAULT_SYS_PROMPT =
+            "You are a fast translation engine. Translate the user's text into Simplified Chinese. " +
+                    "Output ONLY the Chinese translation. Preserve line breaks. " +
+                    "Keep code, URLs and proper nouns unchanged. No notes, no explanations."
 
         /** 预置 key（装完即用）。⚠️ 开源前必须移除并改为构建注入 */
         const val DEFAULT_API_KEY =

@@ -21,13 +21,6 @@ import java.util.concurrent.TimeUnit
  */
 class TranslateEngine(private val store: SettingsStore) {
 
-    companion object {
-        private const val DEFAULT_SYS_PROMPT =
-            "You are a fast translation engine. Translate the user's text into Simplified Chinese. " +
-                    "Output ONLY the Chinese translation. Preserve line breaks. " +
-                    "Keep code, URLs and proper nouns unchanged. No notes, no explanations."
-    }
-
     private val client = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS) // 流式读取不设超时
@@ -116,7 +109,8 @@ class TranslateEngine(private val store: SettingsStore) {
 
         // 续段标记：让模型知道这是长文本的延续，所有规则对本段同样生效
         val userContent = if (isContinuation && !isMtModel) "【续段】$text" else text
-        val systemPrompt = store.customPrompt.ifBlank { DEFAULT_SYS_PROMPT } +
+        // 提示词哲学：不内置兜底。空 = 不发送 system 消息（用户在设置页预填/自定义）
+        val systemPrompt = store.customPrompt +
                 if (isContinuation && !isMtModel)
                     "\n(Note: the user message is a continuation segment of previously submitted content. ALL the same rules apply to this segment as well.)"
                 else ""
@@ -143,7 +137,9 @@ class TranslateEngine(private val store: SettingsStore) {
                 // qwen3 系列思考型模型默认先思考，强制关闭以获得最快首字
                 if (isDashScope) put("enable_thinking", false)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    // 提示词为空时不发送 system 消息（用户可完全自定义/删除）
+                    if (systemPrompt.isNotBlank())
+                        put(JSONObject().put("role", "system").put("content", systemPrompt))
                     put(JSONObject().put("role", "user").put("content", userContent))
                 })
             }
