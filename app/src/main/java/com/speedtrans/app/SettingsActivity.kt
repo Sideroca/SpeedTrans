@@ -165,6 +165,14 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun paintSwatch(v: View, color: Int, selected: Boolean) {
+        v.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+            setStroke(if (selected) (6 * resources.displayMetrics.density).toInt() else 0, Color.WHITE)
+        }
+    }
+
     private fun importImage(uri: Uri, target: File, okMsg: String) {
         runCatching {
             contentResolver.openInputStream(uri)!!.use { input ->
