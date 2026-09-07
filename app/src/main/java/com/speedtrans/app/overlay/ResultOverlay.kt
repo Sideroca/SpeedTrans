@@ -3,7 +3,6 @@ package com.speedtrans.app.overlay
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
@@ -12,13 +11,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.translate.TranslateCoordinator
 
 /**
- * 译文悬浮面板：
- * - 高度可调（30%~100% 屏高），底部停靠
- * - 译文从顶部开始显示，绝不自动滚动
- * - 增量翻译在旧译文后继续追加
+ * 译文悬浮面板：高度可调、译文从顶部开始不自动滚、配色随全局主题。
+ * 标题栏：✕（左，拇指易达）| 状态 | 复制（右）。
  */
 class ResultOverlay(private val context: Context) {
 
@@ -35,38 +33,41 @@ class ResultOverlay(private val context: Context) {
         if (root != null) return
         val ctx = context
         val st = SettingsStore(ctx)
+        val pal = ThemeEngine.current(ctx)
         val bs = st.overlayButtonScale
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(0xF7FFFFFF.toInt())
-                cornerRadius = dp(16).toFloat()
-            }
-            setPadding(dp(16), dp(10), dp(16), dp(12))
+            background = ThemeEngine.cardDrawable(pal.panelBg, 16f, ctx.resources.displayMetrics.density)
+            setPadding(dp(16), dp(8), dp(16), dp(10))
         }
 
         val top = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        val btnClose = TextView(ctx).apply {
+            text = "✕"
+            textSize = 16f * bs
+            setTextColor(pal.panelSub)
+            setPadding(0, dp((8 * bs).toInt()), dp((10 * bs).toInt()), dp((8 * bs).toInt()))
+            setOnClickListener { close() }
+        }
         val status = TextView(ctx).apply {
-            setTextColor(0xFF999999.toInt())
+            setTextColor(pal.panelSub)
             textSize = 12f * bs
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
+            setPadding(dp(6), 0, dp(6), 0)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         val btnCopy = TextView(ctx).apply {
             text = "复制"
             textSize = 14f * bs
-            setTextColor(0xFF1E88E5.toInt())
+            setTextColor(pal.accent)
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(
-                dp((14 * bs).toInt()), dp((8 * bs).toInt()),
-                dp((6 * bs).toInt()), dp((8 * bs).toInt())
-            )
+            setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), 0, dp((8 * bs).toInt()))
             setOnClickListener {
                 val t = tvOut?.text?.toString() ?: ""
                 if (t.isNotEmpty()) {
@@ -75,19 +76,9 @@ class ResultOverlay(private val context: Context) {
                 }
             }
         }
-        val btnClose = TextView(ctx).apply {
-            text = "✕"
-            textSize = 16f * bs
-            setTextColor(0xFF666666.toInt())
-            setPadding(
-                dp((14 * bs).toInt()), dp((8 * bs).toInt()),
-                dp((4 * bs).toInt()), dp((8 * bs).toInt())
-            )
-            setOnClickListener { close() }
-        }
+        top.addView(btnClose)
         top.addView(status)
         top.addView(btnCopy)
-        top.addView(btnClose)
 
         val scroll = ScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -96,7 +87,7 @@ class ResultOverlay(private val context: Context) {
             )
         }
         val out = TextView(ctx).apply {
-            setTextColor(0xFF222222.toInt())
+            setTextColor(pal.panelText)
             textSize = 16f
             setLineSpacing(0f, 1.3f)
         }
@@ -148,7 +139,7 @@ class ResultOverlay(private val context: Context) {
     }
 
     fun finish(err: Throwable?) {
-        tvStatus?.text = if (err == null) "✓ 完成 · 点球继续，✕ 关闭"
+        tvStatus?.text = if (err == null) "✓ 完成 · 点球继续，✕ 或返回键关闭"
         else "✗ ${err.message?.take(120) ?: "翻译失败"}"
     }
 

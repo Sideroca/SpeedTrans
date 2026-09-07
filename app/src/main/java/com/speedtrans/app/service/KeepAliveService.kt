@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.IBinder
+import androidx.core.app.ServiceCompat
 
 /**
  * 前台保活服务：挂住进程，用户划掉最近任务时无障碍服务与悬浮球不受影响。
@@ -29,7 +31,10 @@ class KeepAliveService : Service() {
             .setContentText("悬浮球待命 · 划掉最近任务不影响使用")
             .setOngoing(true)
             .build()
-        startForeground(NOTIFY_ID, n)
+        ServiceCompat.startForeground(
+            this, NOTIFY_ID, n,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

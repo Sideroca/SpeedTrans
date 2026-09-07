@@ -21,6 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.speedtrans.app.service.BallService
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.translate.TranslateCoordinator
 import java.io.File
 
@@ -50,6 +51,9 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_settings)
         store = SettingsStore(this)
 
+        applyTheme()
+        bindThemeRow()
+
         bindApi()
         bindPrompt()
         bindBallAppearance()
@@ -57,6 +61,29 @@ class SettingsActivity : AppCompatActivity() {
         bindLauncherSection()
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
+    }
+
+    private fun applyTheme() {
+        val pal = ThemeEngine.current(this)
+        findViewById<View>(R.id.rootSettings).setBackgroundColor(pal.bg)
+        ThemeEngine.applyTo(findViewById(R.id.rootSettings), pal)
+    }
+
+    private fun bindThemeRow() {
+        val row = findViewById<LinearLayout>(R.id.themeRow)
+        val currentId = ThemeEngine.current(this).id
+        val size = (40 * resources.displayMetrics.density).toInt()
+        val margin = (10 * resources.displayMetrics.density).toInt()
+        ThemeEngine.palettes.forEachIndexed { i, p ->
+            val v = View(this)
+            v.layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = margin }
+            paintSwatch(v, p.accent, p.id == currentId)
+            v.setOnClickListener {
+                ThemeEngine.save(this, p.id)
+                recreate()
+            }
+            row.addView(v)
+        }
     }
 
     // ---------- 翻译接口 ----------

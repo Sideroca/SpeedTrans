@@ -37,6 +37,8 @@ object TranslateCoordinator {
         overlay?.close()
     }
 
+    val overlayVisible: Boolean get() = overlay?.visible == true
+
     fun startTranslate(context: Context, rawText: String) {
         ensureInit(context)
         val ov = overlay(context)

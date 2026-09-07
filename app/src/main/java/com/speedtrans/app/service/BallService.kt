@@ -14,6 +14,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -59,6 +60,18 @@ class BallService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+
+    /** 全局返回键过滤：译文面板打开时，按返回 = 关闭面板 */
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN &&
+            event.keyCode == KeyEvent.KEYCODE_BACK &&
+            TranslateCoordinator.overlayVisible
+        ) {
+            mainHandler.post { TranslateCoordinator.closeOverlay() }
+            return true
+        }
+        return super.onKeyEvent(event)
+    }
 
     private fun wm(): WindowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 

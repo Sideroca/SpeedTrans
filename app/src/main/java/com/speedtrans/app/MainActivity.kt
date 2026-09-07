@@ -8,12 +8,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.speedtrans.app.service.KeepAliveService
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.theme.ThemeEngine
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,6 +32,8 @@ class MainActivity : AppCompatActivity() {
         tvA11y = findViewById(R.id.tvA11y)
         tvApi = findViewById(R.id.tvApi)
         btnA11y = findViewById(R.id.btnA11y)
+
+        applyTheme()
 
         findViewById<Button>(R.id.btnOverlay).setOnClickListener {
             startActivity(
@@ -49,6 +53,16 @@ class MainActivity : AppCompatActivity() {
         // 前台保活：划掉最近任务不影响悬浮球
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
         requestNotificationPermission()
+    }
+
+    private fun applyTheme() {
+        val pal = ThemeEngine.current(this)
+        findViewById<View>(R.id.rootMain).setBackgroundColor(pal.bg)
+        ThemeEngine.applyTo(
+            findViewById(R.id.rootMain), pal,
+            cardIds = setOf(R.id.tvOverlay, R.id.tvA11y, R.id.tvApi, R.id.tvUsage),
+            subIds = setOf(R.id.tvSubtitle, R.id.tvSign)
+        )
     }
 
     override fun onResume() {
