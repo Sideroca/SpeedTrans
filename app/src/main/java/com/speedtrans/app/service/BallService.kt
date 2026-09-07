@@ -306,7 +306,7 @@ class BallService : AccessibilityService() {
 
     fun captureAndOcr(force: Boolean, scaled: Boolean = true, allowRetry: Boolean = true) {
         if (ocrBusy) return
-        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
+        val ov = TranslateCoordinator.overlay(this)
         ov.ensure()
 
         if (Build.VERSION.SDK_INT < 30) {
