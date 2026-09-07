@@ -153,8 +153,8 @@ class SettingsActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginEnd = (10 * d).toInt() }
             background = ThemeEngine.cardDrawable(
-                pal.card, 12f, d,
-                if (selected) pal.accent else pal.cardStroke
+                p.card, 12f, d,
+                if (selected) p.accent else p.cardStroke
             )
         }
         // 三段配色条：accent 一半，card/bg 各四分之一 —— 整套搭配一目了然
@@ -178,7 +178,7 @@ class SettingsActivity : AppCompatActivity() {
             text = p.name
             textSize = 11f
             gravity = Gravity.CENTER
-            setTextColor(if (selected) pal.accent else pal.subText)
+            setTextColor(if (selected) p.accent else p.subText)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
