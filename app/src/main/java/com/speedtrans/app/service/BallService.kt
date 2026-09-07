@@ -119,7 +119,7 @@ class BallService : AccessibilityService() {
                             o.setOval(0, 0, v.width, v.height)
                         } else {
                             o.setRoundRect(
-                                0f, 0f, v.width.toFloat(), v.height.toFloat(),
+                                0, 0, v.width, v.height,
                                 dp(st.ballSizeDp / 4).toFloat()
                             )
                         }
