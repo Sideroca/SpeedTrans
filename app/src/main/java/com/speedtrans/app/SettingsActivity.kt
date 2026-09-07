@@ -201,6 +201,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun bindPrompt() {
         findViewById<EditText>(R.id.etPrompt).setText(store.customPrompt)
+        // 触发模式：手指按住标签行，浮现"二选一"规则说明（View.setTooltipText，API 26+）
+        findViewById<TextView>(R.id.tvPromptLabel).setTooltipText(
+            "二选一：留空 = 使用内置极速翻译词；填写任意内容 = 完全以你的为准（可删可改，也能加一句小小的问候）"
+        )
     }
 
     // ---------- 悬浮球外观 ----------
