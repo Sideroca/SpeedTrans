@@ -86,6 +86,36 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("btn_padding", 8)
         set(v) = sp.edit().putInt("btn_padding", v).apply()
 
+    /** 屏幕文字少时自动截屏识别图片/游戏内容 */
+    var ocrFallback: Boolean
+        get() = sp.getBoolean("ocr_fallback", true)
+        set(v) = sp.edit().putBoolean("ocr_fallback", v).apply()
+
+    /** 🤖智能 / 📄仅文本 / 🖼仅识图（三态模式，通知栏可切换） */
+    var translateMode: String
+        get() = sp.getString("translate_mode", "smart")!!
+        set(v) = sp.edit().putString("translate_mode", v).apply()
+
+    /** 智能模式判定阈值：无障碍抓到的字符少于该值 → 转图像识别（可调，默认 20） */
+    var smartThresholdChars: Int
+        get() = sp.getInt("smart_threshold", 20)
+        set(v) = sp.edit().putInt("smart_threshold", v).apply()
+
+    /** 双击悬浮球翻图的时间窗（ms，默认 1500） */
+    var doubleTapWindowMs: Int
+        get() = sp.getInt("double_tap_window", 1500)
+        set(v) = sp.edit().putInt("double_tap_window", v).apply()
+
+    /** 游戏前台自动识图（按应用分类检测，默认开） */
+    var gameAutoDetect: Boolean
+        get() = sp.getBoolean("game_auto_detect", true)
+        set(v) = sp.edit().putBoolean("game_auto_detect", v).apply()
+
+    /** OCR 语言勾选（文字体系：latin/chinese/japanese/korean/devanagari） */
+    var ocrLanguages: Set<String>
+        get() = sp.getStringSet("ocr_langs", setOf("latin", "chinese", "japanese"))!!
+        set(v) = sp.edit().putStringSet("ocr_langs", v).apply()
+
     /** 标题栏显示「复制」按钮 */
     var showCopy: Boolean
         get() = sp.getBoolean("show_copy", true)

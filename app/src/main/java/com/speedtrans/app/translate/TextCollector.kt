@@ -11,20 +11,28 @@ import kotlin.math.abs
  * - 长文本 TextView 节点天然携带全文（即使只有部分在屏内），因此
  *   LLM 思考内容 / 网页正文等场景会一次抓到整段文字；
  * - RecyclerView 虚拟化列表（Twitter/YouTube 时间线）只含有可见项，
- *   这是系统限制，任何工具都无法越过。
+ *   这是系统限制，任何工具都无法越过；
+ * - collectWithRects 额外返回文本层坐标，供 OCR 剔除重复区域。
  */
 object TextCollector {
 
     private const val MAX_NODES = 800
     private const val MAX_DEPTH = 80
 
-    fun collect(root: AccessibilityNodeInfo): String {
+    /** 抓取结果：文本 + 文本层节点坐标（供 OCR 剔除重复） */
+    data class Collected(val text: String, val rects: List<Rect>)
+
+    private class RectText(val text: String, val rect: Rect)
+
+    fun collect(root: AccessibilityNodeInfo): String = collectWithRects(root).text
+
+    fun collectWithRects(root: AccessibilityNodeInfo): Collected {
         val found = ArrayList<RectText>()
         try {
             dfs(root, 0, found)
         } catch (_: Exception) {
         }
-        if (found.isEmpty()) return ""
+        if (found.isEmpty()) return Collected("", emptyList())
 
         // 去除同位置同文本的重复节点（父容器与子节点重复携带）
         val seen = HashSet<String>()
@@ -68,7 +76,7 @@ object TextCollector {
             if (out.isNotEmpty() && out.last() == t) continue
             out.add(t)
         }
-        return out.joinToString("\n")
+        return Collected(out.joinToString("\n"), uniq.map { it.rect })
     }
 
     private fun dfs(node: AccessibilityNodeInfo, depth: Int, out: ArrayList<RectText>) {
@@ -99,6 +107,4 @@ object TextCollector {
             }
         }
     }
-
-    private class RectText(val text: String, val rect: Rect)
 }

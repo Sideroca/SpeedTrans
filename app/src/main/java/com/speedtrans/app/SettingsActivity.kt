@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioGroup
@@ -65,6 +66,7 @@ class SettingsActivity : AppCompatActivity() {
         bindBallAppearance()
         bindPanelAppearance()
         bindPanelButtons()
+        bindOcr()
         bindLauncherSection()
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
@@ -293,6 +295,48 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- OCR：语言 / 阈值 / 双击窗 / 游戏检测 ----------
+
+    private val langIds = listOf(
+        R.id.cbLangLatin to "latin",
+        R.id.cbLangChinese to "chinese",
+        R.id.cbLangJapanese to "japanese",
+        R.id.cbLangKorean to "korean",
+        R.id.cbLangDevanagari to "devanagari"
+    )
+
+    private fun bindOcr() {
+        val langs = store.ocrLanguages
+        langIds.forEach { (id, code) ->
+            findViewById<CheckBox>(id).isChecked = code in langs
+        }
+        findViewById<Switch>(R.id.swGameDetect).isChecked = store.gameAutoDetect
+
+        val sbT = findViewById<SeekBar>(R.id.sbThreshold)
+        val tvT = findViewById<TextView>(R.id.tvThresholdVal)
+        sbT.progress = (store.smartThresholdChars - 5).coerceIn(0, 95)
+        tvT.text = "${store.smartThresholdChars}字"
+        sbT.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvT.text = "${p + 5}字"
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        val sbD = findViewById<SeekBar>(R.id.sbDoubleTap)
+        val tvD = findViewById<TextView>(R.id.tvDoubleTapVal)
+        sbD.progress = (store.doubleTapWindowMs - 500).coerceIn(0, 2500)
+        tvD.text = "${(store.doubleTapWindowMs) / 1000.0}s"
+        sbD.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvD.text = "${(p + 500) / 1000.0}s"
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+    }
+
     // ---------- 译文面板 ----------
 
     private fun bindPanelAppearance() {
@@ -423,6 +467,12 @@ class SettingsActivity : AppCompatActivity() {
             R.id.rbBtnBig -> 125
             else -> 100
         }
+        store.ocrLanguages = langIds.mapNotNull { (id, code) ->
+            if (findViewById<CheckBox>(id).isChecked) code else null
+        }.toSet()
+        store.gameAutoDetect = findViewById<Switch>(R.id.swGameDetect).isChecked
+        store.smartThresholdChars = findViewById<SeekBar>(R.id.sbThreshold).progress + 5
+        store.doubleTapWindowMs = findViewById<SeekBar>(R.id.sbDoubleTap).progress + 500
         store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
         store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked
         store.btnCloseLeft =

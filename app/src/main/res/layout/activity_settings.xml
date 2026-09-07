@@ -318,6 +318,122 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
+                    android:text="🌐 识别语言（勾选启用，未勾零开销）"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <CheckBox
+                    android:id="@+id/cbLangLatin"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="拉丁系（英/法/德/西/波/葡/意…）" />
+
+                <CheckBox
+                    android:id="@+id/cbLangChinese"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="中文（简繁）" />
+
+                <CheckBox
+                    android:id="@+id/cbLangJapanese"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="日文" />
+
+                <CheckBox
+                    android:id="@+id/cbLangKorean"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="韩文" />
+
+                <CheckBox
+                    android:id="@+id/cbLangDevanagari"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="天城文（印地语系）" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="🧠 智能判定"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <Switch
+                    android:id="@+id/swGameDetect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="前台是游戏时自动识图" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="智能阈值：屏幕文字少于多少字转识图"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <SeekBar
+                        android:id="@+id/sbThreshold"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="95"
+                        android:progress="15" />
+
+                    <TextView
+                        android:id="@+id/tvThresholdVal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="48dp"
+                        android:text="20字"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="双击翻图时间窗"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <SeekBar
+                        android:id="@+id/sbDoubleTap"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="2500"
+                        android:progress="1000" />
+
+                    <TextView
+                        android:id="@+id/tvDoubleTapVal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="48dp"
+                        android:text="1.5s"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
                     android:text="📐 译文面板"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -430,6 +546,20 @@
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="图片/游戏识别"
+                    android:textSize="13sp" />
+
+                <Switch
+                    android:id="@+id/swOcrFallback"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="屏幕文字少时自动截屏识别（图片/游戏/视频字幕）" />
 
                 <TextView
                     android:layout_width="wrap_content"

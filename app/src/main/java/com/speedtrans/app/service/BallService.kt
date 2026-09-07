@@ -2,13 +2,15 @@ package com.speedtrans.app.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -22,6 +24,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ImageView
 import android.widget.TextView
+import com.speedtrans.app.ocr.OcrEngine
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.translate.TextCollector
 import com.speedtrans.app.translate.TranslateCoordinator
@@ -29,12 +32,22 @@ import java.io.File
 import kotlin.math.hypot
 
 /**
- * 无障碍服务：绘制悬浮球 + 抓取屏幕文字 + 触发翻译编排。
+ * 无障碍服务：绘制悬浮球 + 取词/截屏 + 触发翻译。
+ *
+ * 取词三态（设置页/通知栏可切）：
+ * - 📄 仅文本：无障碍节点取词（原文零误差）
+ * - 🖼 仅识图：静默截屏 + 端侧 OCR（游戏/图片/视频字幕，100% 画面内容）
+ * - 🤖 智能（默认）：先取词，字数低于阈值或前台是游戏 → 自动转识图
+ *
+ * 双击悬浮球（时间窗可调）= 取消当前 + 强制识图翻当前画面。
+ * 识图截屏完全静默（无动画无声音不留文件），图像仅在本地识别。
  */
 class BallService : AccessibilityService() {
 
     companion object {
         private const val TAG = "SpeedTrans"
+        private const val MAX_CHARS = 12000
+        const val ACTION_OCR = "com.speedtrans.app.action.OCR"
 
         @Volatile
         var instance: BallService? = null
@@ -44,6 +57,24 @@ class BallService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var ball: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
+    private var overlay: com.speedtrans.app.overlay.ResultOverlay? = null
+    private var lastTapTime = 0L
+    private var lastRects: List<android.graphics.Rect> = emptyList()
+
+    /** 上一次成功提交翻译的完整原文 —— 用于增量翻译判断 */
+    private var lastSource: String = ""
+
+    /** 上一次的完整译文 —— 用于相同内容秒回 */
+    private var lastTranslation: String = ""
+
+    private var currentCall: okhttp3.Call? = null
+
+    /** 前台应用包名（窗口切换事件跟踪，用于游戏检测） */
+    private var fgPackage: String = ""
+
+    override fun onCreate() {
+        super.onCreate()
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -59,16 +90,32 @@ class BallService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    /** 跟踪前台应用包名（游戏检测用） */
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val pkg = event.packageName?.toString()
+            if (!pkg.isNullOrEmpty() && pkg != packageName) fgPackage = pkg
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 通知栏「🖼 识图翻译」入口：全屏游戏场景下拉通知即可触发
+        if (intent?.action == ACTION_OCR) {
+            mainHandler.post { captureAndOcr(force = true) }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
 
     /** 全局返回键过滤：译文面板打开时，按返回 = 关闭面板 */
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN &&
-            event.keyCode == KeyEvent.KEYCODE_BACK &&
-            TranslateCoordinator.overlayVisible
+            event.keyCode == KeyEvent.KEYCODE_BACK
         ) {
-            mainHandler.post { TranslateCoordinator.closeOverlay() }
-            return true
+            val ov = overlay
+            if (ov?.visible == true) {
+                mainHandler.post { ov.close() }
+                return true
+            }
         }
         return super.onKeyEvent(event)
     }
@@ -76,6 +123,8 @@ class BallService : AccessibilityService() {
     private fun wm(): WindowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
+
+    // ---------------- 悬浮球 ----------------
 
     private fun showBall() {
         if (!Settings.canDrawOverlays(this) || ball != null) return
@@ -181,17 +230,140 @@ class BallService : AccessibilityService() {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragging) startTranslate()
+                    if (!dragging) onBallTap()
                 }
             }
             return true
         }
     }
 
-    fun startTranslate() {
+    // ---------------- 点击判定：单击 = 智能，双击 = 强制识图 ----------------
+
+    private fun onBallTap() {
+        val st = SettingsStore(this)
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastTapTime <= st.doubleTapWindowMs) {
+            // 双击：取消当前请求，强制截屏识别（100% 画面内容）
+            lastTapTime = 0
+            currentCall?.cancel()
+            TranslateCoordinator.closeOverlay()
+            captureAndOcr(force = true)
+        } else {
+            lastTapTime = now
+            smartTranslate()
+        }
+    }
+
+    // ---------------- 抓取 + 三态判定 + OCR ----------------
+
+    private fun collectScreen(): TextCollector.Collected {
         val root: AccessibilityNodeInfo? = rootInActiveWindow
-        val text = if (root != null) TextCollector.collect(root) else ""
-        TranslateCoordinator.startTranslate(this, text)
+        val c = if (root != null) TextCollector.collectWithRects(root)
+                else TextCollector.Collected("", emptyList())
+        var text = c.text
+        if (text.length > MAX_CHARS) text = text.take(MAX_CHARS) + "\n…[内容过长已截断]"
+        lastRects = c.rects
+        return TextCollector.Collected(text, c.rects)
+    }
+
+    /** 单击入口：按当前模式分发 */
+    fun startTranslate() {
+        when (SettingsStore(this).translateMode) {
+            "ocr" -> captureAndOcr(force = true)
+            "text" -> smartTranslate(forceText = true)
+            else -> smartTranslate()
+        }
+    }
+
+    private fun smartTranslate(forceText: Boolean = false) {
+        val st = SettingsStore(this)
+        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
+        ov.ensure()
+
+        val collected = collectScreen()
+
+        // 智能判定：文字少于阈值 或 前台是游戏 → 自动转识图
+        val fewText = collected.text.trim().length < st.smartThresholdChars
+        val autoOcr = !forceText && st.ocrFallback && (
+                fewText || (st.gameAutoDetect && isForegroundGame())
+                )
+
+        if (autoOcr && Build.VERSION.SDK_INT >= 30) {
+            ov.showStatus("📷 屏幕文字较少，正在识别画面内容…")
+            captureAndOcr(force = false)
+            return
+        }
+
+        TranslateCoordinator.startTranslate(this, collected.text)
+    }
+
+    /** 前台应用是否被系统标记为游戏 */
+    private fun isForegroundGame(): Boolean {
+        if (fgPackage.isEmpty()) return false
+        return try {
+            packageManager.getApplicationInfo(fgPackage, 0).category ==
+                    ApplicationInfo.CATEGORY_GAME
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // ---------------- 静默截屏 + 端侧 OCR ----------------
+
+    private var ocrBusy = false
+
+    fun captureAndOcr(force: Boolean) {
+        if (ocrBusy) return
+        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
+        ov.ensure()
+
+        if (Build.VERSION.SDK_INT < 30) {
+            ov.showStatus("⚠️ 图像识别需要 Android 11 及以上")
+            return
+        }
+        ocrBusy = true
+        ov.showStatus("📷 正在静默截屏并识别…")
+
+        takeScreenshot(mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(result: ScreenshotResult) {
+                val hw = result.hardwareBuffer
+                val bmp = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
+                    ?.copy(Bitmap.Config.ARGB_8888, false)
+                hw.close()
+                if (bmp == null) {
+                    ocrBusy = false
+                    mainHandler.post { ov.showStatus("⚠️ 截屏转换失败") }
+                    return
+                }
+                // 非强制（自动回退）时：剔除文本层坐标，OCR 只认像素层内容，与文本路零重复
+                val exclude = if (force) emptyList() else lastRects
+                OcrEngine.recognize(
+                    this@BallService, bmp, exclude,
+                    onResult = { t ->
+                        ocrBusy = false
+                        mainHandler.post {
+                            if (t.isEmpty()) {
+                                ov.showStatus("⚠️ 画面中没有识别到文字")
+                            } else {
+                                // OCR 结果走独立管线（与无障碍文本的增量状态互不干扰）
+                                TranslateCoordinator.startTranslate(this@BallService, t)
+                            }
+                        }
+                    },
+                    onFail = { e ->
+                        ocrBusy = false
+                        mainHandler.post { ov.showStatus("⚠️ 识别失败：${e?.message ?: "请重试"}") }
+                    }
+                )
+            }
+
+            override fun onFailure(errorCode: Int) {
+                ocrBusy = false
+                mainHandler.post {
+                    ov.showStatus("⚠️ 截屏失败（code $errorCode），请稍后再试")
+                }
+            }
+        })
     }
 
     private fun decodeScaled(path: String, target: Int): Bitmap {
@@ -201,5 +373,10 @@ class BallService : AccessibilityService() {
         while (bounds.outWidth / (sample * 2) >= target) sample *= 2
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         return BitmapFactory.decodeFile(path, opts)
+    }
+
+    fun copyToClipboard(text: String) {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("translation", text))
     }
 }
