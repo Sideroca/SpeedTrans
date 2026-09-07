@@ -70,6 +70,7 @@ object OcrEngine {
         }
 
         val lines = ArrayList<Text.Line>()
+        val total = recs.size
         var settled = 0
         var success = 0
         var lastError: Exception? = null

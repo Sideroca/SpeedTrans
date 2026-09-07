@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -324,7 +325,7 @@ class BallService : AccessibilityService() {
         ocrBusy = true
         ov.showStatus("📷 正在静默截屏并识别…")
 
-        takeScreenshot(mainExecutor, object : TakeScreenshotCallback {
+        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(result: ScreenshotResult) {
                 val hw = result.hardwareBuffer
                 val bmp = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
