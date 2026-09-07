@@ -52,6 +52,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestNotificationPermission()
+        // 注意：ScreenBallService 只能在用户完成屏幕捕捉授权后启动（Android 14 要求），
+        // 由 AuthorizeActivity 在授权成功后启动。此处不得提前启动。
     }
 
     override fun onResume() {
@@ -59,10 +61,7 @@ class MainActivity : AppCompatActivity() {
         val st = SettingsStore(this)
         val ocrMode = st.engine == "ocr"
 
-        // OCR 引擎：悬浮球由 ScreenBallService 绘制（普通前台服务）
-        if (ocrMode) {
-            ContextCompat.startForegroundService(this, Intent(this, ScreenBallService::class.java))
-        }
+        // OCR 引擎：服务由授权流程启动（授权后长驻）；此处不主动启动
 
         val overlayOk = Settings.canDrawOverlays(this)
         tvOverlay.text = if (overlayOk) "✅ 悬浮窗权限已开启"

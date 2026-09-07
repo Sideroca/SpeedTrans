@@ -65,22 +65,36 @@ class ScreenBallService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForegroundNotify()
         instance = this
-        mainHandler.post { showBall() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.hasExtra(EXTRA_RESULT_CODE) == true) {
-            try {
-                ProjectionHolder.init(this, intent.getIntExtra(EXTRA_RESULT_CODE, -1),
-                    intent.getParcelableExtra(EXTRA_DATA)!!)
-                mainHandler.postDelayed({ grabAndTranslate() }, 400)
-            } catch (e: Exception) {
-                Log.e(TAG, "projection init", e)
-            }
+        // Android 14 时序要求：必须先取得用户授权（consent token），
+        // 才能以 mediaProjection 类型进入前台。
+        val rc = intent?.getIntExtra(EXTRA_RESULT_CODE, -1) ?: -1
+        val data = intent?.getParcelableExtra<Intent>(EXTRA_DATA)
+        if (rc == -1 || data == null) {
+            // 被系统重启且无授权数据：无法工作，等待用户重新授权
+            stopSelf()
+            return START_NOT_STICKY
         }
-        return START_STICKY
+        return try {
+            val sm = getSystemService(MediaProjectionManager::class.java) as MediaProjectionManager
+            // 1) 拿投影（在 startForegroundService 后的宽限窗口内调用合法）
+            ProjectionHolder.init(this, rc, data)
+            // 2) 有 session 后进入前台（mediaProjection 类型，合规）
+            startForegroundNotify()
+            // 3) 画球并立即翻译一次
+            mainHandler.post {
+                showBall()
+                mainHandler.postDelayed({ grabAndTranslate() }, 400)
+            }
+            START_STICKY
+        } catch (e: Exception) {
+            Log.e(TAG, "projection init failed", e)
+            stopSelf()
+            START_NOT_STICKY
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
