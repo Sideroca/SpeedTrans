@@ -95,7 +95,9 @@ class ResultOverlay(private val service: BallService) {
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.BOTTOM or Gravity.START
-        lp.setMargins(dp(10), 0, dp(10), dp(16))
+        // gravity 为 BOTTOM|START 时：x = 距左边缘偏移，y = 距底边缘偏移
+        lp.x = dp(10)
+        lp.y = dp(16)
 
         wm?.addView(box, lp)
         root = box
