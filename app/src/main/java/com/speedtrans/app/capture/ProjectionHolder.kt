@@ -64,7 +64,7 @@ object ProjectionHolder {
         busy = true
         var grabbed = false
 
-        fun process(img: android.view.ImageReader.Image) {
+        fun process(img: android.media.Image) {
             try {
                 val plane = img.planes[0]
                 val buf = plane.rowBuffer
