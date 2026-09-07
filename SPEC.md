@@ -68,12 +68,42 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 3. **形状与签名**：卡片圆角、按钮圆角滑条、实心/描边切换（已有）；签名文字自定义（默认 ✦ glm5.3flash(๑ت๑)）；Tab emoji 可替换（备选字符需避开缺字形）
 4. **主题 JSON 导出/导入**（社区分享）
 
-**提示词哲学（v3.4 起生效，用户明确要求）**：代码不内置兜底提示词。默认文案只作为设置页输入框的预填值（看得见、可全删、可改成任何玩法，比如加一句"轻响，我爱你"）；用户清空保存 = 真正为空，请求中不发送 system 消息。Engine 内已无 DEFAULT_SYS_PROMPT 引用。
+**提示词防呆设计（v3.5 定稿，用户钦点保留）**：留空 = 引擎使用内置极速翻译词兜底（防手滑删空导致质量崩坏）；填写任意内容 = 完全以用户为准（可加"轻响，我爱你"、16 进制颜色码转色名等任何玩法）。默认文案预填在设置页输入框（可见可删可改）。设置页提示词标签行**长按浮现规则气泡**（View.setTooltipText，触发模式：一行字当按钮，按住浮现另一行字）。红线：此区域任何改动不得损害极速。
 
 交互：设置页新增「🎛 自定义」分类 → 所见即所得编辑器（上半实时预览，下半分组编辑项），"另存为我的主题"独立保存，不覆盖 22 预设。
 实现要点：SP 存 customPalette JSON；ThemeEngine.current() 优先返回自定义主题；编辑器约 600 行；风险仅字体导入失败（自动回退）。
 兼容性承诺：全部标准 API，vivo/OPPO/荣耀（MagicOS）可用；鸿蒙 NEXT 不兼容 APK（需原生重写，已放弃）。
 
+## 六B、文件地图（模块与文件作用——最熟悉的人写的）
+
+```
+app/src/main/java/com/speedtrans/app/
+├── MainActivity.kt                  入口页：三权限状态卡 + 快捷主题色球条（撞色条底）+ 保活启动
+├── SettingsActivity.kt              设置页：5 标签页（🔌接口/🎨主题/⚡悬浮球面板/🖼桌面/✍️其他）
+│                                    · 主题选择器：分类 chips + 整套配色预览卡（三段色条+名字）
+│                                    · 面板按钮自定义（显隐/左右/边距）· 提示词标签长按浮现规则
+├── service/BallService.kt           无障碍服务：悬浮球（文字/图片）绘制 + 节点取词触发
+│                                    + onKeyEvent 返回键关面板（flagRequestFilterKeyEvents）
+├── service/KeepAliveService.kt      前台保活：常驻通知（specialUse 类型，防 MIUI 杀）
+├── overlay/ResultOverlay.kt         译文面板：撞色条标题栏（barBg/barText）+ 高度/按钮/边距
+│                                    + 可聚焦窗口监听返回键 + removeViewImmediate 即时关闭
+├── translate/TranslateEngine.kt     流式引擎：qwen-mt 协议自动切换 / enable_thinking=false
+│                                    / 提示词防呆兜底（ifBlank→DEFAULT） / 续段标记
+├── translate/TextCollector.kt       节点树取词：可见性过滤+位置排序+同行合并+坐标记录
+├── translate/TranslateCoordinator.kt 编排单例：增量判断（startsWith）/秒回缓存/取消旧请求
+├── theme/ThemeEngine.kt             22 套 Palette（现代 18 + 中国传统色 4）+ applyTo 视图树染色
+├── store/SettingsStore.kt           全配置存取 + 所有默认值定义（模型/预填提示词/API/Key）
+app/src/main/res/layout/
+├── activity_main.xml                主界面（fitsSystemWindows + 色球条 HorizontalScrollView）
+├── activity_settings.xml            设置页 5 Tab（Tab 行=撞色条背景，改布局勿动 fitsSystemWindows）
+app/src/main/res/xml/
+└── accessibility_service_config.xml 无障碍配置（flagRequestFilterKeyEvents 勿删=返回键失效）
+仓库根/
+├── debug.keystore                   固定签名（删除 = 永远无法覆盖安装）
+├── SPEC.md                          本文档
+├── AGENTS.md                        AI 实例入口（指向本文档）
+└── .github/workflows/build.yml      云构建（push 即编译，慎推）
+```
 ## 七、未排期候选
 
 - 原位显示：译文面板定位到主体文本节点坐标附近（TextCollector 已记录 Rect），"沉浸式翻译"同款思路；坐标失败回退底部

@@ -108,9 +108,9 @@ class TranslateEngine(private val store: SettingsStore) {
             store.baseUrl.contains("dashscope") || store.baseUrl.contains("aliyun")
 
         // 续段标记：让模型知道这是长文本的延续，所有规则对本段同样生效
+        // 防呆设计（用户钦定保留）：留空 = 内置极速翻译词；填写任意内容 = 完全以用户为准
         val userContent = if (isContinuation && !isMtModel) "【续段】$text" else text
-        // 提示词哲学：不内置兜底。空 = 不发送 system 消息（用户在设置页预填/自定义）
-        val systemPrompt = store.customPrompt +
+        val systemPrompt = store.customPrompt.ifBlank { SettingsStore.DEFAULT_SYS_PROMPT } +
                 if (isContinuation && !isMtModel)
                     "\n(Note: the user message is a continuation segment of previously submitted content. ALL the same rules apply to this segment as well.)"
                 else ""
