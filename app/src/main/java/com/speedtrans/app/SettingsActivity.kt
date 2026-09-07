@@ -178,7 +178,7 @@ class SettingsActivity : AppCompatActivity() {
         val name = TextView(this).apply {
             text = p.name
             textSize = 13f
-            setTextColor(if (selected) pal.accent else pal.text)
+            setTextColor(if (selected) p.accent else p.text)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginStart = (10 * d).toInt()
