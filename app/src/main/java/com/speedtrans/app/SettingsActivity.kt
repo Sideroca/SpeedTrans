@@ -118,14 +118,14 @@ class SettingsActivity : AppCompatActivity() {
         val chipModern = findViewById<TextView>(R.id.chipModern)
         val chipChinese = findViewById<TextView>(R.id.chipChinese)
         val cardRow = findViewById<LinearLayout>(R.id.themeCardRow)
+        val d = resources.displayMetrics.density
 
         fun selectCategory(modern: Boolean) {
             val list = if (modern) ThemeEngine.palettes.filter { it.group == "modern" }
                        else ThemeEngine.palettes.filter { it.group == "chinese" }
-            // chip 高亮
             fun style(chip: TextView, on: Boolean) {
                 chip.background = ThemeEngine.cardDrawable(
-                    if (on) pal.accent else pal.card, 18f, resources.displayMetrics.density, pal.cardStroke)
+                    if (on) pal.accent else pal.card, 18f, d, pal.cardStroke)
                 chip.setTextColor(if (on) {
                     if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
                 } else pal.text)
@@ -135,60 +135,61 @@ class SettingsActivity : AppCompatActivity() {
             style(chipChinese, !modern)
 
             cardRow.removeAllViews()
-            list.forEach { p -> cardRow.addView(themeCard(p, p.id == ThemeEngine.current(this).id)) }
+            list.forEach { p -> cardRow.addView(themeRow(p, p.id == ThemeEngine.current(this).id)) }
         }
         chipModern.setOnClickListener { selectCategory(true) }
         chipChinese.setOnClickListener { selectCategory(false) }
         selectCategory(true)
     }
 
-    /** 整套配色预览卡：三段色条（强调/卡片/背景）+ 主题名，点击即换装 */
-    private fun themeCard(p: Palette, selected: Boolean): View {
+    /** 全宽主题行：左三段色条（整套搭配预览）+ 右主题名，整行可点 */
+    private fun themeRow(p: Palette, selected: Boolean): View {
         val d = resources.displayMetrics.density
-        val cur = ThemeEngine.current(this)
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding((8 * d).toInt(), (8 * d).toInt(), (8 * d).toInt(), (6 * d).toInt())
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (10 * d).toInt())
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = (10 * d).toInt() }
+            ).apply { bottomMargin = (8 * d).toInt() }
             background = ThemeEngine.cardDrawable(
-                p.card, 12f, d,
+                if (selected) p.barBg else p.card, 12f, d,
                 if (selected) p.accent else p.cardStroke
             )
         }
-        // 三段配色条：accent 一半，card/bg 各四分之一 —— 整套搭配一目了然
+        // 三段色条：accent 一半，card/bg 各四分之一 —— 整套搭配一目了然
         val strip = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams((72 * d).toInt(), (30 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams((96 * d).toInt(), (30 * d).toInt())
             background = GradientDrawable().apply {
                 cornerRadius = (6 * d)
                 setColor(p.bg)
             }
             clipToOutline = true
         }
-        listOf(p.accent to 0.5f, p.card to 0.25f, p.bg to 0.25f).forEach { (col, weight) ->
+        listOf(p.accent to 0.5f, p.card to 0.25f, p.bg to 0.25f).forEach { (col, w) ->
             val seg = View(this).apply { setBackgroundColor(col) }
-            seg.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, weight)
+            seg.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, w)
             strip.addView(seg)
         }
-        card.addView(strip)
+        row.addView(strip)
 
         val name = TextView(this).apply {
             text = p.name
-            textSize = 11f
-            gravity = Gravity.CENTER
-            setTextColor(if (selected) p.accent else p.subText)
+            textSize = 13f
+            setTextColor(if (selected) pal.accent else pal.text)
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = (6 * d).toInt() }
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = (10 * d).toInt()
+            }
         }
-        card.addView(name)
-        return card
+        row.addView(name)
+        row.setOnClickListener {
+            ThemeEngine.save(this, p.id)
+            recreate()
+        }
+        return row
     }
 
     // ---------- 翻译接口 ----------

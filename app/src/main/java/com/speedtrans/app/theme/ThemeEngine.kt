@@ -223,7 +223,10 @@ object ThemeEngine {
                 view.setHintTextColor(pal.subText)
             }
             is TextView -> {
-                view.background = cardDrawable(pal.card, pal.cardRadius.toFloat(), density, pal.cardStroke)
+                // 白名单制：只有明确标记的才上卡片背景，说明文字保持纯文字
+                if (view.id in cardIds) {
+                    view.background = cardDrawable(pal.card, pal.cardRadius.toFloat(), density, pal.cardStroke)
+                }
                 view.setTextColor(when (view.id) {
                     in cardIds -> pal.text
                     in subIds -> pal.subText

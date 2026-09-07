@@ -59,7 +59,6 @@ class BallService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var ball: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
-    private var overlay: com.speedtrans.app.overlay.ResultOverlay? = null
     private var lastRects: List<android.graphics.Rect> = emptyList()
 
     /** 上一次成功提交翻译的完整原文 —— 用于增量翻译判断 */
@@ -112,7 +111,7 @@ class BallService : AccessibilityService() {
         if (event.action == KeyEvent.ACTION_DOWN &&
             event.keyCode == KeyEvent.KEYCODE_BACK
         ) {
-            val ov = overlay
+            val ov = TranslateCoordinator.overlay(this)
             if (ov?.visible == true) {
                 mainHandler.post { ov.close() }
                 return true
@@ -268,7 +267,7 @@ class BallService : AccessibilityService() {
 
     private fun smartTranslate(forceText: Boolean = false) {
         val st = SettingsStore(this)
-        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
+        val ov = TranslateCoordinator.overlay(this)
         ov.ensure()
 
         val collected = collectScreen()
@@ -305,7 +304,7 @@ class BallService : AccessibilityService() {
 
     fun captureAndOcr(force: Boolean) {
         if (ocrBusy) return
-        val ov = overlay ?: com.speedtrans.app.overlay.ResultOverlay(this).also { overlay = it }
+        val ov = TranslateCoordinator.overlay(this)
         ov.ensure()
 
         if (Build.VERSION.SDK_INT < 30) {

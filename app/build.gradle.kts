@@ -10,9 +10,9 @@ android {
     defaultConfig {
         applicationId = "com.speedtrans.app"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 10
-        versionName = "3.3"
+        targetSdk = 34
+        versionCode = 14
+        versionName = "3.7"
     }
 
     signingConfigs {
