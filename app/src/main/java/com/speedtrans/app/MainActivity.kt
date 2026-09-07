@@ -4,12 +4,15 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -34,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         btnA11y = findViewById(R.id.btnA11y)
 
         applyTheme()
+        bindQuickTheme()
 
         findViewById<Button>(R.id.btnOverlay).setOnClickListener {
             startActivity(
@@ -63,6 +67,32 @@ class MainActivity : AppCompatActivity() {
             cardIds = setOf(R.id.tvOverlay, R.id.tvA11y, R.id.tvApi, R.id.tvUsage),
             subIds = setOf(R.id.tvSubtitle, R.id.tvSign)
         )
+    }
+
+    /** 主界面快捷主题条：点色球即换装（当前主题带描边高亮） */
+    private fun bindQuickTheme() {
+        val row = findViewById<LinearLayout>(R.id.quickThemeRow)
+        val pal = ThemeEngine.current(this)
+        val cur = pal.id
+        val size = (30 * resources.displayMetrics.density).toInt()
+        val margin = (8 * resources.displayMetrics.density).toInt()
+        ThemeEngine.palettes.forEach { p ->
+            val v = View(this)
+            v.layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = margin }
+            v.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(p.accent)
+                setStroke(
+                    if (p.id == cur) (4 * resources.displayMetrics.density).toInt() else 0,
+                    if (Color.luminance(pal.bg) > 0.5f) 0xFF999999.toInt() else 0xFFFFFFFF.toInt()
+                )
+            }
+            v.setOnClickListener {
+                ThemeEngine.save(this, p.id)
+                recreate()
+            }
+            row.addView(v)
+        }
     }
 
     override fun onResume() {

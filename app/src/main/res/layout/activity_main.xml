@@ -26,6 +26,13 @@
             android:text="点一下悬浮球 → 立即流式翻译屏幕文字（英→中）"
             android:textSize="14sp" />
 
+        <LinearLayout
+            android:id="@+id/quickThemeRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal" />
+
         <TextView
             android:id="@+id/tvOverlay"
             android:layout_width="match_parent"
