@@ -36,7 +36,7 @@ class KeepAliveService : Service() {
                     "text" -> "ocr"
                     else -> "smart"
                 }
-                updateNotification()
+                startForeground()   // 重新构建通知（标题显示新模式）
             }
         }
         return START_STICKY
