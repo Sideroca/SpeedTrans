@@ -26,7 +26,7 @@ class KeepAliveService : Service() {
             }
         )
         val n = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_translate)
+            .setSmallIcon(com.speedtrans.app.R.drawable.ic_app)
             .setContentTitle("闪译运行中")
             .setContentText("悬浮球待命 · 划掉最近任务不影响使用")
             .setOngoing(true)

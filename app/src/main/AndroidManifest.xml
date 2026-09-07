@@ -13,25 +13,51 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.App">
 
+        <!-- 主界面：桌面入口由 activity-alias 承担（支持图标/名称预设切换） -->
         <activity
             android:name=".MainActivity"
+            android:exported="true" />
+
+        <activity android:name=".SettingsActivity" android:exported="false" />
+
+        <activity-alias
+            android:name=".main_red"
+            android:targetActivity=".MainActivity"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_app"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
-        <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity-alias
+            android:name=".main_blue"
+            android:targetActivity=".MainActivity"
+            android:label="备忘录"
+            android:icon="@drawable/ic_app_blue"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
-        <service
-            android:name=".service.KeepAliveService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keep overlay translation ball alive; user-facing realtime screen translation" />
-        </service>
+        <activity-alias
+            android:name=".main_green"
+            android:targetActivity=".MainActivity"
+            android:label="工具箱"
+            android:icon="@drawable/ic_app_green"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name=".service.BallService"
@@ -44,6 +70,15 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".service.KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keep overlay translation ball alive; user-facing realtime screen translation" />
         </service>
     </application>
 </manifest>

@@ -4,8 +4,12 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
@@ -14,26 +18,29 @@ import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.ImageView
 import android.widget.TextView
 import com.speedtrans.app.overlay.ResultOverlay
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.translate.TextCollector
 import com.speedtrans.app.translate.TranslateEngine
 import okhttp3.Call
+import java.io.File
 import kotlin.math.hypot
 
 /**
  * 核心：无障碍服务。
- * 职责：绘制悬浮球 + 抓取屏幕文字 + 编排流式翻译。
+ * 职责：绘制悬浮球（文字球/自定义图片球）+ 抓取屏幕文字 + 编排流式翻译。
  */
 class BallService : AccessibilityService() {
 
     companion object {
         private const val TAG = "SpeedTrans"
-        /** 单次翻译原文上限（字符），防止极端长文拖垮输出时间 */
+        /** 单次翻译原文上限（字符） */
         private const val MAX_CHARS = 12000
 
         @Volatile
@@ -51,7 +58,7 @@ class BallService : AccessibilityService() {
     /** 上一次成功提交翻译的完整原文 —— 用于增量翻译判断 */
     private var lastSource: String = ""
 
-    /** 上一次的完整译文（窗内全部内容）—— 用于相同内容秒回 */
+    /** 上一次的完整译文 —— 用于相同内容秒回 */
     private var lastTranslation: String = ""
 
     override fun onCreate() {
@@ -86,18 +93,11 @@ class BallService : AccessibilityService() {
 
     private fun showBall() {
         if (!Settings.canDrawOverlays(this) || ball != null) return
-        val tv = TextView(this).apply {
-            text = "译"
-            textSize = 18f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xE6FF4757.toInt())
-            }
-        }
+        val st = SettingsStore(this)
+        val sizePx = dp(st.ballSizeDp)
+
         val lp = WindowManager.LayoutParams(
-            dp(52), dp(52),
+            sizePx, sizePx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -106,10 +106,50 @@ class BallService : AccessibilityService() {
         lp.gravity = Gravity.TOP or Gravity.START
         lp.x = dp(12)
         lp.y = dp(180)
-        tv.setOnTouchListener(BallTouchListener(lp))
+
+        val imgPath = st.ballImagePath
+        val view: View = if (imgPath.isNotEmpty() && File(imgPath).exists()) {
+            // 自定义图片球（按形状裁剪）
+            ImageView(this).apply {
+                setImageBitmap(decodeScaled(imgPath, sizePx * 2))
+                clipToOutline = true
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(v: View, o: Outline) {
+                        if (st.ballCircle) {
+                            o.setOval(0, 0, v.width, v.height)
+                        } else {
+                            o.setRoundRect(
+                                0f, 0f, v.width.toFloat(), v.height.toFloat(),
+                                dp(st.ballSizeDp / 4).toFloat()
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // 文字球
+            TextView(this).apply {
+                text = st.ballText
+                textSize = st.ballSizeDp * 0.34f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                background = GradientDrawable().apply {
+                    if (st.ballCircle) {
+                        shape = GradientDrawable.OVAL
+                    } else {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dp(st.ballSizeDp / 4).toFloat()
+                    }
+                    setColor(st.ballColorInt)
+                }
+            }
+        }
+
+        view.setOnTouchListener(BallTouchListener(lp))
         try {
-            wm().addView(tv, lp)
-            ball = tv
+            wm().addView(view, lp)
+            ball = view
             ballParams = lp
         } catch (e: Exception) {
             Log.e(TAG, "showBall", e)
@@ -120,6 +160,25 @@ class BallService : AccessibilityService() {
         ball?.let { try { wm().removeView(it) } catch (_: Exception) {} }
         ball = null
         ballParams = null
+    }
+
+    /** 外观设置变更后重建悬浮球 */
+    fun refreshBall() {
+        mainHandler.post { hideBall(); showBall() }
+    }
+
+    /** 面板外观变更后关闭面板（下次点球按新样式重建） */
+    fun resetOverlay() {
+        mainHandler.post { overlay?.close() }
+    }
+
+    private fun decodeScaled(path: String, target: Int): Bitmap {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= target) sample *= 2
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeFile(path, opts)
     }
 
     private inner class BallTouchListener(private val lp: WindowManager.LayoutParams) :
@@ -189,8 +248,7 @@ class BallService : AccessibilityService() {
             return
         }
 
-        // 2) 增量翻译：内容在增长（典型：模型思考持续输出），
-        //    新文本 = 旧文本 + 新增尾巴，只把尾巴发去翻译
+        // 2) 增量翻译：内容在增长（典型：模型思考持续输出）
         val incremental = lastSource.isNotEmpty() &&
                 text.length > lastSource.length &&
                 text.startsWith(lastSource)

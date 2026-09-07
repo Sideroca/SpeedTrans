@@ -33,6 +33,8 @@ class ResultOverlay(private val service: BallService) {
     fun ensure() {
         if (root != null) return
         val ctx = service
+        val st = com.speedtrans.app.store.SettingsStore(ctx)
+        val bs = st.overlayButtonScale
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val box = LinearLayout(ctx).apply {
@@ -58,10 +60,10 @@ class ResultOverlay(private val service: BallService) {
         }
         val btnCopy = TextView(ctx).apply {
             text = "复制"
-            textSize = 14f
+            textSize = 14f * bs
             setTextColor(0xFF1E88E5.toInt())
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(14), dp(8), dp(8), dp(8))
+            setPadding(dp((14 * bs).toInt()), dp((8 * bs).toInt()), dp((6 * bs).toInt()), dp((8 * bs).toInt()))
             setOnClickListener {
                 val t = tvOut?.text?.toString() ?: ""
                 if (t.isNotEmpty()) {
@@ -72,9 +74,9 @@ class ResultOverlay(private val service: BallService) {
         }
         val btnClose = TextView(ctx).apply {
             text = "✕"
-            textSize = 16f
+            textSize = 16f * bs
             setTextColor(0xFF666666.toInt())
-            setPadding(dp(14), dp(8), dp(4), dp(8))
+            setPadding(dp((14 * bs).toInt()), dp((8 * bs).toInt()), dp((4 * bs).toInt()), dp((8 * bs).toInt()))
             setOnClickListener { close() }
         }
         top.addView(status)
@@ -98,9 +100,9 @@ class ResultOverlay(private val service: BallService) {
         box.addView(top)
         box.addView(scroll)
 
-        // 面板高度 = 屏幕的 80%，宽全屏
+        // 面板高度 = 屏幕高度 × 用户设定百分比，宽全屏
         val screenH = ctx.resources.displayMetrics.heightPixels
-        val panelH = (screenH * 0.8f).toInt()
+        val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             panelH,

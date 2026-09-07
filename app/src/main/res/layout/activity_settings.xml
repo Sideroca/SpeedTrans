@@ -12,7 +12,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="翻译接口配置"
+            android:text="翻译接口"
             android:textColor="#222222"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -21,63 +21,260 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="填写任意 OpenAI 兼容接口。常用示例（接口地址 = 服务商地址 + /chat/completions）：\n\n千问·DashScope：\nhttps://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\n\nDeepSeek：\nhttps://api.deepseek.com/chat/completions"
+            android:text="支持任意 OpenAI 兼容服务。示例：\n千问：https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\nDeepSeek：https://api.deepseek.com/chat/completions"
             android:textColor="#777777"
             android:textSize="12sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="接口地址（完整 URL）"
-            android:textSize="13sp"
-            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/etUrl"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="https://.../v1/chat/completions"
+            android:layout_marginTop="8dp"
+            android:hint="接口地址（完整 URL）"
             android:inputType="textUri"
             android:textSize="13sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="API Key"
-            android:textSize="13sp"
-            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/etKey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="sk-..."
+            android:hint="API Key"
+            android:inputType="text"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/etModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="qwen3.7-flash / qwen-mt-flash / deepseek-chat"
             android:inputType="text"
             android:textSize="13sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="模型名（追求首字延迟选小快模型）"
-            android:textSize="13sp"
+            android:layout_marginTop="24dp"
+            android:text="悬浮球外观"
+            android:textColor="#222222"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <EditText
-            android:id="@+id/etModel"
+            android:id="@+id/etBallText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="qwen-mt-flash / qwen-mt-lite / deepseek-chat"
+            android:layout_marginTop="8dp"
+            android:hint="球上文字，如：译 / A / 中"
             android:inputType="text"
             android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="颜色"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/colorRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+
+        <RadioGroup
+            android:id="@+id/rgShape"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbCircle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="圆形" />
+
+            <RadioButton
+                android:id="@+id/rbRounded"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="圆角方形" />
+        </RadioGroup>
+
+        <RadioGroup
+            android:id="@+id/rgSize"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="小" />
+
+            <RadioButton
+                android:id="@+id/rbMid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="标准" />
+
+            <RadioButton
+                android:id="@+id/rbBig"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="大" />
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/btnPickImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="从相册选择悬浮球图片（自动裁形状）" />
+
+        <Button
+            android:id="@+id/btnClearImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="恢复文字球" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="译文面板"
+            android:textColor="#222222"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="面板高度（占屏幕比例）"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <SeekBar
+                android:id="@+id/sbHeight"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="70"
+                android:progress="50" />
+
+            <TextView
+                android:id="@+id/tvHeightVal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="48dp"
+                android:text="80%"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="标题栏按钮大小"
+            android:textSize="13sp" />
+
+        <RadioGroup
+            android:id="@+id/rgBtnSize"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbBtnSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="小" />
+
+            <RadioButton
+                android:id="@+id/rbBtnMid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="标准" />
+
+            <RadioButton
+                android:id="@+id/rbBtnBig"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="大" />
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="App 图标与桌面入口"
+            android:textColor="#222222"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnAliasRed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="显示为：闪译（红色闪电图标）" />
+
+        <Button
+            android:id="@+id/btnAliasBlue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="显示为：备忘录（蓝色图标）" />
+
+        <Button
+            android:id="@+id/btnAliasGreen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="显示为：工具箱（绿色图标）" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="或用你自己的图片 + 名字，在桌面创建一个入口（原应用图标可拖入文件夹隐藏）："
+            android:textColor="#777777"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etShortcutName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="桌面入口名称"
+            android:inputType="text"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnPinShortcut"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="选图并创建桌面入口" />
 
         <Button
             android:id="@+id/btnSave"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="保存" />
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp"
+            android:text="保存全部设置" />
     </LinearLayout>
 </ScrollView>
