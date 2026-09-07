@@ -49,8 +49,7 @@ class BallService : AccessibilityService() {
 
     companion object {
         private const val TAG = "SpeedTrans"
-        private const val MAX_CHARS = 12000
-        const val ACTION_OCR = "com.speedtrans.app.action.OCR"
+            const val ACTION_OCR = "com.speedtrans.app.action.OCR"
 
         @Volatile
         var instance: BallService? = null
@@ -61,7 +60,6 @@ class BallService : AccessibilityService() {
     private var ball: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
     private var overlay: com.speedtrans.app.overlay.ResultOverlay? = null
-    private var lastTapTime = 0L
     private var lastRects: List<android.graphics.Rect> = emptyList()
 
     /** 上一次成功提交翻译的完整原文 —— 用于增量翻译判断 */
@@ -243,18 +241,7 @@ class BallService : AccessibilityService() {
     // ---------------- 点击判定：单击 = 智能，双击 = 强制识图 ----------------
 
     private fun onBallTap() {
-        val st = SettingsStore(this)
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (now - lastTapTime <= st.doubleTapWindowMs) {
-            // 双击：取消当前请求，强制截屏识别（100% 画面内容）
-            lastTapTime = 0
-            currentCall?.cancel()
-            TranslateCoordinator.closeOverlay()
-            captureAndOcr(force = true)
-        } else {
-            lastTapTime = now
-            smartTranslate()
-        }
+        startTranslate()
     }
 
     // ---------------- 抓取 + 三态判定 + OCR ----------------
@@ -263,8 +250,9 @@ class BallService : AccessibilityService() {
         val root: AccessibilityNodeInfo? = rootInActiveWindow
         val c = if (root != null) TextCollector.collectWithRects(root)
                 else TextCollector.Collected("", emptyList())
+        val maxChars = SettingsStore(this).maxChars
         var text = c.text
-        if (text.length > MAX_CHARS) text = text.take(MAX_CHARS) + "\n…[内容过长已截断]"
+        if (text.length > maxChars) text = text.take(maxChars) + "\n…[内容过长已截断]"
         lastRects = c.rects
         return TextCollector.Collected(text, c.rects)
     }

@@ -86,6 +86,11 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("btn_padding", 8)
         set(v) = sp.edit().putInt("btn_padding", v).apply()
 
+    /** 单次翻译原文长度上限（字符，4000~50000，超出截断） */
+    var maxChars: Int
+        get() = sp.getInt("max_chars", 12000)
+        set(v) = sp.edit().putInt("max_chars", v).apply()
+
     /** 屏幕文字少时自动截屏识别图片/游戏内容 */
     var ocrFallback: Boolean
         get() = sp.getBoolean("ocr_fallback", true)
@@ -100,11 +105,6 @@ class SettingsStore(context: Context) {
     var smartThresholdChars: Int
         get() = sp.getInt("smart_threshold", 20)
         set(v) = sp.edit().putInt("smart_threshold", v).apply()
-
-    /** 双击悬浮球翻图的时间窗（ms，默认 1500） */
-    var doubleTapWindowMs: Int
-        get() = sp.getInt("double_tap_window", 1500)
-        set(v) = sp.edit().putInt("double_tap_window", v).apply()
 
     /** 游戏前台自动识图（按应用分类检测，默认开） */
     var gameAutoDetect: Boolean

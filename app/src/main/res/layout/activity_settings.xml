@@ -403,7 +403,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="双击翻图时间窗"
+                    android:text="单次翻译原文上限（超出截断）"
                     android:textSize="13sp" />
 
                 <LinearLayout
@@ -413,19 +413,19 @@
                     android:orientation="horizontal">
 
                     <SeekBar
-                        android:id="@+id/sbDoubleTap"
+                        android:id="@+id/sbMaxChars"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:max="2500"
-                        android:progress="1000" />
+                        android:max="46"
+                        android:progress="8" />
 
                     <TextView
-                        android:id="@+id/tvDoubleTapVal"
+                        android:id="@+id/tvMaxCharsVal"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:minWidth="48dp"
-                        android:text="1.5s"
+                        android:minWidth="52dp"
+                        android:text="12k字"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>

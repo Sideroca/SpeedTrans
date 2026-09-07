@@ -324,13 +324,13 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
 
-        val sbD = findViewById<SeekBar>(R.id.sbDoubleTap)
-        val tvD = findViewById<TextView>(R.id.tvDoubleTapVal)
-        sbD.progress = (store.doubleTapWindowMs - 500).coerceIn(0, 2500)
-        tvD.text = "${(store.doubleTapWindowMs) / 1000.0}s"
-        sbD.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        val sbM = findViewById<SeekBar>(R.id.sbMaxChars)
+        val tvM = findViewById<TextView>(R.id.tvMaxCharsVal)
+        sbM.progress = ((store.maxChars - 4000) / 1000).coerceIn(0, 46)
+        tvM.text = "${store.maxChars}字"
+        sbM.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                tvD.text = "${(p + 500) / 1000.0}s"
+                tvM.text = "${p * 1000 + 4000}字"
             }
             override fun onStartTrackingTouch(s: SeekBar?) {}
             override fun onStopTrackingTouch(s: SeekBar?) {}
@@ -472,7 +472,7 @@ class SettingsActivity : AppCompatActivity() {
         }.toSet()
         store.gameAutoDetect = findViewById<Switch>(R.id.swGameDetect).isChecked
         store.smartThresholdChars = findViewById<SeekBar>(R.id.sbThreshold).progress + 5
-        store.doubleTapWindowMs = findViewById<SeekBar>(R.id.sbDoubleTap).progress + 500
+        store.maxChars = findViewById<SeekBar>(R.id.sbMaxChars).progress * 1000 + 4000
         store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
         store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked
         store.btnCloseLeft =

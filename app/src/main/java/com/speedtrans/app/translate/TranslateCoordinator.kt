@@ -15,8 +15,6 @@ import okhttp3.Call
  */
 object TranslateCoordinator {
 
-    private const val MAX_CHARS = 12000
-
     private var overlay: ResultOverlay? = null
     private var lastSource = ""
     private var lastTranslation = ""
@@ -50,8 +48,7 @@ object TranslateCoordinator {
         val ov = overlay(context)
         ov.ensure()
 
-        var text = rawText
-        if (text.length > MAX_CHARS) text = text.take(MAX_CHARS) + "\n…[内容过长已截断]"
+        val text = rawText
         if (text.length < 2) {
             ov.showStatus("⚠️ 没有抓到屏幕文字")
             return
