@@ -20,7 +20,7 @@ object ProjectionHolder {
 
     private var projection: MediaProjection? = null
     private var vDisplay: android.hardware.display.VirtualDisplay? = null
-    private var reader: android.view.ImageReader? = null
+    private var reader: android.media.ImageReader? = null
     private var handler: Handler? = null
     private var busy = false
 
@@ -33,7 +33,7 @@ object ProjectionHolder {
         handler = h
         val mp = sm.getMediaProjection(resultCode, data)
         val dm: DisplayMetrics = context.resources.displayMetrics
-        val r = android.view.ImageReader.newInstance(
+        val r = android.media.ImageReader.newInstance(
             dm.widthPixels, dm.heightPixels, PixelFormat.RGBA_8888, 2
         )
         mp.createVirtualDisplay(
