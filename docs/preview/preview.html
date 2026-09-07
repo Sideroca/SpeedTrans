@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>闪译 v3.0 主题预览</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#17181c; font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif; padding:14px; }
+.wrap { max-width:420px; margin:0 auto; }
+.tip { color:#8a8f9c; font-size:12px; padding:6px 2px; }
+.themebar { display:flex; gap:12px; overflow-x:auto; padding:8px 4px 12px; position:sticky; top:0; background:#17181c; z-index:9; }
+.tchip { min-width:52px; text-align:center; cursor:pointer; color:#8a8f9c; font-size:10px; user-select:none; }
+.tchip .dot { width:34px; height:34px; border-radius:50%; margin:0 auto 4px; border:3px solid transparent; }
+.tchip.on { color:#fff; }
+.tchip.on .dot { border-color:#fff; }
+.screen { background:var(--bg); border-radius:18px; padding:16px; margin-top:12px; transition:background .25s; }
+.screen h2 { font-size:17px; color:var(--text); }
+.sub { color:var(--sub); font-size:12px; margin:4px 0 10px; }
+.card { background:var(--card); border-radius:12px; padding:11px 12px; font-size:13px; margin-top:10px; border:var(--cardborder); box-shadow:var(--shadow); color:var(--text); }
+.btn { display:block; width:100%; background:var(--accent); color:var(--onaccent); border:none; border-radius:10px; padding:11px; font-size:14px; margin-top:10px; cursor:pointer; }
+.sign { color:var(--sub); font-size:11px; text-align:center; margin-top:12px; }
+.panel { margin-top:16px; background:var(--panel); border-radius:16px; box-shadow:var(--panelshadow); overflow:hidden; }
+.ptop { display:flex; align-items:center; padding:8px 10px; font-size:11px; color:var(--psub); }
+.px { font-size:14px; padding:0 4px; cursor:pointer; }
+.pcopy { color:var(--accent); font-weight:700; margin-left:8px; cursor:pointer; }
+.pbody { padding:4px 12px 12px; font-size:14px; line-height:1.5; color:var(--ptext); }
+.switcher { display:flex; gap:6px; margin-top:12px; }
+.sw { flex:1; text-align:center; font-size:12px; padding:7px 0; border-radius:9px; cursor:pointer; background:var(--card); color:var(--sub); border:1px solid var(--stroke); }
+.sw.on { background:var(--accent); color:var(--onaccent); border-color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="tip">↓ 点色球切换主题（10 套），下方三个界面实时换装</div>
+<div class="themebar" id="bar"></div>
+
+<!-- 主界面 -->
+<div class="screen" id="s1">
+  <h2>⚡ 闪译 SpeedTrans</h2>
+  <div class="sub">点一下悬浮球 → 立即流式翻译屏幕文字（英→中）</div>
+  <div class="card">✅ 悬浮窗权限已开启</div>
+  <div class="card">✅ 无障碍服务运行中（悬浮球常驻屏幕左侧）</div>
+  <div class="card">✅ 翻译接口已配置（模型：qwen3.7-flash）</div>
+  <button class="btn">① 去开启悬浮窗权限</button>
+  <button class="btn">🚑 去开启无障碍（10 秒）</button>
+  <button class="btn">③ 配置接口 / 提示词 / 外观</button>
+  <div class="card" style="font-size:12px">使用方法：单击悬浮球 = 流式翻译 · 再点 = 重翻 · 返回键 = 关面板 · 内容没变 = 秒回 · 模型思考 = 增量翻译<br><br>MIUI 防杀三步：锁定卡片 / 省电无限制 / 自启动</div>
+  <div class="sign">✦ glm5.3flash(๑ت๑) · 为极速而生的闪译</div>
+</div>
+
+<!-- 设置页（接口 tab） -->
+<div class="screen" id="s2">
+  <h2>🔌 接口</h2>
+  <div class="sub">设置页 · 5 个标签页，每页信息不再拥挤</div>
+  <div class="switcher">
+    <div class="sw on">🔌 接口</div><div class="sw">🎨 主题</div><div class="sw">⚡ 悬浮球</div><div class="sw">🖼 桌面</div><div class="sw">✍️ 其他</div>
+  </div>
+  <div class="card" style="font-family:monospace;font-size:11px">https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions</div>
+  <div class="card" style="font-family:monospace;font-size:11px">sk-ws-H.EXMXRPY••••••••</div>
+  <div class="card" style="font-family:monospace;font-size:11px">qwen3.7-flash</div>
+  <div class="card" style="font-size:12px">✍️ 自定义翻译提示词（留空使用默认；增量续段自动携带全部规则）</div>
+  <button class="btn">保存全部设置（固定底部）</button>
+</div>
+
+<!-- 译文面板 -->
+<div class="screen" id="s3">
+  <h2>📐 译文面板</h2>
+  <div class="sub">配色随主题 · 高度 30~100% 可调 · ✕/复制 按钮可显隐可左右 · 边距可调</div>
+  <div class="panel">
+    <div class="ptop"><span class="px">✕</span><span style="flex:1">⚡ 原文 141 字 · 秒回（内容未变）</span><span class="pcopy">复制</span></div>
+    <div class="pbody">时尚购物<br>Google practical tools<br>文件夹 天空<br>—— 这是示例译文，实际会流式逐字出现，从顶部开始，绝不自动滚动。</div>
+  </div>
+</div>
+</div>
+
+<script>
+const T = [
+ {id:"ios",    name:"iOS 经典", bg:"#F2F2F7", card:"#FFFFFF", accent:"#007AFF", text:"#000000", sub:"#8E8E93", panel:"#FFFFFF", ptext:"#000000", psub:"#8E8E93", stroke:"#C6C6C8", shadow:"none", shape:"12px"},
+ {id:"deepseek",name:"深海蓝",  bg:"#F7F8FA", card:"#FFFFFF", accent:"#4D6BFE", text:"#1F2329", sub:"#828A9B", panel:"#FFFFFF", ptext:"#1F2329", psub:"#828A9B", stroke:"#E3E7EF", shadow:"0 2px 8px rgba(20,40,120,.08)", shape:"14px"},
+ {id:"kimi",   name:"月白紫",   bg:"#FFFFFF", card:"#F7F9FC", accent:"#007CFF", text:"#002F5B", sub:"#8A99AC", panel:"#FFFFFF", ptext:"#002F5B", psub:"#8A99AC", stroke:"#E3E9F4", shadow:"0 2px 10px rgba(0,60,140,.07)", shape:"14px"},
+ {id:"qq",     name:"QQ 经典蓝", bg:"#F0F4F8", card:"#FFFFFF", accent:"#12B7F5", text:"#1A1A1A", sub:"#86909C", panel:"#FFFFFF", ptext:"#1A1A1A", psub:"#86909C", stroke:"#E1E8F0", shadow:"0 2px 8px rgba(18,183,245,.10)", shape:"14px"},
+ {id:"notion", name:"Notion 极简", bg:"#FFFFFF", card:"#F7F6F3", accent:"#2EAADC", text:"#37352F", sub:"#9B9A97", panel:"#FFFFFF", ptext:"#37352F", psub:"#9B9A97", stroke:"#E9E7E1", shadow:"none", shape:"10px"},
+ {id:"github", name:"GitHub 夜", bg:"#0D1117", card:"#161B22", accent:"#2F81F7", text:"#E6EDF3", sub:"#8B949E", panel:"#161B22", ptext:"#E6EDF3", psub:"#8B949E", stroke:"#30363D", shadow:"none", shape:"12px"},
+ {id:"discord",name:"Discord 夜", bg:"#313338", card:"#2B2D31", accent:"#5865F2", text:"#DBDEE1", sub:"#949BA4", panel:"#2B2D31", ptext:"#DBDEE1", psub:"#949BA4", stroke:"#3F4147", shadow:"none", shape:"14px"},
+ {id:"oled",   name:"OLED 纯黑", bg:"#000000", card:"#121212", accent:"#0A84FF", text:"#FFFFFF", sub:"#98989D", panel:"#121212", ptext:"#FFFFFF", psub:"#98989D", stroke:"#262626", shadow:"none", shape:"12px"},
+ {id:"neon",   name:"暗夜霓虹",  bg:"#0B1A16", card:"#12251F", accent:"#35D0A0", text:"#E7FFF6", sub:"#7FA896", panel:"#12251F", ptext:"#E7FFF6", psub:"#7FA896", stroke:"#1F3A30", shadow:"none", shape:"14px"},
+ {id:"violet", name:"紫电夜",    bg:"#170F2B", card:"#221742", accent:"#9C5CFF", text:"#F1EAFE", sub:"#9E90C4", panel:"#221742", ptext:"#F1EAFE", psub:"#9E90C4", stroke:"#33265A", shadow:"none", shape:"14px"}
+];
+function hexLum(hex){const n=parseInt(hex.slice(1),16);const r=(n>>16)&255,g=(n>>8)&255,b=n&255;return (0.2126*r+0.7152*g+0.0722*b)/255;}
+function apply(t){
+  const root=document.documentElement.style;
+  const onAccent = hexLum(t.accent)>0.5 ? "#111111" : "#FFFFFF";
+  root.setProperty("--bg",t.bg); root.setProperty("--card",t.card);
+  root.setProperty("--accent",t.accent); root.setProperty("--onaccent",onAccent);
+  root.setProperty("--text",t.text); root.setProperty("--sub",t.sub);
+  root.setProperty("--stroke",t.stroke); root.setProperty("--shadow",t.shadow);
+  root.setProperty("--panel",t.panel); root.setProperty("--ptext",t.ptext);
+  root.setProperty("--psub",t.psub);
+}
+const bar=document.getElementById("bar");
+T.forEach((t,i)=>{
+  const c=document.createElement("div");
+  c.className="tchip"+(i===1?" on":"");
+  c.innerHTML=`<div class="dot" style="background:${t.accent}"></div>${t.name}`;
+  c.onclick=()=>{ document.querySelectorAll(".tchip").forEach(e=>e.classList.remove("on")); c.classList.add("on"); apply(t); };
+  bar.appendChild(c);
+  if(i===1) apply(t);
+});
+</script>
+</body>
+</html>

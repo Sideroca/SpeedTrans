@@ -2,6 +2,22 @@
 
 一键流式屏幕翻译：**点一下悬浮球，当前屏幕英文立即流式翻译成中文**。
 
+## 🎨 主题图书馆（10 套经典配色）
+
+浅色系：
+
+<p>
+<img src="docs/preview/deepseek.png" width="240"><img src="docs/preview/kimi.png" width="240"><img src="docs/preview/qq.png" width="240"><img src="docs/preview/ios.png" width="240"><img src="docs/preview/notion.png" width="240">
+</p>
+
+暗色系：
+
+<p>
+<img src="docs/preview/github.png" width="240"><img src="docs/preview/discord.png" width="240"><img src="docs/preview/oled.png" width="240"><img src="docs/preview/neon.png" width="240"><img src="docs/preview/violet.png" width="240">
+</p>
+
+*取自各经典软件的公开设计语言：DeepSeek 空气感蓝 / Kimi 官方品牌蓝 / QQ 天蓝 / iOS 系统色 / Notion 极简 / GitHub Primer 暗色 / Discord blurple / OLED 纯黑 / 暗夜霓虹 / 紫电夜。设置 → 🎨 主题 一键切换。*
+
 设计目标只有一个字：**快**。
 
 - 取词不走截图/OCR，直接从系统无障碍节点树读文字（约 0.1~0.5 秒）
