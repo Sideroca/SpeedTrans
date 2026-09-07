@@ -317,7 +317,10 @@ class BallService : AccessibilityService() {
         val t0 = android.os.SystemClock.elapsedRealtime()
         ov.showStatus("📷 正在静默截屏…")
 
-        takeScreenshot(mainExecutor, object : TakeScreenshotCallback {
+        takeScreenshot(
+            android.view.Display.DEFAULT_DISPLAY,
+            mainExecutor,
+            object : TakeScreenshotCallback {
             override fun onSuccess(result: ScreenshotResult) {
                 val tShot = android.os.SystemClock.elapsedRealtime() - t0
                 val hw = result.hardwareBuffer
