@@ -53,35 +53,6 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="取词引擎"
-            android:textColor="#222222"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <RadioGroup
-            android:id="@+id/rgEngine"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="vertical">
-
-            <RadioButton
-                android:id="@+id/rbEngineOcr"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="OCR 截屏识别（推荐：权限温和、可识别图片文字）" />
-
-            <RadioButton
-                android:id="@+id/rbEngineA11y"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="无障碍读取（可抓折叠面板全文，MIUI 易杀）" />
-        </RadioGroup>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="自定义翻译提示词（留空使用默认；qwen-mt 模型作为领域提示生效）"
             android:textSize="13sp"

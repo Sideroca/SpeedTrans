@@ -28,9 +28,7 @@ import java.io.File
 import kotlin.math.hypot
 
 /**
- * 无障碍服务（可选引擎 "a11y"）。
- * 仅当用户在设置中选择无障碍取词引擎时绘制悬浮球并工作；
- * 默认引擎为 OCR（ScreenBallService）。
+ * 无障碍服务：绘制悬浮球 + 抓取屏幕文字 + 触发翻译编排。
  */
 class BallService : AccessibilityService() {
 
@@ -49,9 +47,7 @@ class BallService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        if (SettingsStore(this).engine == "a11y") {
-            mainHandler.post { showBall() }
-        }
+        mainHandler.post { showBall() }
     }
 
     override fun onDestroy() {

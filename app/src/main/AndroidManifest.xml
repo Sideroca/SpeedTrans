@@ -4,7 +4,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -19,11 +18,6 @@
             android:exported="true" />
 
         <activity android:name=".SettingsActivity" android:exported="false" />
-
-        <activity
-            android:name=".AuthorizeActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Transparent" />
 
         <activity-alias
             android:name=".main_red"
@@ -64,7 +58,6 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- 可选引擎：无障碍取词 -->
         <service
             android:name=".service.BallService"
             android:exported="false"
@@ -78,10 +71,8 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- 默认引擎：OCR 屏幕捕捉 + 前台保活 + 悬浮球 -->
         <service
-            android:name=".service.ScreenBallService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
+            android:name=".service.KeepAliveService"
+            android:exported="false" />
     </application>
 </manifest>
