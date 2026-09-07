@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -13,12 +13,17 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.App">
 
-        <!-- 主界面：桌面入口由 activity-alias 承担（支持图标/名称预设切换） -->
+        <!-- 桌面入口由 activity-alias 承担（支持图标/名称预设切换） -->
         <activity
             android:name=".MainActivity"
             android:exported="true" />
 
         <activity android:name=".SettingsActivity" android:exported="false" />
+
+        <activity
+            android:name=".AuthorizeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Transparent" />
 
         <activity-alias
             android:name=".main_red"
@@ -59,6 +64,7 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- 可选引擎：无障碍取词 -->
         <service
             android:name=".service.BallService"
             android:exported="false"
@@ -72,13 +78,10 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- 默认引擎：OCR 屏幕捕捉 + 前台保活 + 悬浮球 -->
         <service
-            android:name=".service.KeepAliveService"
+            android:name=".service.ScreenBallService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keep overlay translation ball alive; user-facing realtime screen translation" />
-        </service>
+            android:foregroundServiceType="mediaProjection" />
     </application>
 </manifest>

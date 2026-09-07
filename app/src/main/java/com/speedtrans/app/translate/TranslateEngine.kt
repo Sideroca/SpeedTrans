@@ -15,12 +15,13 @@ import java.util.concurrent.TimeUnit
 
 /**
  * OpenAI 兼容流式翻译引擎。
- * 每次调用 = 一次独立请求（无会话状态），整段文字一次性发送，SSE 流式返回。
+ * - qwen-mt-* ：翻译特化协议（单条 user 消息 + translation_options）
+ * - 其他模型  ：标准协议；DashScope 域名自动关闭 qwen3 思考模式（enable_thinking=false）
  */
 class TranslateEngine(private val store: SettingsStore) {
 
     companion object {
-        private const val SYS_PROMPT =
+        private const val DEFAULT_SYS_PROMPT =
             "You are a fast translation engine. Translate the user's text into Simplified Chinese. " +
                     "Output ONLY the Chinese translation. Preserve line breaks. " +
                     "Keep code, URLs and proper nouns unchanged. No notes, no explanations."
@@ -32,35 +33,42 @@ class TranslateEngine(private val store: SettingsStore) {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    /**
-     * 发起流式翻译。
-     * @param onDelta 每收到一小段译文回调一次（在 OkHttp 工作线程，调用方需自行切线程）
-     * @param onDone 结束回调，err == null 表示成功完成
-     * @return Call 句柄，可用于取消
-     */
     fun translate(text: String, onDelta: (String) -> Unit, onDone: (Throwable?) -> Unit): Call {
-        // 千问翻译特化模型（qwen-mt-*）：仅支持单条 user 消息，语种经 translation_options 配置
         val isMtModel = store.model.startsWith("qwen-mt")
+        val isDashScope =
+            store.baseUrl.contains("dashscope") || store.baseUrl.contains("aliyun")
+
         val body = JSONObject().apply {
             put("model", store.model)
             put("stream", true)
             if (isMtModel) {
+                // 千问翻译特化模型：仅单条 user 消息，配置经 translation_options
                 put(
                     "translation_options",
                     JSONObject()
                         .put("source_lang", "auto")
                         .put("target_lang", "Chinese")
+                        .apply {
+                            // 自定义提示词 → 领域提示（MT 模型专用通道）
+                            if (store.customPrompt.isNotEmpty()) put("domains", store.customPrompt)
+                        }
                 )
                 put("messages", JSONArray().apply {
                     put(JSONObject().put("role", "user").put("content", text))
                 })
             } else {
+                // qwen3 系列思考型模型默认先思考，强制关闭以获得最快首字
+                if (isDashScope) put("enable_thinking", false)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().put("role", "system").put("content", SYS_PROMPT))
+                    put(
+                        JSONObject().put("role", "system")
+                            .put("content", store.customPrompt.ifBlank { DEFAULT_SYS_PROMPT })
+                    )
                     put(JSONObject().put("role", "user").put("content", text))
                 })
             }
         }
+
         val req = Request.Builder()
             .url(store.baseUrl)
             .header("Authorization", "Bearer ${store.apiKey}")

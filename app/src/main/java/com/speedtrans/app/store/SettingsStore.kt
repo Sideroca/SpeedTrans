@@ -27,6 +27,18 @@ class SettingsStore(context: Context) {
 
     val isConfigured: Boolean get() = apiKey.isNotEmpty() && baseUrl.startsWith("http")
 
+    // ---------- 取词引擎 ----------
+
+    /** "ocr" = 屏幕投影+OCR（默认，权限温和）；"a11y" = 无障碍（可抓折叠全文） */
+    var engine: String
+        get() = sp.getString("engine", "ocr")!!
+        set(v) = sp.edit().putString("engine", v).apply()
+
+    /** 自定义翻译提示词（留空用默认） */
+    var customPrompt: String
+        get() = sp.getString("custom_prompt", "")!!.trim()
+        set(v) = sp.edit().putString("custom_prompt", v.trim()).apply()
+
     // ---------- 悬浮球外观 ----------
 
     /** 球上文字（无自定义图片时显示） */

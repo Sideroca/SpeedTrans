@@ -1,7 +1,12 @@
 package com.speedtrans.app.service
 
-import android.accessibilityservice.AccessibilityService
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -9,64 +14,112 @@ import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.media.projection.MediaProjectionManager
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.PixelCopy
 import android.view.View
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.app.ServiceCompat
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.speedtrans.app.AuthorizeActivity
+import com.speedtrans.app.capture.ProjectionHolder
 import com.speedtrans.app.store.SettingsStore
-import com.speedtrans.app.translate.TextCollector
 import com.speedtrans.app.translate.TranslateCoordinator
 import java.io.File
 import kotlin.math.hypot
 
 /**
- * 无障碍服务（可选引擎 "a11y"）。
- * 仅当用户在设置中选择无障碍取词引擎时绘制悬浮球并工作；
- * 默认引擎为 OCR（ScreenBallService）。
+ * OCR 引擎主服务：普通前台服务（mediaProjection 类型）。
+ * 职责：绘制悬浮球 + 截屏 + 端侧 OCR 取词 + 触发翻译。
+ * 不依赖无障碍服务，权限温和且不易被 MIUI 清理。
  */
-class BallService : AccessibilityService() {
+class ScreenBallService : Service() {
 
     companion object {
+        const val EXTRA_RESULT_CODE = "result_code"
+        const val EXTRA_DATA = "data"
         private const val TAG = "SpeedTrans"
 
         @Volatile
-        var instance: BallService? = null
+        var instance: ScreenBallService? = null
             private set
+
+        private val recognizer by lazy {
+            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var ball: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
 
-    override fun onServiceConnected() {
-        super.onServiceConnected()
+    override fun onCreate() {
+        super.onCreate()
+        startForegroundNotify()
         instance = this
-        if (SettingsStore(this).engine == "a11y") {
-            mainHandler.post { showBall() }
-        }
+        mainHandler.post { showBall() }
     }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.hasExtra(EXTRA_RESULT_CODE) == true) {
+            try {
+                ProjectionHolder.init(this, intent.getIntExtra(EXTRA_RESULT_CODE, -1),
+                    intent.getParcelableExtra(EXTRA_DATA)!!)
+                mainHandler.postDelayed({ grabAndTranslate() }, 400)
+            } catch (e: Exception) {
+                Log.e(TAG, "projection init", e)
+            }
+        }
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         instance = null
-        mainHandler.post { hideBall() }
+        mainHandler.post {
+            hideBall()
+            ProjectionHolder.release()
+        }
         super.onDestroy()
     }
 
-    override fun onInterrupt() {}
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    private fun startForegroundNotify() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(
+            NotificationChannel("speedtrans_fg", "闪译运行状态", NotificationManager.IMPORTANCE_MIN).apply {
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
+            }
+        )
+        val n = Notification.Builder(this, "speedtrans_fg")
+            .setSmallIcon(com.speedtrans.app.R.drawable.ic_app)
+            .setContentTitle("闪译运行中")
+            .setContentText("悬浮球待命 · 划掉最近任务不影响使用")
+            .setOngoing(true)
+            .build()
+        ServiceCompat.startForeground(
+            this, 1, n,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+        )
+    }
 
     private fun wm(): WindowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
+
+    // ---------------- 悬浮球（与无障碍引擎样式一致） ----------------
 
     private fun showBall() {
         if (!Settings.canDrawOverlays(this) || ball != null) return
@@ -172,17 +225,62 @@ class BallService : AccessibilityService() {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragging) startTranslate()
+                    if (!dragging) grabAndTranslate()
                 }
             }
             return true
         }
     }
 
-    fun startTranslate() {
-        val root: AccessibilityNodeInfo? = rootInActiveWindow
-        val text = if (root != null) TextCollector.collect(root) else ""
-        TranslateCoordinator.startTranslate(this, text)
+    // ---------------- 截屏 + OCR + 翻译 ----------------
+
+    private fun grabAndTranslate() {
+        if (!Settings.canDrawOverlays(this)) return
+        if (!ProjectionHolder.isReady) {
+            authorize()
+            return
+        }
+        val ov = TranslateCoordinator.overlay(this)
+        ov.ensure()
+        ov.showStatus("📸 正在截屏识别…")
+
+        ProjectionHolder.capture(
+            onBitmap = { bmp -> runOcr(bmp) },
+            onFail = { e ->
+                mainHandler.post {
+                    ov.showStatus("⚠️ 截屏失败：${e?.message ?: "请重试"}")
+                }
+            }
+        )
+    }
+
+    private fun runOcr(bmp: Bitmap) {
+        recognizer.process(InputImage.fromBitmap(bmp, 0))
+            .addOnSuccessListener { visionText ->
+                val text = visionText.text.trim()
+                if (text.isEmpty()) {
+                    TranslateCoordinator.overlay(this).apply {
+                        ensure()
+                        showStatus("⚠️ 屏幕上没有识别到文字")
+                    }
+                } else {
+                    TranslateCoordinator.startTranslate(this, text)
+                }
+            }
+            .addOnFailureListener { e ->
+                mainHandler.post {
+                    TranslateCoordinator.overlay(this).apply {
+                        ensure()
+                        showStatus("⚠️ 识别失败：${e.message ?: ""}")
+                    }
+                }
+            }
+    }
+
+    private fun authorize() {
+        val i = Intent(this, AuthorizeActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(i)
     }
 
     private fun decodeScaled(path: String, target: Int): Bitmap {

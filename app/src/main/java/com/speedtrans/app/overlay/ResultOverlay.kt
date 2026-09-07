@@ -11,15 +11,16 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.speedtrans.app.service.BallService
+import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.translate.TranslateCoordinator
 
 /**
- * 译文悬浮面板 v2：
- * - 占屏 80% 的大面板（底部停靠，底部留 20% 可操作原文对照）
- * - 译文从顶部开始显示，绝不自动滚动，用户自行滚动阅读
- * - 增量翻译时在旧译文后继续追加
+ * 译文悬浮面板：
+ * - 高度可调（30%~100% 屏高），底部停靠
+ * - 译文从顶部开始显示，绝不自动滚动
+ * - 增量翻译在旧译文后继续追加
  */
-class ResultOverlay(private val service: BallService) {
+class ResultOverlay(private val context: Context) {
 
     private var root: LinearLayout? = null
     private var tvStatus: TextView? = null
@@ -28,12 +29,12 @@ class ResultOverlay(private val service: BallService) {
 
     val visible: Boolean get() = root != null
 
-    private fun dp(v: Int): Int = (v * service.resources.displayMetrics.density + 0.5f).toInt()
+    private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density + 0.5f).toInt()
 
     fun ensure() {
         if (root != null) return
-        val ctx = service
-        val st = com.speedtrans.app.store.SettingsStore(ctx)
+        val ctx = context
+        val st = SettingsStore(ctx)
         val bs = st.overlayButtonScale
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
@@ -46,14 +47,13 @@ class ResultOverlay(private val service: BallService) {
             setPadding(dp(16), dp(10), dp(16), dp(12))
         }
 
-        // 顶部状态行：状态 | 复制 | 关闭
         val top = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
         val status = TextView(ctx).apply {
             setTextColor(0xFF999999.toInt())
-            textSize = 12f
+            textSize = 12f * bs
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -63,11 +63,14 @@ class ResultOverlay(private val service: BallService) {
             textSize = 14f * bs
             setTextColor(0xFF1E88E5.toInt())
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp((14 * bs).toInt()), dp((8 * bs).toInt()), dp((6 * bs).toInt()), dp((8 * bs).toInt()))
+            setPadding(
+                dp((14 * bs).toInt()), dp((8 * bs).toInt()),
+                dp((6 * bs).toInt()), dp((8 * bs).toInt())
+            )
             setOnClickListener {
                 val t = tvOut?.text?.toString() ?: ""
                 if (t.isNotEmpty()) {
-                    service.copyToClipboard(t)
+                    TranslateCoordinator.copyToClipboard(ctx, t)
                     tvStatus?.text = "已复制到剪贴板"
                 }
             }
@@ -76,14 +79,16 @@ class ResultOverlay(private val service: BallService) {
             text = "✕"
             textSize = 16f * bs
             setTextColor(0xFF666666.toInt())
-            setPadding(dp((14 * bs).toInt()), dp((8 * bs).toInt()), dp((4 * bs).toInt()), dp((8 * bs).toInt()))
+            setPadding(
+                dp((14 * bs).toInt()), dp((8 * bs).toInt()),
+                dp((4 * bs).toInt()), dp((8 * bs).toInt())
+            )
             setOnClickListener { close() }
         }
         top.addView(status)
         top.addView(btnCopy)
         top.addView(btnClose)
 
-        // 滚动区：包裹 TextView，内容从顶部开始，用户手动滚动
         val scroll = ScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -100,7 +105,6 @@ class ResultOverlay(private val service: BallService) {
         box.addView(top)
         box.addView(scroll)
 
-        // 面板高度 = 屏幕高度 × 用户设定百分比，宽全屏
         val screenH = ctx.resources.displayMetrics.heightPixels
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
         val lp = WindowManager.LayoutParams(
@@ -120,12 +124,11 @@ class ResultOverlay(private val service: BallService) {
         tvOut = out
     }
 
-    /** 开始一次翻译。reset=true 清空旧译文（全新内容）；false 在旧译文后继续追加（增量）。 */
     fun begin(reset: Boolean, status: String) {
         ensure()
         if (reset) tvOut?.text = ""
         tvStatus?.text = status
-        scrollOutTop()
+        if (reset) scrollOutTop()
     }
 
     fun showStatus(msg: String) {
@@ -140,7 +143,6 @@ class ResultOverlay(private val service: BallService) {
         scrollOutTop()
     }
 
-    /** 流式追加：只加内容，绝不自动滚动，阅读位置由用户掌控 */
     fun append(delta: String) {
         tvOut?.append(delta)
     }

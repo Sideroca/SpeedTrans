@@ -20,7 +20,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.speedtrans.app.service.BallService
+import com.speedtrans.app.service.ScreenBallService
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.translate.TranslateCoordinator
 import java.io.File
 
 class SettingsActivity : AppCompatActivity() {
@@ -50,6 +52,7 @@ class SettingsActivity : AppCompatActivity() {
         store = SettingsStore(this)
 
         bindApi()
+        bindEngine()
         bindBallAppearance()
         bindPanelAppearance()
         bindLauncherSection()
@@ -63,6 +66,14 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<EditText>(R.id.etUrl).setText(store.baseUrl)
         findViewById<EditText>(R.id.etKey).setText(store.apiKey)
         findViewById<EditText>(R.id.etModel).setText(store.model)
+    }
+
+    // ---------- 取词引擎 / 提示词 ----------
+
+    private fun bindEngine() {
+        val rg = findViewById<RadioGroup>(R.id.rgEngine)
+        rg.check(if (store.engine == "a11y") R.id.rbEngineA11y else R.id.rbEngineOcr)
+        findViewById<EditText>(R.id.etPrompt).setText(store.customPrompt)
     }
 
     // ---------- 悬浮球外观 ----------
@@ -238,6 +249,12 @@ class SettingsActivity : AppCompatActivity() {
         store.apiKey = findViewById<EditText>(R.id.etKey).text.toString()
         store.model = findViewById<EditText>(R.id.etModel).text.toString()
 
+        val oldEngine = store.engine
+        store.engine =
+            if (findViewById<RadioGroup>(R.id.rgEngine).checkedRadioButtonId == R.id.rbEngineA11y) "a11y"
+            else "ocr"
+        store.customPrompt = findViewById<EditText>(R.id.etPrompt).text.toString()
+
         store.ballText = findViewById<EditText>(R.id.etBallText).text.toString()
         store.ballColorHex = selectedColor
         store.ballCircle = selectedShapeCircle
@@ -251,8 +268,14 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         BallService.instance?.refreshBall()
-        BallService.instance?.resetOverlay()
-        toast("已保存")
+        ScreenBallService.instance?.refreshBall()
+        BallService.instance?.let { TranslateCoordinator.closeOverlay() }
+        ScreenBallService.instance?.let { TranslateCoordinator.closeOverlay() }
+        if (oldEngine != store.engine) {
+            toast("取词引擎已切换：重新打开「闪译」后生效")
+        } else {
+            toast("已保存")
+        }
         finish()
     }
 
