@@ -108,6 +108,7 @@ class TranslateEngine(private val store: SettingsStore) {
         val isMtModel = store.model.startsWith("qwen-mt")
         val isDashScope =
             store.baseUrl.contains("dashscope") || store.baseUrl.contains("aliyun")
+        val lvl = store.thinkingLevel
 
         // 续段标记：让模型知道这是长文本的延续，所有规则对本段同样生效
         // 防呆设计（用户钦定保留）：留空 = 内置极速翻译词；填写任意内容 = 完全以用户为准
@@ -136,8 +137,40 @@ class TranslateEngine(private val store: SettingsStore) {
                     put(JSONObject().put("role", "user").put("content", userContent))
                 })
             } else {
-                // qwen3 系列思考型模型默认先思考，强制关闭以获得最快首字
-                if (isDashScope) put("enable_thinking", false)
+                // 思考档位：按域名映射为各家真实参数（门控注入，自定义接口零影响）
+                // 默认最快档 off，符合极速红线；qwen-mt 特化协议无思考概念，不进入本分支
+                val u = store.baseUrl
+                when {
+                    isDashScope ->
+                        put("enable_thinking", lvl != "off")
+                    u.contains("volces.com", true) ->
+                        put("thinking", JSONObject().put("type", when (lvl) {
+                            "auto" -> "auto"
+                            "on" -> "enabled"
+                            else -> "disabled"
+                        }))
+                    u.contains("bigmodel.cn", true) ->
+                        put("thinking", JSONObject().put("type", if (lvl == "off") "disabled" else "enabled"))
+                    u.contains("deepseek.com", true) -> when (lvl) {
+                        "low" -> {
+                            put("thinking", JSONObject().put("type", "enabled"))
+                            put("reasoning_effort", "low")
+                        }
+                        "high" -> {
+                            put("thinking", JSONObject().put("type", "enabled"))
+                            put("reasoning_effort", "high")
+                        }
+                        else -> put("thinking", JSONObject().put("type", "disabled"))
+                    }
+                    u.contains("moonshot.cn", true) ->
+                        put("thinking", JSONObject().put("type", if (lvl == "off") "disabled" else "enabled"))
+                    u.contains("openai.com", true) ->
+                        put("reasoning_effort", when (lvl) {
+                            "min" -> "minimal"
+                            "max" -> "high"
+                            else -> "medium"
+                        })
+                }
                 put("messages", JSONArray().apply {
                     // 提示词为空时不发送 system 消息（用户可完全自定义/删除）
                     if (systemPrompt.isNotBlank())

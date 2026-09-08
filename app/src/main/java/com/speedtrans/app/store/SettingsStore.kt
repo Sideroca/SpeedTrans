@@ -101,6 +101,11 @@ class SettingsStore(context: Context) {
         get() = sp.getString("translate_mode", "smart")!!
         set(v) = sp.edit().putString("translate_mode", v).apply()
 
+    /** 思考档位（off/auto/on/low/high/min/mid/max），由服务商映射为各家参数；默认最快档 */
+    var thinkingLevel: String
+        get() = sp.getString("thinking_level", "off")!!
+        set(v) = sp.edit().putString("thinking_level", v).apply()
+
     /** 智能模式判定阈值：无障碍抓到的字符少于该值 → 转图像识别（可调，默认 20） */
     var smartThresholdChars: Int
         get() = sp.getInt("smart_threshold", 20)
