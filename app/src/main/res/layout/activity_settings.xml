@@ -6,6 +6,21 @@
     android:fitsSystemWindows="true"
     android:background="#0A0D12">
 
+    <!-- 页面壁纸：纯装饰底层，零交互 -->
+    <ImageView
+        android:id="@+id/ivWallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/wpScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <!-- 氛围层：扫描线 + 暗角（皮肤参数控制显隐） -->
     <com.speedtrans.app.ui.ScanlineView
         android:id="@+id/fxScanlines"
@@ -603,6 +618,22 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="🎨 撞色条颜色（译文面板标题条，独立于主题）"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/barRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:text="图片/游戏识别"
                     android:textSize="13sp" />
@@ -742,6 +773,76 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:orientation="horizontal" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="🖼 页面壁纸"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="设置页与主界面的装饰底层。壁纸零交互，触摸全部落在 UI 上；译文面板不参与。"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnPickWallpaper"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="选图" />
+
+                    <Button
+                        android:id="@+id/btnClearWallpaper"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="清除" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/swWallSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="应用到设置页" />
+
+                <Switch
+                    android:id="@+id/swWallMain"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="应用到主界面" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="遮罩浓度（越高文字越清楚，壁纸越淡）"
+                    android:textSize="13sp" />
+
+                <SeekBar
+                    android:id="@+id/sbWallDim"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="80"
+                    android:progress="50" />
+
+                <TextView
+                    android:id="@+id/tvWallDimVal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="50%"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"

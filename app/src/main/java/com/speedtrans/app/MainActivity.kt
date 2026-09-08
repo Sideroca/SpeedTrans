@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import com.speedtrans.app.service.KeepAliveService
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.ThemeEngine
+import com.speedtrans.app.ui.Wallpaper
 
 class MainActivity : AppCompatActivity() {
 
@@ -61,7 +62,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyTheme() {
         val pal = ThemeEngine.current(this)
-        findViewById<View>(R.id.rootMain).setBackgroundColor(pal.bg)
+        val st = SettingsStore(this)
+        findViewById<View>(R.id.rootMainHost).setBackgroundColor(pal.bg)
+        Wallpaper.applyTo(
+            this, R.id.ivWallpaperMain, R.id.wpScrimMain,
+            st.wallpaperPath, st.wallpaperDim, pal.bg, st.wallpaperOnMain
+        )
         ThemeEngine.applyTo(
             findViewById(R.id.rootMain), pal,
             cardIds = setOf(R.id.tvOverlay, R.id.tvA11y, R.id.tvApi, R.id.tvUsage),
@@ -75,8 +81,9 @@ class MainActivity : AppCompatActivity() {
         val pal = ThemeEngine.current(this)
         val cur = pal.id
         val d = resources.displayMetrics.density
-        // 撞色条背景：每套主题自己的传统色对撞
-        row.background = ThemeEngine.cardDrawable(pal.barBg, 14f, d)
+        // 撞色条背景：用户独立选色优先，未设置跟随主题
+        val barBg = SettingsStore(this).barColorOverride() ?: pal.barBg
+        row.background = ThemeEngine.cardDrawable(barBg, 14f, d)
         row.setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
         val size = (30 * d).toInt()
         val margin = (8 * d).toInt()
@@ -88,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                 setColor(p.accent)
                 setStroke(
                     if (p.id == cur) (4 * d).toInt() else 0,
-                    if (Color.luminance(pal.barBg) > 0.5f) 0xFF777777.toInt() else 0xFFFFFFFF.toInt()
+                    if (Color.luminance(barBg) > 0.5f) 0xFF777777.toInt() else 0xFFFFFFFF.toInt()
                 )
             }
             v.setOnClickListener {

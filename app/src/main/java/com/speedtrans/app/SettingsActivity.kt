@@ -42,6 +42,7 @@ import com.speedtrans.app.translate.TranslateCoordinator
 import com.speedtrans.app.translate.TranslateEngine
 import com.speedtrans.app.ui.BeamView
 import com.speedtrans.app.ui.ScanlineView
+import com.speedtrans.app.ui.Wallpaper
 import java.io.File
 
 class SettingsActivity : AppCompatActivity() {
@@ -72,6 +73,8 @@ class SettingsActivity : AppCompatActivity() {
         applySkin()
         bindCuff()
         bindSkinRow()
+        bindBarColor()
+        bindWallpaper()
         bindThemePicker()
         bindApi()
         bindPrompt()
@@ -123,6 +126,7 @@ class SettingsActivity : AppCompatActivity() {
         styleThinkingChips()
         styleSkinChips()
         styleCuff()
+        applyWallpaper()
         if (skin.beam) findViewById<BeamView>(R.id.fxBeam).start()
     }
 
@@ -437,6 +441,122 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- 撞色条独立选色 ----------
+
+    private var selectedBarColor: String? = null
+
+    private val barPresets = listOf(
+        "琥珀" to "#F0C239", "朱砂" to "#9D2933", "描金" to "#EACD76", "青瓷" to "#D6ECF0",
+        "玄青" to "#1A2847", "湖蓝" to "#4D6BFE", "胭脂" to "#C03F3F", "松绿" to "#789262"
+    )
+
+    private fun bindBarColor() {
+        selectedBarColor = store.barColorHex.ifEmpty { null }
+        val row = findViewById<LinearLayout>(R.id.barRow)
+        row.removeAllViews()
+        val d = resources.displayMetrics.density
+        val follow = TextView(this).apply {
+            text = "跟随主题"
+            textSize = 12f
+            setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (10 * d).toInt() }
+            setOnClickListener { selectedBarColor = null; styleBarRow() }
+        }
+        row.addView(follow)
+        barPresets.forEach { (_, hex) ->
+            val sw = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
+                    .apply { marginEnd = (10 * d).toInt() }
+                setOnClickListener { selectedBarColor = hex; styleBarRow() }
+            }
+            row.addView(sw)
+        }
+        styleBarRow()
+    }
+
+    private fun styleBarRow() {
+        val row = findViewById<LinearLayout>(R.id.barRow)
+        val d = resources.displayMetrics.density
+        val skin = currentSkin ?: ShellSkins.current(this)
+        val follow = row.getChildAt(0) as TextView
+        val followSel = selectedBarColor == null
+        follow.background = ShellSkins.chipBg(skin, followSel, d)
+        follow.setTextColor(ShellSkins.chipText(skin, followSel))
+        barPresets.forEachIndexed { i, (_, hex) ->
+            val sw = row.getChildAt(i + 1)
+            val isSel = selectedBarColor == hex
+            sw.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor(hex))
+                setStroke(if (isSel) (4 * d).toInt() else 0, 0xFFFFFFFF.toInt())
+            }
+        }
+    }
+
+    // ---------- 页面壁纸 ----------
+
+    private val pickWallpaper = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val target = File(filesDir, "page_wallpaper")
+            if (Wallpaper.importFrom(this, uri, target)) {
+                store.wallpaperPath = target.absolutePath
+                applyWallpaper()
+                toast("壁纸已更新")
+            } else {
+                toast("图片导入失败")
+            }
+        }
+    }
+
+    private fun bindWallpaper() {
+        findViewById<Button>(R.id.btnPickWallpaper).setOnClickListener { pickWallpaper.launch("image/*") }
+        findViewById<Button>(R.id.btnClearWallpaper).setOnClickListener {
+            File(filesDir, "page_wallpaper").delete()
+            store.wallpaperPath = ""
+            applyWallpaper()
+            toast("已清除壁纸")
+        }
+        findViewById<Switch>(R.id.swWallSettings).apply {
+            isChecked = store.wallpaperOnSettings
+            setOnCheckedChangeListener { _, c ->
+                store.wallpaperOnSettings = c
+                applyWallpaper()
+            }
+        }
+        findViewById<Switch>(R.id.swWallMain).apply {
+            isChecked = store.wallpaperOnMain
+            setOnCheckedChangeListener { _, c ->
+                store.wallpaperOnMain = c
+                applyWallpaper()
+            }
+        }
+        val sb = findViewById<SeekBar>(R.id.sbWallDim)
+        val tv = findViewById<TextView>(R.id.tvWallDimVal)
+        sb.progress = store.wallpaperDim
+        tv.text = "${store.wallpaperDim}%"
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                tv.text = "$p%"
+                if (fromUser) {
+                    store.wallpaperDim = p
+                    applyWallpaper()
+                }
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+    }
+
+    private fun applyWallpaper() {
+        val skin = currentSkin ?: ShellSkins.current(this)
+        Wallpaper.applyTo(
+            this, R.id.ivWallpaper, R.id.wpScrim,
+            store.wallpaperPath, store.wallpaperDim, skin.bg, store.wallpaperOnSettings
+        )
+    }
+
     // ---------- 提示词 ----------
 
     private fun bindPrompt() {
@@ -730,6 +850,7 @@ class SettingsActivity : AppCompatActivity() {
         store.btnCloseLeft =
             findViewById<RadioGroup>(R.id.rgBtnSide).checkedRadioButtonId == R.id.rbSideLeft
         store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress
+        store.barColorHex = selectedBarColor ?: ""
 
         BallService.instance?.refreshBall()
         TranslateCoordinator.closeOverlay()

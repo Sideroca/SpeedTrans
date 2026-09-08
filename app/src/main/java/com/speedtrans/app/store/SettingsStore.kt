@@ -143,6 +143,41 @@ class SettingsStore(context: Context) {
 
     val overlayButtonScale: Float get() = overlayButtonScalePct / 100f
 
+    // ---------- 撞色条独立选色 ----------
+
+    /** 译文面板标题条（撞色条）独立颜色；空 = 跟随主题 Palette */
+    var barColorHex: String
+        get() = sp.getString("bar_color", "")!!.trim()
+        set(v) = sp.edit().putString("bar_color", v).apply()
+
+    /** 解析撞色条覆盖色；未设置返回 null */
+    fun barColorOverride(): Int? =
+        try {
+            if (barColorHex.isEmpty()) null else Color.parseColor(barColorHex)
+        } catch (_: Exception) {
+            null
+        }
+
+    // ---------- 页面壁纸 ----------
+
+    /** 壁纸图片路径（应用私有目录；空 = 未设置） */
+    var wallpaperPath: String
+        get() = sp.getString("wallpaper_path", "")!!
+        set(v) = sp.edit().putString("wallpaper_path", v).apply()
+
+    /** 壁纸遮罩浓度 0~80：半透明底色盖在壁纸上，越高文字越清楚、壁纸越淡 */
+    var wallpaperDim: Int
+        get() = sp.getInt("wallpaper_dim", 50)
+        set(v) = sp.edit().putInt("wallpaper_dim", v.coerceIn(0, 80)).apply()
+
+    var wallpaperOnSettings: Boolean
+        get() = sp.getBoolean("wallpaper_settings", true)
+        set(v) = sp.edit().putBoolean("wallpaper_settings", v).apply()
+
+    var wallpaperOnMain: Boolean
+        get() = sp.getBoolean("wallpaper_main", true)
+        set(v) = sp.edit().putBoolean("wallpaper_main", v).apply()
+
     companion object {
         private const val KEY_URL = "base_url"
         private const val KEY_API = "api_key"
