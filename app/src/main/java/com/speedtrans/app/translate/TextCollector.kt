@@ -107,7 +107,7 @@ object TextCollector {
                 continue
             } ?: continue
             try {
-                dfs(c, depth + 1, out)
+                dfs(c, depth + 1, out, excludePackage)
             } catch (_: Exception) {
             }
         }

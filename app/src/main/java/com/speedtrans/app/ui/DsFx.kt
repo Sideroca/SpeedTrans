@@ -71,7 +71,7 @@ class BeamView @JvmOverloads constructor(
         this.w = w; this.h = h
         if (w <= 0) return
         beam.shader = LinearGradient(0f, 0f, w.toFloat(), 0f,
-            intArrayOf(0x001EA5C7, 0x801EA5C7, 0x001EA5C7),
+            intArrayOf(0x001EA5C7, 0x801EA5C7.toInt(), 0x001EA5C7),
             floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
         glow.shader = LinearGradient(0f, 0f, w.toFloat(), 0f,
             intArrayOf(0x001EA5C7, 0x201EA5C7, 0x001EA5C7),
