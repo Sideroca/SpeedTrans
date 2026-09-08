@@ -1,82 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rootSettings"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:orientation="vertical">
+    android:background="#0A0D12">
 
-    <!-- 标签行 -->
-    <LinearLayout
-        android:id="@+id/tabRow"
+    <!-- 氛围层：扫描线 + 暗角（皮肤参数控制显隐） -->
+    <com.speedtrans.app.ui.ScanlineView
+        android:id="@+id/fxScanlines"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="6dp">
+        android:layout_height="match_parent" />
 
-        <TextView
-            android:id="@+id/tvTabApi"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="🔌 接口"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvTabTheme"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="🎨 主题"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvTabBall"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="⚡ 悬浮球"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvTabDesktop"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="🖼 桌面"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvTabMore"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="✍️ 其他"
-            android:textSize="14sp" />
-    </LinearLayout>
-
-    <View
+    <!-- 扫描光束：只在屏幕下方 ~35% 高度带内活动 -->
+    <com.speedtrans.app.ui.BeamView
+        android:id="@+id/fxBeam"
         android:layout_width="match_parent"
-        android:layout_height="1dp" />
+        android:layout_height="match_parent" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="216dp"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:paddingLeft="20dp"
+            android:paddingTop="24dp"
+            android:paddingRight="20dp">
+
+            <TextView
+                android:id="@+id/tvShellTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.12"
+                android:text="设 置"
+                android:textColor="#1EA5C7"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <View
+                android:id="@+id/titleLine"
+                android:layout_width="40dp"
+                android:layout_height="2dp"
+                android:layout_marginTop="8dp"
+                android:background="#1EA5C7" />
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="16dp" />
 
             <!-- ===== 页：接口 ===== -->
             <LinearLayout
@@ -96,14 +72,40 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="支持任意 OpenAI 兼容服务。接口地址必须精确到 /chat/completions 结尾。示例：\n千问：https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\nDeepSeek：https://api.deepseek.com/chat/completions"
+                    android:text="支持任意 OpenAI 兼容服务。选服务商自动填地址与型号；也可以全部手填，接口地址须精确到 /chat/completions 结尾。"
                     android:textSize="12sp" />
 
-                <EditText
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="🛰 服务商"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <AutoCompleteTextView
+                    android:id="@+id/acProvider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:completionThreshold="1"
+                    android:hint="输入名称（如 deepseek）或点选候选"
+                    android:inputType="text"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvProviderNote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textSize="11sp" />
+
+                <AutoCompleteTextView
                     android:id="@+id/etUrl"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:completionThreshold="3"
                     android:hint="接口地址（完整 URL）"
                     android:inputType="textUri"
                     android:textSize="13sp" />
@@ -116,13 +118,37 @@
                     android:inputType="text"
                     android:textSize="13sp" />
 
-                <EditText
+                <AutoCompleteTextView
                     android:id="@+id/etModel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="qwen3.7-flash / qwen-mt-flash / deepseek-chat"
+                    android:completionThreshold="1"
+                    android:hint="型号名（可自由输入）"
                     android:inputType="text"
                     android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvThinkingLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="🧠 思考档位"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/tierRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal" />
+
+                <Button
+                    android:id="@+id/btnTest"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="⚡ 测试连接" />
 
                 <TextView
                     android:id="@+id/tvPromptLabel"
@@ -698,6 +724,29 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="🎨 设置页皮肤"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="导航骨架固定，换的是配色、形状与氛围。「跟随主界面主题」= 22 套配色穿控制台骨架。"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/skinRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
                     android:text="📖 使用说明"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -708,7 +757,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:padding="14dp"
-                    android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 用最新屏幕内容重新翻译\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n· 译文面板打开时按返回键 = 关闭面板\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启\n\n日常无需打开本应用，点球即用。"
+                    android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 忽略（一次只跑第一次的反应）\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n· 译文面板打开时按返回键 = 关闭面板\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启\n\n日常无需打开本应用，点球即用。"
                     android:textSize="13sp" />
 
                 <TextView
@@ -723,10 +772,40 @@
         </LinearLayout>
     </ScrollView>
 
-    <Button
-        android:id="@+id/btnSave"
+    <LinearLayout
+        android:id="@+id/bottomDock"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        android:text="保存全部设置" />
-</LinearLayout>
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/cuffBar"
+            android:layout_width="match_parent"
+            android:layout_height="118dp">
+
+            <com.speedtrans.app.ui.ArcView
+                android:layout_width="280dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center_horizontal|bottom" />
+
+            <LinearLayout
+                android:id="@+id/cuffRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:gravity="center_horizontal|bottom"
+                android:orientation="horizontal" />
+        </FrameLayout>
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="20dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginRight="20dp"
+            android:layout_marginBottom="20dp"
+            android:text="保存全部设置" />
+    </LinearLayout>
+</FrameLayout>

@@ -3,6 +3,8 @@ package com.speedtrans.app
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.text.Editable
+import android.text.TextWatcher
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -13,6 +15,9 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.PathInterpolator
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -29,8 +34,14 @@ import com.speedtrans.app.service.BallService
 import com.speedtrans.app.service.KeepAliveService
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.Palette
+import com.speedtrans.app.theme.ShellSkin
+import com.speedtrans.app.theme.ShellSkins
 import com.speedtrans.app.theme.ThemeEngine
+import com.speedtrans.app.translate.Providers
 import com.speedtrans.app.translate.TranslateCoordinator
+import com.speedtrans.app.translate.TranslateEngine
+import com.speedtrans.app.ui.BeamView
+import com.speedtrans.app.ui.ScanlineView
 import java.io.File
 
 class SettingsActivity : AppCompatActivity() {
@@ -58,8 +69,9 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_settings)
         store = SettingsStore(this)
 
-        applyTheme()
-        bindTabs()
+        applySkin()
+        bindCuff()
+        bindSkinRow()
         bindThemePicker()
         bindApi()
         bindPrompt()
@@ -74,41 +86,128 @@ class SettingsActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
     }
 
-    // ---------- 主题 ----------
+    // ---------- 壳层皮肤与 Cuff Links 导航 ----------
 
-    private fun applyTheme() {
-        val pal = ThemeEngine.current(this)
-        findViewById<View>(R.id.rootSettings).setBackgroundColor(pal.bg)
-        ThemeEngine.applyTo(findViewById(R.id.rootSettings), pal)
+    private var currentSkin: ShellSkin? = null
+    private var selectedCuff = 0
+    private val cuffItems = mutableListOf<CuffItem>()
+
+    private data class CuffItem(
+        val icon: TextView, val label: TextView, val dot: View
+    )
+
+    private fun applySkin() {
+        val skin = ShellSkins.current(this)
+        currentSkin = skin
+        findViewById<View>(R.id.rootSettings).setBackgroundColor(skin.bg)
+        findViewById<ScanlineView>(R.id.fxScanlines).visibility =
+            if (skin.scanline) View.VISIBLE else View.GONE
+        findViewById<BeamView>(R.id.fxBeam).visibility =
+            if (skin.beam) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.tvShellTitle).setTextColor(skin.accent)
+        findViewById<View>(R.id.titleLine).setBackgroundColor(skin.accent)
+        findViewById<LinearLayout>(R.id.bottomDock).background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, skin.bg)
+        )
+        ShellSkins.applyShell(
+            findViewById(R.id.rootSettings), skin,
+            cardIds = setOf(R.id.tvUsage),
+            subIds = setOf(R.id.tvProviderNote)
+        )
+        ShellSkins.bindFocusGlow(
+            this, { currentSkin ?: ShellSkins.current(this) },
+            R.id.acProvider, R.id.etUrl, R.id.etKey, R.id.etModel
+        )
+        refreshThinkingRow()
+        styleThinkingChips()
+        styleSkinChips()
+        styleCuff()
+        if (skin.beam) findViewById<BeamView>(R.id.fxBeam).start()
     }
 
-    /** Tab 行 = 传统撞色条（每套主题自己的对撞色） */
-    private fun bindTabs() {
-        val pal = ThemeEngine.current(this)
+    private fun bindCuff() {
+        val row = findViewById<LinearLayout>(R.id.cuffRow)
         val d = resources.displayMetrics.density
-        val tabRow = findViewById<LinearLayout>(R.id.tabRow)
-        tabRow.background = ThemeEngine.cardDrawable(pal.barBg, 0f, d)
+        val defs = listOf(
+            "🔌" to "接口", "🎨" to "主题", "⚡" to "悬浮",
+            "🖼" to "桌面", "✍️" to "其他"
+        )
+        val sink = listOf(12, 5, 0, 5, 12)   // 弧形下沉：两端低、中间高
+        defs.forEachIndexed { i, (emoji, label) ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding((6 * d).toInt(), (4 * d).toInt(), (6 * d).toInt(), 0)
+            }
+            val icon = TextView(this).apply {
+                text = emoji
+                textSize = 16f
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams((38 * d).toInt(), (38 * d).toInt())
+            }
+            val lab = TextView(this).apply {
+                text = label
+                textSize = 10f
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = (5 * d).toInt() }
+            }
+            val dot = View(this).apply {
+                rotation = 45f
+                layoutParams = LinearLayout.LayoutParams((4 * d).toInt(), (4 * d).toInt())
+                    .apply { topMargin = (4 * d).toInt() }
+            }
+            item.addView(icon)
+            item.addView(lab)
+            item.addView(dot)
+            item.setOnClickListener { selectCuff(i) }
+            item.translationY = sink[i] * d
+            row.addView(item)
+            cuffItems.add(CuffItem(icon, lab, dot))
+        }
+        selectCuff(0, animate = false)
+    }
+
+    private fun selectCuff(idx: Int, animate: Boolean = true) {
+        selectedCuff = idx
         val pages = listOf(
             R.id.pageApi, R.id.pageTheme, R.id.pageBall,
             R.id.pageDesktop, R.id.pageMore
         )
-        val tabs = listOf(
-            R.id.tvTabApi, R.id.tvTabTheme, R.id.tvTabBall,
-            R.id.tvTabDesktop, R.id.tvTabMore
-        )
-        fun select(idx: Int) {
-            pages.forEachIndexed { i, id ->
-                findViewById<View>(id).visibility = if (i == idx) View.VISIBLE else View.GONE
-            }
-            tabs.forEachIndexed { i, id ->
-                val t = findViewById<TextView>(id)
-                t.background = null
-                t.setTextColor(if (i == idx) pal.barText else pal.barText and 0x8EFFFFFF.toInt())
-                t.typeface = if (i == idx) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        pages.forEachIndexed { i, id ->
+            val v = findViewById<View>(id)
+            v.visibility = if (i == idx) View.VISIBLE else View.GONE
+            if (i == idx && animate) {
+                v.translationX = 24f * resources.displayMetrics.density
+                v.alpha = 0f
+                v.animate().translationX(0f).alpha(1f).setDuration(320)
+                    .setInterpolator(PathInterpolator(0.32f, 0f, 0.68f, 1f)).start()
             }
         }
-        tabs.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { select(i) } }
-        select(0)
+        styleCuff()
+    }
+
+    private fun styleCuff() {
+        val s = currentSkin ?: ShellSkins.current(this)
+        val d = resources.displayMetrics.density
+        cuffItems.forEachIndexed { i, it ->
+            val active = i == selectedCuff
+            it.icon.background = ShellSkins.cuffIconBg(s, active, d)
+            it.icon.setTextColor(if (active) s.accent else s.subText)
+            it.label.setTextColor(if (active) s.accent else s.subText)
+            it.dot.setBackgroundColor(if (active) s.accentStrong else Color.TRANSPARENT)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (currentSkin?.beam == true) findViewById<BeamView>(R.id.fxBeam).start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        findViewById<BeamView>(R.id.fxBeam).stop()
     }
 
     // ---------- 主题选择：分类 + 整套配色预览卡 ----------
@@ -194,10 +293,148 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------- 翻译接口 ----------
 
+    private var thinkingLevel: String = "off"
+
     private fun bindApi() {
-        findViewById<EditText>(R.id.etUrl).setText(store.baseUrl)
-        findViewById<EditText>(R.id.etKey).setText(store.apiKey)
-        findViewById<EditText>(R.id.etModel).setText(store.model)
+        val acProvider = findViewById<AutoCompleteTextView>(R.id.acProvider)
+        val etUrl = findViewById<AutoCompleteTextView>(R.id.etUrl)
+        val etKey = findViewById<EditText>(R.id.etKey)
+        val etModel = findViewById<AutoCompleteTextView>(R.id.etModel)
+        val tvNote = findViewById<TextView>(R.id.tvProviderNote)
+
+        thinkingLevel = store.thinkingLevel
+
+        acProvider.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line,
+                Providers.all.map { it.label })
+        )
+        acProvider.setOnItemClickListener { _, _, pos, _ ->
+            val p = Providers.all[pos]
+            if (p.url.isNotEmpty()) etUrl.setText(p.url)
+            if (p.models.isNotEmpty()) etModel.setText(p.models.first())
+            tvNote.text = p.note
+            thinkingLevel = p.levels.firstOrNull()?.second ?: "off"
+            refreshThinkingRow()
+        }
+
+        etUrl.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line,
+                Providers.all.filter { it.url.isNotEmpty() }.map { it.url })
+        )
+        val modelAdapter = ArrayAdapter(
+            this, android.R.layout.simple_dropdown_item_1line, mutableListOf<String>()
+        )
+        etModel.setAdapter(modelAdapter)
+
+        etUrl.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val u = s?.toString() ?: ""
+                val p = Providers.match(u)
+                tvNote.text = p?.note ?: ""
+                if (p != null) {
+                    modelAdapter.clear()
+                    modelAdapter.addAll(p.models)
+                }
+                refreshThinkingRow()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+
+        etUrl.setText(store.baseUrl)
+        etKey.setText(store.apiKey)
+        etModel.setText(store.model)
+        refreshThinkingRow()
+
+        findViewById<Button>(R.id.btnTest).setOnClickListener {
+            // 先落字段再测试（未保存也能测）
+            store.baseUrl = etUrl.text.toString()
+            store.apiKey = etKey.text.toString()
+            store.model = etModel.text.toString()
+            TranslateEngine(store).testConnection { msg ->
+                runOnUiThread { toast(msg) }
+            }
+        }
+    }
+
+    private fun refreshThinkingRow() {
+        val tv = findViewById<TextView>(R.id.tvThinkingLabel)
+        val row = findViewById<LinearLayout>(R.id.tierRow)
+        val url = findViewById<AutoCompleteTextView>(R.id.etUrl).text.toString()
+        val p = Providers.match(url)
+        if (p == null || p.levels.isEmpty()) {
+            tv.text = "🧠 思考档位（按接口地址自动识别服务商）"
+            row.visibility = View.GONE
+            return
+        }
+        tv.text = "🧠 思考档位 · ${p.label}"
+        row.visibility = View.VISIBLE
+        if (p.levels.none { it.second == thinkingLevel }) thinkingLevel = p.levels.first().second
+        row.removeAllViews()
+        val d = resources.displayMetrics.density
+        p.levels.forEach { (label, value) ->
+            val chip = TextView(this).apply {
+                text = label
+                textSize = 12f
+                setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (8 * d).toInt() }
+                setOnClickListener { thinkingLevel = value; styleThinkingChips() }
+            }
+            row.addView(chip)
+        }
+        styleThinkingChips()
+    }
+
+    private fun styleThinkingChips() {
+        val s = currentSkin ?: ShellSkins.current(this)
+        val row = findViewById<LinearLayout>(R.id.tierRow)
+        val url = findViewById<AutoCompleteTextView>(R.id.etUrl).text.toString()
+        val p = Providers.match(url) ?: return
+        val d = resources.displayMetrics.density
+        for (i in 0 until row.childCount) {
+            val c = row.getChildAt(i) as TextView
+            val selected = p.levels.getOrNull(i)?.second == thinkingLevel
+            c.background = ShellSkins.chipBg(s, selected, d)
+            c.setTextColor(ShellSkins.chipText(s, selected))
+        }
+    }
+
+    private fun bindSkinRow() {
+        val row = findViewById<LinearLayout>(R.id.skinRow)
+        row.removeAllViews()
+        val d = resources.displayMetrics.density
+        ShellSkins.list(this).forEach { sk ->
+            val chip = TextView(this).apply {
+                text = sk.name
+                textSize = 13f
+                tag = sk.id
+                setPadding((14 * d).toInt(), (9 * d).toInt(), (14 * d).toInt(), (9 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (8 * d).toInt() }
+                setOnClickListener {
+                    ShellSkins.save(this@SettingsActivity, sk.id)
+                    applySkin()
+                }
+            }
+            row.addView(chip)
+        }
+        styleSkinChips()
+    }
+
+    private fun styleSkinChips() {
+        val s = currentSkin ?: ShellSkins.current(this)
+        val row = findViewById<LinearLayout>(R.id.skinRow)
+        val curId = ShellSkins.current(this).id
+        val d = resources.displayMetrics.density
+        for (i in 0 until row.childCount) {
+            val c = row.getChildAt(i) as TextView
+            val selected = c.tag == curId
+            c.background = ShellSkins.chipBg(s, selected, d)
+            c.setTextColor(ShellSkins.chipText(s, selected))
+        }
     }
 
     // ---------- 提示词 ----------
@@ -463,6 +700,7 @@ class SettingsActivity : AppCompatActivity() {
         store.baseUrl = findViewById<EditText>(R.id.etUrl).text.toString()
         store.apiKey = findViewById<EditText>(R.id.etKey).text.toString()
         store.model = findViewById<EditText>(R.id.etModel).text.toString()
+        store.thinkingLevel = thinkingLevel
         store.customPrompt = findViewById<EditText>(R.id.etPrompt).text.toString()
 
         store.ballText = findViewById<EditText>(R.id.etBallText).text.toString()
