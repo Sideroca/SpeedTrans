@@ -71,7 +71,8 @@ class KeepAliveService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_app)
             .setContentTitle("闪译 · $modeName")
-            .setContentText("点球即翻 · 划掉通知不影响使用")
+            .setContentText("点通知条切换模式 · 点球即翻")
+            .setContentIntent(togglePendingIntent())   // 点通知条 = 立即循环切换（折叠态也生效）
             .setOngoing(true)
             .addAction(0, "切换模式", togglePendingIntent())
             .addAction(0, "🖼 识图翻译", ocrPendingIntent())
