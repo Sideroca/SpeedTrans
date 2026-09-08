@@ -149,6 +149,8 @@ class BallService : AccessibilityService() {
         val view: View = if (imgPath.isNotEmpty() && File(imgPath).exists()) {
             ImageView(this).apply {
                 setImageBitmap(decodeScaled(imgPath, sizePx * 2))
+                // 中心裁剪填满球面：横图竖图都不留空边（业界头像裁剪标准做法）
+                scaleType = ImageView.ScaleType.CENTER_CROP
                 clipToOutline = true
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(v: View, o: Outline) {
@@ -409,8 +411,9 @@ class BallService : AccessibilityService() {
     private fun decodeScaled(path: String, target: Int): Bitmap {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, bounds)
+        // 按长边采样：竖图不再整张解码进内存（3200 高的图曾直解 18MB）
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= target) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         return BitmapFactory.decodeFile(path, opts)
     }
