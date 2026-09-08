@@ -28,6 +28,7 @@ class KeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val fromToggle = intent?.action == ACTION_TOGGLE
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 val st = SettingsStore(this)
@@ -40,6 +41,14 @@ class KeepAliveService : Service() {
         }
         // 任何命令都重建通知：标题始终显示当前模式（含设置页保存后的同步）
         startForeground()
+        // 点通知条触发时系统会收起通知栏——借无障碍全局动作拉回来（无障碍未开则优雅降级）
+        if (fromToggle && BallService.instance != null) {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                BallService.instance?.performGlobalAction(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                )
+            }, 250)
+        }
         return START_STICKY
     }
 

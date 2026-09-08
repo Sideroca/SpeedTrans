@@ -37,7 +37,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="216dp"
+        android:paddingBottom="260dp"
         android:scrollbars="none">
 
         <LinearLayout
@@ -306,6 +306,20 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
                         android:text="圆角方形" />
+
+                    <RadioButton
+                        android:id="@+id/rbCut"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="切角八边形" />
+
+                    <RadioButton
+                        android:id="@+id/rbTriangle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="三角形" />
                 </RadioGroup>
 
                 <RadioGroup
@@ -696,23 +710,11 @@
                     android:textStyle="bold" />
 
                 <Button
-                    android:id="@+id/btnAliasRed"
+                    android:id="@+id/btnAliasCycle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="显示为：闪译（红色闪电图标）" />
-
-                <Button
-                    android:id="@+id/btnAliasBlue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="显示为：备忘录（蓝色图标）" />
-
-                <Button
-                    android:id="@+id/btnAliasGreen"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="显示为：工具箱（绿色图标）" />
+                    android:text="🔀 切换桌面图标（闪译 / 备忘录 / 工具箱）" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -878,6 +880,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:layout_marginBottom="24dp"
         android:orientation="vertical">
 
         <FrameLayout

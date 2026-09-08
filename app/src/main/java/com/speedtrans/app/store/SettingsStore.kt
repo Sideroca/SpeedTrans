@@ -64,6 +64,15 @@ class SettingsStore(context: Context) {
         get() = sp.getBoolean("ball_circle", true)
         set(v) = sp.edit().putBoolean("ball_circle", v).apply()
 
+    /** 悬浮球形状：circle / roundrect / cut / triangle（老 ballCircle 自动迁移） */
+    var ballShape: String
+        get() {
+            val v = sp.getString("ball_shape", null)
+            if (v != null) return v
+            return if (sp.getBoolean("ball_circle", true)) "circle" else "roundrect"
+        }
+        set(v) = sp.edit().putString("ball_shape", v).apply()
+
     /** 球尺寸 dp（44/52/60） */
     var ballSizeDp: Int
         get() = sp.getInt("ball_size", 52)

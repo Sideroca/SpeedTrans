@@ -49,7 +49,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var store: SettingsStore
     private var selectedColor = "#E6FF4757"
-    private var selectedShapeCircle = true
+    private var selectedShape = "circle"
     private var selectedSizeDp = 52
 
     private val ballColors = listOf(
@@ -217,32 +217,36 @@ class SettingsActivity : AppCompatActivity() {
     // ---------- 主题选择：分类 + 整套配色预览卡 ----------
 
     private fun bindThemePicker() {
+        findViewById<TextView>(R.id.chipModern).setOnClickListener { themeCatModern = true; selectThemeCategory() }
+        findViewById<TextView>(R.id.chipChinese).setOnClickListener { themeCatModern = false; selectThemeCategory() }
+        selectThemeCategory()
+    }
+
+    private var themeCatModern = true
+
+    /** 主题分类选择器（主题变更后原地重画，不 recreate 不跳页） */
+    private fun selectThemeCategory() {
         val pal = ThemeEngine.current(this)
         val chipModern = findViewById<TextView>(R.id.chipModern)
         val chipChinese = findViewById<TextView>(R.id.chipChinese)
         val cardRow = findViewById<LinearLayout>(R.id.themeCardRow)
         val d = resources.displayMetrics.density
 
-        fun selectCategory(modern: Boolean) {
-            val list = if (modern) ThemeEngine.palettes.filter { it.group == "modern" }
-                       else ThemeEngine.palettes.filter { it.group == "chinese" }
-            fun style(chip: TextView, on: Boolean) {
-                chip.background = ThemeEngine.cardDrawable(
-                    if (on) pal.accent else pal.card, 18f, d, pal.cardStroke)
-                chip.setTextColor(if (on) {
-                    if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
-                } else pal.text)
-                chip.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            }
-            style(chipModern, modern)
-            style(chipChinese, !modern)
-
-            cardRow.removeAllViews()
-            list.forEach { p -> cardRow.addView(themeRow(p, p.id == ThemeEngine.current(this).id)) }
+        val list = if (themeCatModern) ThemeEngine.palettes.filter { it.group == "modern" }
+                   else ThemeEngine.palettes.filter { it.group == "chinese" }
+        fun style(chip: TextView, on: Boolean) {
+            chip.background = ThemeEngine.cardDrawable(
+                if (on) pal.accent else pal.card, 18f, d, pal.cardStroke)
+            chip.setTextColor(if (on) {
+                if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
+            } else pal.text)
+            chip.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
-        chipModern.setOnClickListener { selectCategory(true) }
-        chipChinese.setOnClickListener { selectCategory(false) }
-        selectCategory(true)
+        style(chipModern, themeCatModern)
+        style(chipChinese, !themeCatModern)
+
+        cardRow.removeAllViews()
+        list.forEach { p -> cardRow.addView(themeRow(p, p.id == pal.id)) }
     }
 
     /** 全宽主题行：左三段色条（整套搭配预览）+ 右主题名，整行可点 */
@@ -290,9 +294,15 @@ class SettingsActivity : AppCompatActivity() {
         row.addView(name)
         row.setOnClickListener {
             ThemeEngine.save(this, p.id)
-            recreate()
+            refreshAfterThemeChange()
         }
         return row
+    }
+
+    /** 主题变更后原地刷新：不 recreate——页签、滚动位置、当前分页全部保持 */
+    private fun refreshAfterThemeChange() {
+        applySkin()
+        selectThemeCategory()
     }
 
     // ---------- 翻译接口 ----------
@@ -573,7 +583,7 @@ class SettingsActivity : AppCompatActivity() {
         val etText = findViewById<EditText>(R.id.etBallText)
         etText.setText(store.ballText)
         selectedColor = store.ballColorHex
-        selectedShapeCircle = store.ballCircle
+        selectedShape = store.ballShape
         selectedSizeDp = store.ballSizeDp
 
         val row = findViewById<LinearLayout>(R.id.colorRow)
@@ -594,8 +604,22 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val rgShape = findViewById<RadioGroup>(R.id.rgShape)
-        rgShape.check(if (selectedShapeCircle) R.id.rbCircle else R.id.rbRounded)
-        rgShape.setOnCheckedChangeListener { _, id -> selectedShapeCircle = id == R.id.rbCircle }
+        rgShape.check(
+            when (selectedShape) {
+                "roundrect" -> R.id.rbRounded
+                "cut" -> R.id.rbCut
+                "triangle" -> R.id.rbTriangle
+                else -> R.id.rbCircle
+            }
+        )
+        rgShape.setOnCheckedChangeListener { _, id ->
+            selectedShape = when (id) {
+                R.id.rbRounded -> "roundrect"
+                R.id.rbCut -> "cut"
+                R.id.rbTriangle -> "triangle"
+                else -> "circle"
+            }
+        }
 
         val rgSize = findViewById<RadioGroup>(R.id.rgSize)
         rgSize.check(
@@ -754,26 +778,34 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------- App 图标 / 桌面入口 ----------
 
+    private val aliasOrder = listOf(
+        ".main_red" to "闪译", ".main_blue" to "备忘录", ".main_green" to "工具箱"
+    )
+
     private fun bindLauncherSection() {
-        findViewById<Button>(R.id.btnAliasRed).setOnClickListener { applyAlias(".main_red") }
-        findViewById<Button>(R.id.btnAliasBlue).setOnClickListener { applyAlias(".main_blue") }
-        findViewById<Button>(R.id.btnAliasGreen).setOnClickListener { applyAlias(".main_green") }
+        findViewById<Button>(R.id.btnAliasCycle).setOnClickListener { cycleAlias() }
         findViewById<Button>(R.id.btnPinShortcut).setOnClickListener {
             pickShortcutImage.launch("image/*")
         }
     }
 
-    private fun applyAlias(cls: String) {
+    /** 单按钮循环：闪译(红) → 备忘录(蓝) → 工具箱(绿) → 闪译，互斥启用 */
+    private fun cycleAlias() {
         val pm = packageManager
-        listOf(".main_red", ".main_blue", ".main_green").forEach {
+        val cur = aliasOrder.indexOfFirst { (cls, _) ->
+            pm.getComponentEnabledSetting(ComponentName(packageName, "$packageName$cls")) ==
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        }.let { if (it < 0) 0 else it }
+        val next = aliasOrder[(cur + 1) % aliasOrder.size]
+        aliasOrder.forEach { (cls, _) ->
             pm.setComponentEnabledSetting(
-                ComponentName(packageName, "$packageName$it"),
-                if (it == cls) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                ComponentName(packageName, "$packageName$cls"),
+                if (cls == next.first) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                 else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP
             )
         }
-        toast("已切换 · 桌面图标稍后刷新（数秒到数分钟）\n若悬浮球消失：打开本App点「🚑修复」")
+        toast("桌面图标已切换为「${next.second}」· 刷新需数秒到数分钟")
     }
 
     private fun pinShortcut(uri: Uri) {
@@ -825,7 +857,7 @@ class SettingsActivity : AppCompatActivity() {
 
         store.ballText = findViewById<EditText>(R.id.etBallText).text.toString()
         store.ballColorHex = selectedColor
-        store.ballCircle = selectedShapeCircle
+        store.ballShape = selectedShape
         store.ballSizeDp = selectedSizeDp
 
         store.overlayHeightPct = findViewById<SeekBar>(R.id.sbHeight).progress + 30

@@ -7,11 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.BitmapFactory
 import android.graphics.Outline
+import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
@@ -146,6 +150,7 @@ class BallService : AccessibilityService() {
         lp.y = dp(180)
 
         val imgPath = st.ballImagePath
+        val shape = st.ballShape
         val view: View = if (imgPath.isNotEmpty() && File(imgPath).exists()) {
             ImageView(this).apply {
                 setImageBitmap(decodeScaled(imgPath, sizePx * 2))
@@ -154,14 +159,7 @@ class BallService : AccessibilityService() {
                 clipToOutline = true
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(v: View, o: Outline) {
-                        if (st.ballCircle) {
-                            o.setOval(0, 0, v.width, v.height)
-                        } else {
-                            o.setRoundRect(
-                                0, 0, v.width, v.height,
-                                dp(st.ballSizeDp / 4).toFloat()
-                            )
-                        }
+                        ballOutline(o, shape, v.width, v.height, st.ballSizeDp / 4)
                     }
                 }
             }
@@ -172,15 +170,9 @@ class BallService : AccessibilityService() {
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
-                background = GradientDrawable().apply {
-                    if (st.ballCircle) {
-                        shape = GradientDrawable.OVAL
-                    } else {
-                        shape = GradientDrawable.RECTANGLE
-                        cornerRadius = dp(st.ballSizeDp / 4).toFloat()
-                    }
-                    setColor(st.ballColorInt)
-                }
+                background = ballBackground(shape, st.ballColorInt, st.ballSizeDp / 4)
+                // 三角形尖朝上：文字下移让出尖角
+                if (shape == "triangle") setPadding(0, dp(st.ballSizeDp * 0.30f), 0, 0)
             }
         }
 
@@ -426,6 +418,80 @@ class BallService : AccessibilityService() {
         if (id != 0) res.getDimensionPixelSize(id) else 0
     } catch (_: Exception) {
         0
+    }
+
+    /** 悬浮球底色/形状（文字球） */
+    private fun ballBackground(shape: String, color: Int, cornerDp: Int): Drawable = when (shape) {
+        "roundrect" -> GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(cornerDp).toFloat()
+            setColor(color)
+        }
+        "cut" -> com.speedtrans.app.theme.ShellSkins.CutCornerDrawable(color, dp(8), 0, 0f)
+        "triangle" -> triangleDrawable(color)
+        else -> GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
+    }
+
+    /** 图片球轮廓（四种形状全为凸多边形，setConvexPath 可用） */
+    private fun ballOutline(o: Outline, shape: String, w: Int, h: Int, cornerDp: Int) {
+        when (shape) {
+            "roundrect" -> o.setRoundRect(0, 0, w, h, dp(cornerDp).toFloat())
+            "cut" -> {
+                val c = dp(8).toFloat()
+                val p = Path()
+                p.moveTo(c, 0f); p.lineTo(w - c, 0f)
+                p.lineTo(w.toFloat(), c); p.lineTo(w.toFloat(), h - c)
+                p.lineTo(w - c, h.toFloat()); p.lineTo(c, h.toFloat())
+                p.lineTo(0f, h - c); p.lineTo(0f, c)
+                p.close()
+                o.setConvexPath(p)
+            }
+            "triangle" -> {
+                val p = Path()
+                p.moveTo(w / 2f, 0f)
+                p.lineTo(w.toFloat(), h * 0.92f)
+                p.lineTo(0f, h * 0.92f)
+                p.close()
+                o.setConvexPath(p)
+            }
+            else -> o.setOval(0, 0, w, h)
+        }
+    }
+
+    /** 三角形球底（文字球用，尖朝上） */
+    private fun triangleDrawable(color: Int): Drawable = object : Drawable() {
+        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val path = Path()
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.isEmpty) return
+            path.reset()
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+            path.moveTo(w / 2f, 0f)
+            path.lineTo(w, h * 0.92f)
+            path.lineTo(0f, h * 0.92f)
+            path.close()
+            p.color = color
+            p.style = Paint.Style.FILL
+            canvas.drawPath(path, p)
+        }
+        override fun getOutline(outline: Outline) {
+            val b = bounds
+            if (b.isEmpty) return
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+            path.reset()
+            path.moveTo(w / 2f, 0f)
+            path.lineTo(w, h * 0.92f)
+            path.lineTo(0f, h * 0.92f)
+            path.close()
+            outline.setConvexPath(path)
+        }
+        override fun setAlpha(alpha: Int) { p.alpha = alpha }
+        override fun setColorFilter(cf: android.graphics.ColorFilter?) { p.colorFilter = cf }
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     private fun decodeScaled(path: String, target: Int): Bitmap {

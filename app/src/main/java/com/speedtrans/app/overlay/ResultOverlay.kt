@@ -85,10 +85,13 @@ class ResultOverlay(private val context: Context) {
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), 0, dp((8 * bs).toInt()))
             setOnClickListener {
-                val t = tvOut?.text?.toString() ?: ""
+                val tv = tvOut ?: return@setOnClickListener
+                // 有系统选区 → 只复制所选；无选区 → 复制全文
+                val sel = if (tv.hasSelection()) tv.text.substring(tv.selectionStart, tv.selectionEnd) else ""
+                val t = sel.ifEmpty { tv.text?.toString() ?: "" }
                 if (t.isNotEmpty()) {
                     TranslateCoordinator.copyToClipboard(ctx, t)
-                    tvStatus?.text = "已复制到剪贴板"
+                    tvStatus?.text = if (sel.isEmpty()) "已复制全文到剪贴板" else "已复制所选（${sel.length} 字）"
                 }
             }
         }
