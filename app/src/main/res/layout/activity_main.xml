@@ -105,6 +105,13 @@
             android:layout_marginTop="8dp"
             android:text="③ 配置接口 / 提示词 / 外观" />
 
+        <Button
+            android:id="@+id/btnHistory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="🕘 最近翻译" />
+
         <TextView
             android:id="@+id/tvUsage"
             android:layout_width="match_parent"

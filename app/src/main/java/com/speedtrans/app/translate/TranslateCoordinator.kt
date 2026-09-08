@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import com.speedtrans.app.overlay.ResultOverlay
+import com.speedtrans.app.store.HistoryStore
 import com.speedtrans.app.store.SettingsStore
 import okhttp3.Call
 
@@ -119,6 +120,7 @@ object TranslateCoordinator {
                         if (err == null) {
                             lastSource = text
                             lastTranslation = ov.currentText()
+                            HistoryStore.append(context.applicationContext, "翻译", text, ov.currentText())
                             ov.finish(null)
                         } else {
                             ov.finish(err)

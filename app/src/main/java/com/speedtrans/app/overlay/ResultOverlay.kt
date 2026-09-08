@@ -115,6 +115,8 @@ class ResultOverlay(private val context: Context) {
             setTextColor(pal.panelText)
             textSize = 16f
             setLineSpacing(0f, 1.3f)
+            // 长按进入系统文本选择（浮动工具条复制指定内容）；「复制」按钮仍复制全文
+            setTextIsSelectable(true)
         }
         scroll.addView(out)
 

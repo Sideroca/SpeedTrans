@@ -55,6 +55,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
+        findViewById<Button>(R.id.btnHistory).setOnClickListener {
+            startActivity(Intent(this, HistoryActivity::class.java))
+        }
+
         // 前台保活：划掉最近任务不影响悬浮球
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
         requestNotificationPermission()
