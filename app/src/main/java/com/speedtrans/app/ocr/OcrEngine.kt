@@ -19,7 +19,7 @@ import kotlin.math.max
 /**
  * 端侧 OCR 引擎（ML Kit bundled：模型打包在 APK 内，本地识别、不上传）。
  * - 五个文字体系模型全部打包（拉丁/中文/日文/韩文/天城文），设置页勾选启用
- * - 启用的识别器并行执行，总耗时 ≈ 最慢一个
+ * - 启用的识别器并行执行，总耗时 ≈ 最慢一个；跨识别器去重（框重叠≥50% 或同文，按 中文>日文>韩文>拉丁 留一份）
  * - excludeRects：无障碍文本层坐标——落在其中的识别行被剔除，
  *   使 OCR 结果只包含"像素层内容"（游戏/图片/视频字幕），与文本路零重复
  */
@@ -69,20 +69,20 @@ object OcrEngine {
             return
         }
         val image = InputImage.fromBitmap(bitmap, 0)
-        val recs = langs.mapNotNull { lang ->
+        val tagged = langs.mapNotNull { lang ->
             try {
-                recognizer(context, lang)
+                recognizer(context, lang)?.let { lang to it }
             } catch (_: Exception) {
                 null
             }
         }
-        if (recs.isEmpty()) {
+        if (tagged.isEmpty()) {
             onFail(null)
             return
         }
 
-        val lines = ArrayList<Text.Line>()
-        val total = recs.size
+        val lines = ArrayList<OcrLine>()
+        val total = tagged.size
         var settled = 0
         var success = 0
         var lastError: Exception? = null
@@ -109,12 +109,13 @@ object OcrEngine {
             }
         }
 
-        recs.forEach { rec ->
+        tagged.forEach { (lang, rec) ->
             rec.process(image)
                 .addOnSuccessListener { vision ->
+                    val prio = priority(lang)
                     synchronized(lock) {
                         vision.textBlocks.forEach { block ->
-                            block.lines.forEach { lines.add(it) }
+                            block.lines.forEach { lines.add(OcrLine(it, prio)) }
                         }
                     }
                     onOneSettled(true, null)
@@ -125,27 +126,70 @@ object OcrEngine {
         }
     }
 
-    /** 剔除文本层区域内的行 → 按位置排序 → 同行合并 */
-    private fun merge(raw: List<Text.Line>, exclude: List<Rect>): String {
-        val kept = raw.filter { line ->
-            val b = line.boundingBox ?: return@filter true
-            exclude.none { e -> e.left < b.right && b.left < e.right && e.top < b.bottom && b.top < e.bottom }
-        }.sortedWith(compareBy({ it.boundingBox?.top ?: 0 }, { it.boundingBox?.left ?: 0 }))
+    /** 带识别器优先级的识别行 */
+    private data class OcrLine(val line: Text.Line, val prio: Int)
 
+    /** 识别器优先级：中文 > 日文 > 韩文 > 拉丁（多模型同框争用时的仲裁依据） */
+    private fun priority(lang: String) = when (lang) {
+        "chinese" -> 0
+        "japanese" -> 1
+        "korean" -> 2
+        else -> 3
+    }
+
+    /** 归一化文本：去空格（含全角）、拉丁小写——跨识别器判重用 */
+    private fun norm(s: String) = s.replace(" ", "").replace("\u3000", "").lowercase()
+
+    /** 两框交并比 IoU */
+    private fun iou(a: Rect, b: Rect): Float {
+        val ix = maxOf(0, minOf(a.right, b.right) - maxOf(a.left, b.left))
+        val iy = maxOf(0, minOf(a.bottom, b.bottom) - maxOf(a.top, b.top))
+        val inter = ix.toLong() * iy
+        if (inter <= 0L) return 0f
+        val union = a.width().toLong() * a.height() + b.width().toLong() * b.height() - inter
+        return if (union <= 0L) 0f else inter.toFloat() / union
+    }
+
+    /** 跨识别器去重 → 剔除文本层区域内的行 → 按位置排序 → 同行合并 */
+    private fun merge(raw: List<OcrLine>, exclude: List<Rect>): String {
+        // 1) 跨识别器去重：优先级高者先入列；后来者若框重叠≥50% 或归一化文本相同 → 判为重复
+        val kept = ArrayList<OcrLine>()
+        val boxes = ArrayList<Rect>()
+        val texts = ArrayList<String>()
+        raw.sortedBy { it.prio }.forEach { l ->
+            val box = l.line.boundingBox
+            val t = norm(l.line.text)
+            val dup = (box != null && boxes.any { iou(it, box) >= 0.5f }) ||
+                    (t.isNotEmpty() && texts.contains(t))
+            if (!dup) {
+                kept.add(l)
+                if (box != null) boxes.add(box)
+                if (t.isNotEmpty()) texts.add(t)
+            }
+        }
+        // 2) 剔除文本层区域内的行（与无障碍文本路零重复）
+        val survivors = kept.filter { l ->
+            val b = l.line.boundingBox ?: return@filter true
+            exclude.none { e -> e.left < b.right && b.left < e.right && e.top < b.bottom && b.top < e.bottom }
+        }
+        // 3) 按位置排序 → 同行合并
+        val ordered = survivors.sortedWith(
+            compareBy({ it.line.boundingBox?.top ?: 0 }, { it.line.boundingBox?.left ?: 0 })
+        )
         val sb = StringBuilder()
         var lastTop = Int.MIN_VALUE
         var lastH = 0
-        for (l in kept) {
-            val t = l.text.trim()
+        for (l in ordered) {
+            val t = l.line.text.trim()
             if (t.isEmpty()) continue
-            val top = l.boundingBox?.top ?: 0
+            val top = l.line.boundingBox?.top ?: 0
             val sameRow = sb.isNotEmpty() && abs(top - lastTop) <= max(10, lastH / 2)
             if (sameRow) sb.append(' ').append(t)
             else {
                 if (sb.isNotEmpty()) sb.append('\n')
                 sb.append(t)
                 lastTop = top
-                lastH = l.boundingBox?.height() ?: 0
+                lastH = l.line.boundingBox?.height() ?: 0
             }
         }
         return sb.toString().trim()
