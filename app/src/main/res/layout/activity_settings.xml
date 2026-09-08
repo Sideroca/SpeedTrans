@@ -311,6 +311,40 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
+                    android:text="🔀 翻译模式（三选一，与通知栏按钮同步）"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <RadioGroup
+                    android:id="@+id/rgMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/rbModeSmart"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🤖 智能（文字优先，字少或游戏自动转识图）" />
+
+                    <RadioButton
+                        android:id="@+id/rbModeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📄 仅文本（无障碍取词，原文零误差）" />
+
+                    <RadioButton
+                        android:id="@+id/rbModeOcr"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🖼 仅识图（静默截屏，全屏 100% 识别）" />
+                </RadioGroup>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
                     android:text="🌐 识别语言（勾选启用，未勾零开销）"
                     android:textSize="18sp"
                     android:textStyle="bold" />

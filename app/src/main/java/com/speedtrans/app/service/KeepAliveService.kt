@@ -36,9 +36,10 @@ class KeepAliveService : Service() {
                     "text" -> "ocr"
                     else -> "smart"
                 }
-                startForeground()   // 重新构建通知（标题显示新模式）
             }
         }
+        // 任何命令都重建通知：标题始终显示当前模式（含设置页保存后的同步）
+        startForeground()
         return START_STICKY
     }
 

@@ -307,6 +307,14 @@ class SettingsActivity : AppCompatActivity() {
     )
 
     private fun bindOcr() {
+        // 翻译模式三选一（与通知栏按钮循环同步）
+        findViewById<RadioGroup>(R.id.rgMode).check(
+            when (store.translateMode) {
+                "text" -> R.id.rbModeText
+                "ocr" -> R.id.rbModeOcr
+                else -> R.id.rbModeSmart
+            }
+        )
         val langs = store.ocrLanguages
         langIds.forEach { (id, code) ->
             findViewById<CheckBox>(id).isChecked = code in langs
@@ -468,6 +476,11 @@ class SettingsActivity : AppCompatActivity() {
             R.id.rbBtnBig -> 125
             else -> 100
         }
+        store.translateMode = when (findViewById<RadioGroup>(R.id.rgMode).checkedRadioButtonId) {
+            R.id.rbModeText -> "text"
+            R.id.rbModeOcr -> "ocr"
+            else -> "smart"
+        }
         store.ocrLanguages = langIds.mapNotNull { (id, code) ->
             if (findViewById<CheckBox>(id).isChecked) code else null
         }.toSet()
@@ -482,6 +495,8 @@ class SettingsActivity : AppCompatActivity() {
 
         BallService.instance?.refreshBall()
         TranslateCoordinator.closeOverlay()
+        // 通知栏标题显示当前模式，保存后立即同步
+        ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
         toast("已保存")
         finish()
     }
