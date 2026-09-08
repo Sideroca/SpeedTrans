@@ -315,7 +315,7 @@ class BallService : AccessibilityService() {
     private var ocrBusy = false
 
     fun captureAndOcr(force: Boolean, scaled: Boolean = true, allowRetry: Boolean = true) {
-        if (ocrBusy) return
+        if (ocrBusy || TranslateCoordinator.busy) return
         val ov = TranslateCoordinator.overlay(this)
         ov.ensure()
 

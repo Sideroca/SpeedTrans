@@ -41,6 +41,7 @@ object TranslateCoordinator {
         overlay ?: ResultOverlay(context.applicationContext).also { overlay = it }
 
     fun closeOverlay() {
+        cancelActive()      // 关面板 = 停止翻译，避免流继续打到已关闭的面板
         overlay?.close()
     }
 
@@ -67,6 +68,11 @@ object TranslateCoordinator {
             return
         }
 
+        if (!SettingsStore(context.applicationContext).isConfigured) {
+            ov.showStatus("⚠️ 接口未配置：设置 → 🔌 接口")
+            return
+        }
+
         // 1) 内容完全没变：0 请求直接回显
         if (text == lastSource && lastTranslation.isNotEmpty()) {
             ov.showFinished(text.length, lastTranslation)
@@ -87,24 +93,30 @@ object TranslateCoordinator {
             else "⚡ 原文 ${text.length} 字 · 翻译中…"
         )
 
-        currentCall = engine!!.translate(
-            segment,
-            isContinuation = incremental,
-            onDelta = { d -> mainHandler.post { if (mySeq == seq) ov.append(d) } },
-            onDone = { err ->
-                mainHandler.post {
-                    if (mySeq != seq) return@post   // 迟到回调（请求已被取消）
-                    currentCall = null
-                    if (err == null) {
-                        lastSource = text
-                        lastTranslation = ov.currentText()
-                        ov.finish(null)
-                    } else {
-                        ov.finish(err)
+        currentCall = try {
+            engine!!.translate(
+                segment,
+                isContinuation = incremental,
+                onDelta = { d -> mainHandler.post { if (mySeq == seq) ov.append(d) } },
+                onDone = { err ->
+                    mainHandler.post {
+                        if (mySeq != seq) return@post   // 迟到回调（请求已被取消）
+                        currentCall = null
+                        if (err == null) {
+                            lastSource = text
+                            lastTranslation = ov.currentText()
+                            ov.finish(null)
+                        } else {
+                            ov.finish(err)
+                        }
                     }
                 }
-            }
-        )
+            )
+        } catch (e: Exception) {
+            // 接口地址非法等同步异常：不闪退，面板直接报错
+            ov.showStatus("✗ 无法发起请求：${e.message?.take(100) ?: "请检查接口地址"}")
+            null
+        }
     }
 
     fun copyToClipboard(context: Context, text: String) {
