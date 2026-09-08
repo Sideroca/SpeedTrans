@@ -23,7 +23,9 @@ class TranslateEngine(private val store: SettingsStore) {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS) // 流式读取不设超时
+        // 读超时 = 两次数据之间的最大间隔（非总时长）。60s 无新数据视为连接死亡，
+        // 防止"翻译中"永久悬挂（此前为 0 = 永不超时）
+        .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 

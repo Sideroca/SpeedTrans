@@ -26,10 +26,14 @@ object TextCollector {
 
     fun collect(root: AccessibilityNodeInfo): String = collectWithRects(root).text
 
-    fun collectWithRects(root: AccessibilityNodeInfo): Collected {
+    /**
+     * @param excludePackage 跳过该包名的节点子树。本应用的译文面板是可聚焦窗口，
+     *                       可能成为活动窗口，不排除会把面板自身 UI 文字当原文抓走
+     */
+    fun collectWithRects(root: AccessibilityNodeInfo, excludePackage: String? = null): Collected {
         val found = ArrayList<RectText>()
         try {
-            dfs(root, 0, found)
+            dfs(root, 0, found, excludePackage)
         } catch (_: Exception) {
         }
         if (found.isEmpty()) return Collected("", emptyList())
@@ -79,8 +83,9 @@ object TextCollector {
         return Collected(out.joinToString("\n"), uniq.map { it.rect })
     }
 
-    private fun dfs(node: AccessibilityNodeInfo, depth: Int, out: ArrayList<RectText>) {
+    private fun dfs(node: AccessibilityNodeInfo, depth: Int, out: ArrayList<RectText>, excludePackage: String?) {
         if (depth > MAX_DEPTH || out.size > MAX_NODES) return
+        if (excludePackage != null && node.packageName?.toString() == excludePackage) return
         val text = node.text?.toString()
         val desc = node.contentDescription?.toString()
         val t = when {

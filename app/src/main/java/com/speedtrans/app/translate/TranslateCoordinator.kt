@@ -11,16 +11,25 @@ import okhttp3.Call
 
 /**
  * 翻译编排单例：悬浮球触发点（OCR 服务 / 无障碍服务）共用同一条翻译管线。
- * 职责：增量判断、缓存秒回、流式渲染、取消旧请求。
+ * 职责：增量判断、缓存秒回、流式渲染、忙碌忽略（一次只跑一个请求）。
  */
 object TranslateCoordinator {
 
     private var overlay: ResultOverlay? = null
     private var lastSource = ""
     private var lastTranslation = ""
+
+    /** 进行中的请求；完成/失败/取消时置空 */
     private var currentCall: Call? = null
+
+    /** 请求序号：每次发新请求或取消时推进，用于丢弃迟到回调 */
+    private var seq = 0
+
     private var engine: TranslateEngine? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 是否有翻译进行中（悬浮球据此忽略连点） */
+    val busy: Boolean get() = currentCall != null
 
     private fun ensureInit(context: Context) {
         if (engine == null) {
@@ -39,11 +48,15 @@ object TranslateCoordinator {
 
     /** 立刻取消进行中的翻译请求（流式回调占用主线程，关面板前先取消） */
     fun cancelActive() {
+        seq++               // 使该请求的迟到回调全部失效
         currentCall?.cancel()
         currentCall = null
     }
 
     fun startTranslate(context: Context, rawText: String) {
+        // 翻译进行中忽略新请求：连点视为未发生，一次只跑第一次的反应
+        if (currentCall != null) return
+
         ensureInit(context)
         val ov = overlay(context)
         ov.ensure()
@@ -66,8 +79,8 @@ object TranslateCoordinator {
                 text.startsWith(lastSource)
         val segment = if (incremental) text.substring(lastSource.length) else text
 
-        // 3) 取消旧请求，立刻发新的
-        currentCall?.cancel()
+        // 3) 发起新请求（能走到这里必然无进行中请求）
+        val mySeq = ++seq
         ov.begin(
             reset = !incremental,
             status = if (incremental) "⚡ 增量 ${segment.length} 字 · 翻译中…"
@@ -77,9 +90,11 @@ object TranslateCoordinator {
         currentCall = engine!!.translate(
             segment,
             isContinuation = incremental,
-            onDelta = { d -> mainHandler.post { ov.append(d) } },
+            onDelta = { d -> mainHandler.post { if (mySeq == seq) ov.append(d) } },
             onDone = { err ->
                 mainHandler.post {
+                    if (mySeq != seq) return@post   // 迟到回调（请求已被取消）
+                    currentCall = null
                     if (err == null) {
                         lastSource = text
                         lastTranslation = ov.currentText()

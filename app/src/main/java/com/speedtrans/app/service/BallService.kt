@@ -25,6 +25,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.ImageView
 import android.widget.TextView
 import com.speedtrans.app.ocr.OcrEngine
@@ -242,14 +243,23 @@ class BallService : AccessibilityService() {
     // ---------------- 点击判定：单击 = 智能，双击 = 强制识图 ----------------
 
     private fun onBallTap() {
+        // 翻译/识图进行中忽略点球：连点视为未发生，一次只跑第一次的反应
+        if (ocrBusy || TranslateCoordinator.busy) return
         startTranslate()
     }
 
     // ---------------- 抓取 + 三态判定 + OCR ----------------
 
     private fun collectScreen(): TextCollector.Collected {
-        val root: AccessibilityNodeInfo? = rootInActiveWindow
-        val c = if (root != null) TextCollector.collectWithRects(root)
+        var root: AccessibilityNodeInfo? = rootInActiveWindow
+        // 译文面板可聚焦，可能成为活动窗口：此时改取其下方最新的第三方应用窗口
+        if (root?.packageName?.toString() == packageName) {
+            root = windows.firstOrNull { w ->
+                w.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                        w.root?.packageName?.toString() != packageName
+            }?.root ?: root
+        }
+        val c = if (root != null) TextCollector.collectWithRects(root, packageName)
                 else TextCollector.Collected("", emptyList())
         val maxChars = SettingsStore(this).maxChars
         var text = c.text
