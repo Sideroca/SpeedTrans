@@ -353,9 +353,20 @@ class BallService : AccessibilityService() {
                 val tPrep = android.os.SystemClock.elapsedRealtime() - t0
                 mainHandler.post { ov.showStatus("🔍 识别中…（截屏 ${tShot}ms · 预处理 ${tPrep - tShot}ms）") }
 
-                // force（手动/双击入口已移除，现为仅识图模式）= 全屏 100% 内容；
-                // 自动回退 = 剔除文本层坐标，与文本路零重复
-                val exclude = if (force) emptyList() else lastRects
+                // force（仅识图模式）= 抛弃文本层、全屏 100% 内容；自动回退 = 剔除文本层坐标
+                // 状态栏/导航栏永远排除（系统栏不是翻译对象）
+                // 排除清单统一换算到位图坐标系——修复高分辨率机型缩放后文本层排除失效的存量 bug
+                val r = if (scaled && raw.width > 1080) 1080f / raw.width else 1f
+                fun toBmp(rc: android.graphics.Rect) = if (r == 1f) rc else android.graphics.Rect(
+                    (rc.left * r).toInt(), (rc.top * r).toInt(), (rc.right * r).toInt(), (rc.bottom * r).toInt()
+                )
+                val sysRects = buildList {
+                    val sbH = systemDimenPx("status_bar_height")
+                    val nbH = systemDimenPx("navigation_bar_height")
+                    if (sbH > 0) add(android.graphics.Rect(0, 0, raw.width, sbH))
+                    if (nbH > 0 && nbH < raw.height) add(android.graphics.Rect(0, raw.height - nbH, raw.width, raw.height))
+                }
+                val exclude = (if (force) emptyList() else lastRects.map { toBmp(it) }) + sysRects.map { toBmp(it) }
                 OcrEngine.recognize(
                     this@BallService, bmp, exclude,
                     onResult = { t ->
@@ -406,6 +417,15 @@ class BallService : AccessibilityService() {
             } catch (_: Exception) {
             }
         }
+    }
+
+    /** 系统尺寸资源（状态栏/导航栏高度，全 ROM 通用的标准 dimen） */
+    private fun systemDimenPx(name: String): Int = try {
+        val res = android.content.res.Resources.getSystem()
+        val id = res.getIdentifier(name, "dimen", "android")
+        if (id != 0) res.getDimensionPixelSize(id) else 0
+    } catch (_: Exception) {
+        0
     }
 
     private fun decodeScaled(path: String, target: Int): Bitmap {
