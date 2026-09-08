@@ -244,7 +244,8 @@ class BallService : AccessibilityService() {
 
     private fun onBallTap() {
         // 翻译/识图进行中忽略点球：连点视为未发生，一次只跑第一次的反应
-        if (ocrBusy || TranslateCoordinator.busy) return
+        // 面板刚被窗外触摸关闭（400ms 内）同样忽略——否则球上 UP 会变相复活"取消重翻"
+        if (ocrBusy || TranslateCoordinator.busy || TranslateCoordinator.recentlyAutoClosed()) return
         startTranslate()
     }
 

@@ -1,6 +1,7 @@
 package com.speedtrans.app.overlay
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.text.TextUtils
@@ -35,6 +36,9 @@ class ResultOverlay(private val context: Context) {
         val st = SettingsStore(ctx)
         val pal = ThemeEngine.current(ctx)
         val bs = st.overlayButtonScale
+        // 撞色条独立选色：用户覆盖优先，未设置跟随主题；条上文字按明度自动黑/白
+        val barBg = st.barColorOverride() ?: pal.barBg
+        val barTextC = if (Color.luminance(barBg) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val box = LinearLayout(ctx).apply {
@@ -52,14 +56,14 @@ class ResultOverlay(private val context: Context) {
             gravity = Gravity.CENTER_VERTICAL
             // 传统撞色条：每套主题配一个对撞的传统色
             background = ThemeEngine.cardDrawable(
-                pal.barBg, pal.cardRadius.toFloat(),
+                barBg, pal.cardRadius.toFloat(),
                 ctx.resources.displayMetrics.density, pal.cardStroke
             )
         }
         val btnClose = TextView(ctx).apply {
             text = "✕"
             textSize = 16f * bs
-            setTextColor(pal.barText)
+            setTextColor(barTextC)
             setPadding(0, dp((8 * bs).toInt()), dp((10 * bs).toInt()), dp((8 * bs).toInt()))
             setOnClickListener {
                 TranslateCoordinator.cancelActive()
@@ -67,7 +71,7 @@ class ResultOverlay(private val context: Context) {
             }
         }
         val status = TextView(ctx).apply {
-            setTextColor(pal.barText)
+            setTextColor(barTextC)
             textSize = 12f * bs
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -77,7 +81,7 @@ class ResultOverlay(private val context: Context) {
         val btnCopy = TextView(ctx).apply {
             text = "复制"
             textSize = 14f * bs
-            setTextColor(pal.barText)
+            setTextColor(barTextC)
             typeface = Typeface.DEFAULT_BOLD
             setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), 0, dp((8 * bs).toInt()))
             setOnClickListener {
@@ -124,7 +128,7 @@ class ResultOverlay(private val context: Context) {
             WindowManager.LayoutParams.MATCH_PARENT,
             panelH,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            0, // 无 FLAG_NOT_FOCUSABLE：接收返回键
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH, // 点窗外（原文区）= 关面板
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.BOTTOM or Gravity.START
@@ -139,6 +143,14 @@ class ResultOverlay(private val context: Context) {
             ) {
                 TranslateCoordinator.cancelActive()
                 close()
+                true
+            } else false
+        }
+
+        // 窗外触摸（原文区）= 关面板；触摸继续传给底层应用（非模态）
+        box.setOnTouchListener { _, e ->
+            if (e.action == android.view.MotionEvent.ACTION_OUTSIDE) {
+                TranslateCoordinator.onOutsideTouch()
                 true
             } else false
         }

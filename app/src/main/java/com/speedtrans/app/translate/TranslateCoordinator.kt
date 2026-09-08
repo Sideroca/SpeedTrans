@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.speedtrans.app.overlay.ResultOverlay
 import com.speedtrans.app.store.SettingsStore
 import okhttp3.Call
@@ -44,6 +45,19 @@ object TranslateCoordinator {
         cancelActive()      // 关面板 = 停止翻译，避免流继续打到已关闭的面板
         overlay?.close()
     }
+
+    private var lastAutoCloseAt = 0L
+
+    /** 窗外触摸（原文区）触发：取消翻译 + 关面板 + 记时间戳（防球上 UP 变相复活连点重翻） */
+    fun onOutsideTouch() {
+        lastAutoCloseAt = SystemClock.elapsedRealtime()
+        cancelActive()
+        overlay?.close()
+    }
+
+    /** 面板刚被窗外触摸关闭（400ms 内）——悬浮球据此忽略收尾点击 */
+    fun recentlyAutoClosed(): Boolean =
+        SystemClock.elapsedRealtime() - lastAutoCloseAt < 400L
 
     val overlayVisible: Boolean get() = overlay?.visible == true
 
