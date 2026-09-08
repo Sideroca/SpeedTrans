@@ -43,12 +43,12 @@ object ShellSkins {
 
     private const val KEY = "shell_skin"
 
-    /** 死亡搁浅·全息（原型即规格）：青蓝交互 + 琥珀金强调 + 切角 + 扫描线 */
+    /** 炫酷黑：纯黑域 + 青蓝交互 + 琥珀金强调 + 切角 + 扫描线 */
     private val dsHolo = ShellSkin(
-        "ds_holo", "死亡搁浅 · 全息",
-        bg = 0xFF0A0D12.toInt(),
-        panelBg = 0xFF12151A.toInt(),
-        stroke = 0xFF292C31.toInt(),
+        "ds_holo", "炫酷黑",
+        bg = 0xFF05070A.toInt(),
+        panelBg = 0xFF0E1116.toInt(),
+        stroke = 0xFF242933.toInt(),
         accent = 0xFF1EA5C7.toInt(),
         accentStrong = 0xFFFBC02D.toInt(),
         text = 0xFFE8ECF1.toInt(),

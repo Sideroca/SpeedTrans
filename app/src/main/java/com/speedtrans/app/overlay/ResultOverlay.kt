@@ -133,7 +133,8 @@ class ResultOverlay(private val context: Context) {
             WindowManager.LayoutParams.MATCH_PARENT,
             panelH,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH, // 点窗外（原文区）= 关面板
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, // 窗外触摸：既通知我们，也放行给底层应用
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.BOTTOM or Gravity.START
@@ -153,8 +154,12 @@ class ResultOverlay(private val context: Context) {
         }
 
         // 窗外触摸（原文区）= 关面板；触摸继续传给底层应用（非模态）
+        // 双约定兜底：A) WATCH_OUTSIDE 投递的 ACTION_OUTSIDE；B) 部分 ROM 以「DOWN + FLAG_WINDOW_IS_OUTSIDE」投递
         box.setOnTouchListener { _, e ->
-            if (e.action == android.view.MotionEvent.ACTION_OUTSIDE) {
+            val outside = e.action == android.view.MotionEvent.ACTION_OUTSIDE ||
+                    (e.action == android.view.MotionEvent.ACTION_DOWN &&
+                        (e.flags and android.view.MotionEvent.FLAG_WINDOW_IS_OUTSIDE) != 0)
+            if (outside) {
                 TranslateCoordinator.onOutsideTouch()
                 true
             } else false

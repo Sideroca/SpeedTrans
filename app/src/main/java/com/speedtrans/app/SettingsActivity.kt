@@ -41,6 +41,7 @@ import com.speedtrans.app.translate.Providers
 import com.speedtrans.app.translate.TranslateCoordinator
 import com.speedtrans.app.translate.TranslateEngine
 import com.speedtrans.app.ui.BeamView
+import com.speedtrans.app.ui.CircuitLampView
 import com.speedtrans.app.ui.ScanlineView
 import com.speedtrans.app.ui.Wallpaper
 import java.io.File
@@ -360,13 +361,19 @@ class SettingsActivity : AppCompatActivity() {
         etModel.setText(store.model)
         refreshThinkingRow()
 
+        val lamp = findViewById<CircuitLampView>(R.id.lampTest)
         findViewById<Button>(R.id.btnTest).setOnClickListener {
             // 先落字段再测试（未保存也能测）
             store.baseUrl = etUrl.text.toString()
             store.apiKey = etKey.text.toString()
             store.model = etModel.text.toString()
+            lamp.setState(CircuitLampView.State.TESTING)
             TranslateEngine(store).testConnection { msg ->
-                runOnUiThread { toast(msg) }
+                val ok = msg.startsWith("✅")
+                runOnUiThread {
+                    lamp.setState(if (ok) CircuitLampView.State.OK else CircuitLampView.State.FAIL)
+                    tvNote.text = msg
+                }
             }
         }
     }
