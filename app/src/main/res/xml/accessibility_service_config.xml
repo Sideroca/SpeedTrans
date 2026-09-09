@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRequestFilterKeyEvents"
@@ -7,4 +8,5 @@
     android:canTakeScreenshot="true"
     android:notificationTimeout="200"
     android:summary="@string/a11y_label"
-    android:description="@string/a11y_desc" />
+    android:description="@string/a11y_desc"
+    tools:targetApi="30" />
