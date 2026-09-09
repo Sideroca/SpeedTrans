@@ -11,7 +11,7 @@
 - 仓库：github.com/Sideroca/SpeedTrans（Private，含预填 API Key，**开源前必须脱敏**）
 - 构建：GitHub Actions 云端（本地 aarch64 无法编译），workflow 在 `.github/workflows/build.yml`
 - 签名：`debug.keystore` 已提交仓库（固定签名，所有版本可互相覆盖安装）
-- 当前版本：v3.3（versionCode 10），Release 上有 v1.0~v3.0、v3.3 各包
+- 当前版本：v4.1.1-beta1（tag 已建，APK 在 Release；versionCode 未 bump，仍 14/"3.7"）
 
 ## 二、技术架构（全部为标准 Android API，无厂商/谷歌依赖）
 
@@ -73,8 +73,8 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 像素层通过 **AccessibilityService.takeScreenshot()（Android 11+，零授权零弹窗零动画零声音）**
 截屏 → ML Kit 端侧 OCR（模型打包 APK，本地识别不上传）→ 文字 → 现有翻译管线。
 
-**三态模式**（通知栏按钮循环切换 + 设置页，手动永远优先）：
-- 🤖 智能（默认）：先无障碍取词，字数 < 阈值（可调，默认 20）或前台是游戏 → 自动转识图
+**两态模式**（通知栏点一下即切 + 设置页单选，手动永远优先；智能判定已退役——
+自动转识图的阈值/游戏检测逻辑整体移除，历史 smart 值自动迁移为仅文本，git 历史可考）：
 - 📄 仅文本：强制无障碍（网页阅读，原文零误差）
 - 🖼 仅识图：强制截屏 OCR（**抛弃文本层结果，全屏 100% 内容识别**——轻响的方案）
 
@@ -82,7 +82,7 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 翻译/识图进行中点球一律忽略（一次只跑第一次的反应，完成后点球恢复增量/秒回）。
 识图入口 = 仅识图模式 / 通知栏按钮。**混合场景双路并行**：文本层与像素层两请求并行
 （坐标分离零重复：OCR 行坐标与文本层 Rect 求交剔除），面板分区显示「📄 屏幕文本 / 🖼 画面内容」。
-**游戏前台检测**：无障碍窗口事件跟踪前台包名 + 应用分类（CATEGORY_GAME），零额外权限。
+**游戏前台检测**：已随智能判定退役移除（原实现：无障碍窗口事件跟踪前台包名 + CATEGORY_GAME 判定）。
 **静默保证**：无截屏动画/声音/缩略图/文件；系统对连续截屏有 ~1s 间隔限制，失败自动重试一次。
 
 **已知边界**：艺体字/Logo 化变形字识别差（OCR 硬边界）；ML Kit 语言体系仅 5 种
@@ -208,7 +208,8 @@ app/src/main/res/xml/
 | v3.5.apk | 12 | 已删 | KeepAliveService 通知修复版 |
 | v3.6.apk | 10 | 已删 | 另一实例：删双击 + A 阈值滑条 + C maxChars 滑条（与轻响需求并行对齐） |
 | v4.0.apk | 13 | 已删 | ML Kit 四模型 OCR 全量版（47MB，含 3 份冗余架构库） |
-| **v3.7.1-arm64.apk** | **15** | **当前** | ✅ 待验收：单面板 / 无双击 / 阈值滑条 / maxChars 滑条 / 19.7MB（ABI 拆分） |
+| **v3.7.1-arm64.apk** | **15** | 历史稳定版 | ✅ 长期主力：单面板 / 无双击 / 19.7MB（ABI 拆分） |
+| v4.1.1-beta1 | 14* | 本地待发 | 两态模式 / 智能接口 44 色 / 图标工坊 / 皮肤 / 火焰特效 / 点阵通知图标（*versionCode 未 bump，仍 14/"3.7"） |
 
 v3.3 双面板根因：BallService 私有 overlay 字段 + TranslateCoordinator overlay 双实例并存。
 v3.3 双击卡死根因：双击触发 captureAndOcr，但 v3.3 无 OCR 实现（空转）→"翻译中"永久等待。v4.0 起 captureAndOcr 才有实体。

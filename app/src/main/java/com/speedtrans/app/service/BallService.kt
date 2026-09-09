@@ -5,7 +5,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -74,9 +73,6 @@ class BallService : AccessibilityService() {
 
     private var currentCall: okhttp3.Call? = null
 
-    /** 前台应用包名（窗口切换事件跟踪，用于游戏检测） */
-    private var fgPackage: String = ""
-
     override fun onCreate() {
         super.onCreate()
     }
@@ -97,13 +93,8 @@ class BallService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    /** 跟踪前台应用包名（游戏检测用） */
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val pkg = event.packageName?.toString()
-            if (!pkg.isNullOrEmpty() && pkg != packageName) fgPackage = pkg
-        }
-    }
+    /** 窗口事件：智能判定退役后暂无用途，保留空实现（无障碍服务必须覆写） */
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {}
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // 通知栏「🖼 识图翻译」入口：全屏游戏场景下拉通知即可触发
