@@ -62,6 +62,11 @@ object TranslateCoordinator {
 
     val overlayVisible: Boolean get() = overlay?.visible == true
 
+    /** 距面板边缘实时预览（设置页滑条拖动时调用） */
+    fun liveEdgePadding(padDp: Int) {
+        overlay?.applyEdgePadding(padDp)
+    }
+
     /** 立刻取消进行中的翻译请求（流式回调占用主线程，关面板前先取消） */
     fun cancelActive() {
         seq++               // 使该请求的迟到回调全部失效

@@ -22,6 +22,8 @@ import com.speedtrans.app.translate.TranslateCoordinator
 class ResultOverlay(private val context: Context) {
 
     private var root: LinearLayout? = null
+    private var topBar: LinearLayout? = null
+    private var catcher: View? = null
     private var tvStatus: TextView? = null
     private var tvOut: TextView? = null
     private var wm: WindowManager? = null
@@ -124,6 +126,7 @@ class ResultOverlay(private val context: Context) {
         scroll.addView(out)
 
         box.addView(top)
+        topBar = top
         box.addView(scroll)
 
         val screenH = ctx.resources.displayMetrics.heightPixels
@@ -133,8 +136,7 @@ class ResultOverlay(private val context: Context) {
             WindowManager.LayoutParams.MATCH_PARENT,
             panelH,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, // 窗外触摸：既通知我们，也放行给底层应用
+            0, // 面板可聚焦收返回键；窗外触摸由全屏捕捉层统一处理（确定性，ROM 无关）
             PixelFormat.TRANSLUCENT
         )
         lp.gravity = Gravity.BOTTOM or Gravity.START
@@ -153,17 +155,22 @@ class ResultOverlay(private val context: Context) {
             } else false
         }
 
-        // 窗外触摸（原文区）= 关面板；触摸继续传给底层应用（非模态）
-        // 双约定兜底：A) WATCH_OUTSIDE 投递的 ACTION_OUTSIDE；B) 部分 ROM 以「DOWN + FLAG_WINDOW_IS_OUTSIDE」投递
-        box.setOnTouchListener { _, e ->
-            val outside = e.action == android.view.MotionEvent.ACTION_OUTSIDE ||
-                    (e.action == android.view.MotionEvent.ACTION_DOWN &&
-                        (e.flags and android.view.MotionEvent.FLAG_WINDOW_IS_OUTSIDE) != 0)
-            if (outside) {
+        // 全屏捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译（确定性，ROM 无关）
+        val catchView = View(ctx).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnTouchListener { _, _ ->
                 TranslateCoordinator.onOutsideTouch()
                 true
-            } else false
+            }
         }
+        val clp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        wm?.addView(catchView, clp)
+        catcher = catchView
 
         wm?.addView(box, lp)
         box.requestFocus()
@@ -207,8 +214,18 @@ class ResultOverlay(private val context: Context) {
         root = null
         tvOut = null
         tvStatus = null
+        topBar = null
+        val c = catcher
+        catcher = null
+        c?.let { try { wm?.removeViewImmediate(it) } catch (_: Exception) {} }
         // 同步立即移除：removeView 是异步排程，主线程忙时会延迟数秒才消失
         r?.let { try { wm?.removeViewImmediate(it) } catch (_: Exception) {} }
+    }
+
+    /** 距面板边缘实时生效（设置页滑条拖动时调用） */
+    fun applyEdgePadding(padDp: Int) {
+        topBar?.setPadding(dp(padDp), 0, dp(padDp), 0)
+        topBar?.requestLayout()
     }
 
     private fun scrollOutTop() {

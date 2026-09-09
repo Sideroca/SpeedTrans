@@ -120,7 +120,7 @@ class BallService : AccessibilityService() {
         ) {
             val ov = TranslateCoordinator.overlay(this)
             if (ov?.visible == true) {
-                mainHandler.post { ov.close() }
+                mainHandler.post { TranslateCoordinator.closeOverlay() }
                 return true
             }
         }

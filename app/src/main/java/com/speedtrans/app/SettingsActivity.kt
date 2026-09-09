@@ -776,6 +776,11 @@ class SettingsActivity : AppCompatActivity() {
         sbPad.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
                 tvPad.text = "${p}dp"
+                if (fromUser) {
+                    // 实时预览：拖动即生效（面板开着直接变，关着则下次翻译生效）
+                    store.btnPaddingDp = p
+                    TranslateCoordinator.liveEdgePadding(p)
+                }
             }
 
             override fun onStartTrackingTouch(s: SeekBar?) {}
