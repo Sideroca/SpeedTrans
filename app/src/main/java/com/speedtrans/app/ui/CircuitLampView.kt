@@ -56,11 +56,22 @@ class CircuitLampView @JvmOverloads constructor(
     private var flash = 1f
     private var flowAnim: ValueAnimator? = null
     private var flashAnim: ValueAnimator? = null
+    private val embers = ArrayList<Ember>()
+
+    private class Ember(
+        var x: Float, var y: Float, var vx: Float, var vy: Float,
+        var t: Float, val life: Float, val r: Float, val color: Int
+    )
+
+    private val emberColors = intArrayOf(
+        0xFFFFFFFF.toInt(), 0xFFFFE97C.toInt(), 0xFF7CE87C.toInt()
+    )
 
     fun setState(s: State) {
         state = s
         flowAnim?.cancel(); flowAnim = null
         flashAnim?.cancel(); flashAnim = null
+        if (s != State.OK) embers.clear()
         when (s) {
             State.TESTING -> {
                 flow = 0f
@@ -74,9 +85,41 @@ class CircuitLampView @JvmOverloads constructor(
             }
             State.OK -> {
                 flash = 0f
+                val bw = width.toFloat(); val bh = height.toFloat()
+                if (bw > 0f && bh > 0f) {
+                    val br = min(bh * 0.30f, bw * 0.13f)
+                    val bx = bw * 0.66f; val by = bh * 0.46f
+                    repeat(8) { i ->
+                        embers.add(
+                            Ember(
+                                bx + (Math.random().toFloat() - 0.5f) * br,
+                                by - br * (0.9f + Math.random().toFloat() * 0.3f),
+                                (Math.random().toFloat() - 0.5f) * 60f,
+                                -(50f + Math.random().toFloat() * 90f),
+                                0f, 0.45f + Math.random().toFloat() * 0.5f,
+                                1.5f + Math.random().toFloat() * 2.5f,
+                                emberColors[i % emberColors.size]
+                            )
+                        )
+                    }
+                }
                 flashAnim = ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = 1200
-                    addUpdateListener { flash = it.animatedValue as Float; invalidate() }
+                    addUpdateListener { a ->
+                        val v = a.animatedValue as Float
+                        val dt = (v - flash) * 1.2f
+                        flash = v
+                        val it2 = embers.iterator()
+                        while (it2.hasNext()) {
+                            val e = it2.next()
+                            e.t += dt
+                            e.x += e.vx * dt
+                            e.y += e.vy * dt
+                            e.vy += 60f * dt
+                            if (e.t >= e.life) it2.remove()
+                        }
+                        invalidate()
+                    }
                     start()
                 }
             }
@@ -216,6 +259,16 @@ class CircuitLampView @JvmOverloads constructor(
                     bulbY + (r1 * kotlin.math.sin(ang)).toFloat(),
                     rays
                 )
+            }
+        }
+
+        // 余烬（OK 闪光喷出，向上飘散，白/黄/绿三色）
+        if (state == State.OK && embers.isNotEmpty()) {
+            for (e in embers) {
+                val k = (e.t / e.life).coerceIn(0f, 1f)
+                rays.color = (((1f - k) * 210).toInt() shl 24) or (e.color and 0x00FFFFFF)
+                rays.strokeWidth = e.r
+                canvas.drawPoint(e.x, e.y, rays)
             }
         }
     }

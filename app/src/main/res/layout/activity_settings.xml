@@ -98,7 +98,7 @@
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
-                <AutoCompleteTextView
+                <com.speedtrans.app.ui.BurnAutoCompleteTextView
                     android:id="@+id/acProvider"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -115,7 +115,7 @@
                     android:layout_marginTop="2dp"
                     android:textSize="11sp" />
 
-                <AutoCompleteTextView
+                <com.speedtrans.app.ui.BurnAutoCompleteTextView
                     android:id="@+id/etUrl"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -125,7 +125,7 @@
                     android:inputType="textUri"
                     android:textSize="13sp" />
 
-                <EditText
+                <com.speedtrans.app.ui.BurnEditText
                     android:id="@+id/etKey"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -133,7 +133,7 @@
                     android:inputType="text"
                     android:textSize="13sp" />
 
-                <AutoCompleteTextView
+                <com.speedtrans.app.ui.BurnAutoCompleteTextView
                     android:id="@+id/etModel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

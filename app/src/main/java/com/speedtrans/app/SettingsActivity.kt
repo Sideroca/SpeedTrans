@@ -44,6 +44,7 @@ import com.speedtrans.app.translate.TranslateCoordinator
 import com.speedtrans.app.translate.TranslateEngine
 import com.speedtrans.app.ui.BeamView
 import com.speedtrans.app.ui.CircuitLampView
+import com.speedtrans.app.ui.FlameCursor
 import com.speedtrans.app.ui.IconStudio
 import com.speedtrans.app.ui.ScanlineView
 import com.speedtrans.app.ui.Wallpaper
@@ -73,6 +74,12 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
         store = SettingsStore(this)
+
+        // 火把光标：接口页 + 桌面入口名称的输入框
+        FlameCursor.applyTo(
+            findViewById(R.id.acProvider), findViewById(R.id.etUrl),
+            findViewById(R.id.etKey), findViewById(R.id.etModel), findViewById(R.id.etShortcutName)
+        )
 
         applySkin()
         bindCuff()
