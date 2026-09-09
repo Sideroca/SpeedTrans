@@ -310,7 +310,7 @@ class SettingsActivity : AppCompatActivity() {
         selectThemeCategory()
     }
 
-    // ---------- 翻译接口 ----------
+    // ---------- 智能接口 ----------
 
     private var thinkingLevel: String = "off"
     private var lastProviderId: String? = null
@@ -356,9 +356,10 @@ class SettingsActivity : AppCompatActivity() {
                 val u = s?.toString() ?: ""
                 val p = Providers.match(u)
                 tvNote.text = p?.note ?: ""
-                // 手改地址导致服务商变化时：换上记过的钥匙（没存过则不动，防止误清）
+                // 手改地址导致服务商变化时：显示名跟随 + 换上记过的钥匙（没存过则不动，防止误清）
                 if (p?.id != lastProviderId) {
                     lastProviderId = p?.id
+                    acProvider.setText(p?.label ?: "自定义", false)
                     p?.let {
                         store.providerKeyOf(it.id)?.takeIf { k -> k.isNotBlank() }
                             ?.let { k -> etKey.setText(k) }
@@ -370,6 +371,9 @@ class SettingsActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
 
+        val initP = Providers.match(store.baseUrl)
+        acProvider.setText(initP?.label ?: "自定义", false)
+        tvNote.text = initP?.note ?: ""
         etUrl.setText(store.baseUrl)
         etKey.setText(store.apiKey)
         etModel.setText(store.model)
