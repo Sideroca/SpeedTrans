@@ -7,6 +7,7 @@ import android.graphics.Typeface
 import android.text.TextUtils
 import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView

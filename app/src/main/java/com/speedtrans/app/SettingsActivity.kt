@@ -1,6 +1,9 @@
 package com.speedtrans.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.text.Editable
@@ -76,7 +79,7 @@ class SettingsActivity : AppCompatActivity() {
         store = SettingsStore(this)
 
         // 火把光标：接口页 + 桌面入口名称的输入框
-        FlameCursor.applyTo(
+        FlameCursor.apply(
             findViewById(R.id.acProvider), findViewById(R.id.etUrl),
             findViewById(R.id.etKey), findViewById(R.id.etModel), findViewById(R.id.etShortcutName)
         )
@@ -1097,28 +1100,4 @@ private class ContainsAdapter(
     }
 }
 
-/** 包含式匹配的下拉适配器：输入任意片段即可命中（浏览器式联想），不受 ArrayAdapter 前缀过滤限制 */
-private class ContainsAdapter(
-    context: Context,
-    private val originals: List<String>
-) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, originals) {
 
-    private var shown: List<String> = originals
-
-    override fun getCount() = shown.size
-    override fun getItem(position: Int): String = shown[position]
-
-    override fun getFilter(): Filter = object : Filter() {
-        override fun performFiltering(constraint: CharSequence?): Filter.FilterResults {
-            val q = (constraint?.toString() ?: "").trim()
-            val list = if (q.isEmpty()) originals else originals.filter { it.contains(q, true) }
-            return Filter.FilterResults().apply { values = list; count = list.size }
-        }
-
-        override fun publishResults(constraint: CharSequence?, results: Filter.FilterResults) {
-            @Suppress("UNCHECKED_CAST")
-            shown = results.values as? List<String> ?: originals
-            if (shown.isNotEmpty()) notifyDataSetChanged() else notifyDataSetInvalidated()
-        }
-    }
-}
