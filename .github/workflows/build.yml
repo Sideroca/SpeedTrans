@@ -31,3 +31,32 @@ jobs:
         with:
           name: SpeedTrans-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+  # 与 APK 构建并行：lint 失败不影响 APK 产物，但会在 run 里标红 + 上传报告
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Android Lint (debug)
+        run: gradle lintDebug --no-daemon
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpeedTrans-lint-report
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
