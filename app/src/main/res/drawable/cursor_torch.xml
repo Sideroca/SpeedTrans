@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="6dp"
+    android:height="48dp"
+    android:viewportWidth="8"
+    android:viewportHeight="48">
+    <!-- 外焰（泪滴，尖朝上） -->
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M4,0 C6.5,5 7.5,9 4,14 C0.5,9 1.5,5 4,0 Z" />
+    <!-- 内芯（亮黄） -->
+    <path
+        android:fillColor="#FFF3C4"
+        android:pathData="M4,4 C5.5,7 6,9.5 4,13 C2,9.5 2.5,7 4,4 Z" />
+    <!-- 火把杆 -->
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M3.2,14 h1.6 v34 h-1.6 Z" />
+</vector>
