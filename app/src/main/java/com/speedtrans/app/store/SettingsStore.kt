@@ -101,29 +101,20 @@ class SettingsStore(context: Context) {
         set(v) = sp.edit().putInt("max_chars", v).apply()
 
     /** 屏幕文字少时自动截屏识别图片/游戏内容 */
-    var ocrFallback: Boolean
-        get() = sp.getBoolean("ocr_fallback", true)
-        set(v) = sp.edit().putBoolean("ocr_fallback", v).apply()
-
-    /** 🤖智能 / 📄仅文本 / 🖼仅识图（三态模式，通知栏可切换） */
+    /** 📄仅文本 / 🖼仅识图（两态；历史 smart 值自动迁移为仅文本） */
     var translateMode: String
-        get() = sp.getString("translate_mode", "smart")!!
-        set(v) = sp.edit().putString("translate_mode", v).apply()
+        get() = sp.getString("translate_mode", "text")!!.let { if (it == "smart") "text" else it }
+        set(v) = sp.edit().putString("translate_mode", if (v == "ocr") "ocr" else "text").apply()
+
+    /** 译文文字大小（sp，12~24） */
+    var overlayTextSize: Int
+        get() = sp.getInt("overlay_text_size", 16)
+        set(v) = sp.edit().putInt("overlay_text_size", v.coerceIn(12, 24)).apply()
 
     /** 思考档位（off/auto/on/low/high/min/mid/max），由服务商映射为各家参数；默认最快档 */
     var thinkingLevel: String
         get() = sp.getString("thinking_level", "off")!!
         set(v) = sp.edit().putString("thinking_level", v).apply()
-
-    /** 智能模式判定阈值：无障碍抓到的字符少于该值 → 转图像识别（可调，默认 20） */
-    var smartThresholdChars: Int
-        get() = sp.getInt("smart_threshold", 20)
-        set(v) = sp.edit().putInt("smart_threshold", v).apply()
-
-    /** 游戏前台自动识图（按应用分类检测，默认开） */
-    var gameAutoDetect: Boolean
-        get() = sp.getBoolean("game_auto_detect", true)
-        set(v) = sp.edit().putBoolean("game_auto_detect", v).apply()
 
     /** OCR 语言勾选（文字体系：latin/chinese/japanese/korean/devanagari） */
     var ocrLanguages: Set<String>

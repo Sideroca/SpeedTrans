@@ -32,11 +32,7 @@ class KeepAliveService : Service() {
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 val st = SettingsStore(this)
-                st.translateMode = when (st.translateMode) {
-                    "smart" -> "text"
-                    "text" -> "ocr"
-                    else -> "smart"
-                }
+                st.translateMode = if (st.translateMode == "ocr") "text" else "ocr"
             }
         }
         // 任何命令都重建通知：标题始终显示当前模式（含设置页保存后的同步）
@@ -73,9 +69,8 @@ class KeepAliveService : Service() {
     private fun buildNotification(): Notification {
         val st = SettingsStore(this)
         val modeName = when (st.translateMode) {
-            "text" -> "📄 仅文本"
             "ocr" -> "🖼 仅识图"
-            else -> "🤖 智能"
+            else -> "📄 仅文本"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notif)

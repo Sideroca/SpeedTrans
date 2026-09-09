@@ -858,31 +858,14 @@ class SettingsActivity : AppCompatActivity() {
     )
 
     private fun bindOcr() {
-        // 翻译模式三选一（与通知栏按钮循环同步）
+        // 翻译模式二选一（与通知栏按钮循环同步）
         findViewById<RadioGroup>(R.id.rgMode).check(
-            when (store.translateMode) {
-                "text" -> R.id.rbModeText
-                "ocr" -> R.id.rbModeOcr
-                else -> R.id.rbModeSmart
-            }
+            if (store.translateMode == "ocr") R.id.rbModeOcr else R.id.rbModeText
         )
         val langs = store.ocrLanguages
         langIds.forEach { (id, code) ->
             findViewById<CheckBox>(id).isChecked = code in langs
         }
-        findViewById<Switch>(R.id.swGameDetect).isChecked = store.gameAutoDetect
-
-        val sbT = findViewById<SeekBar>(R.id.sbThreshold)
-        val tvT = findViewById<TextView>(R.id.tvThresholdVal)
-        sbT.progress = (store.smartThresholdChars - 5).coerceIn(0, 95)
-        tvT.text = "${store.smartThresholdChars}字"
-        sbT.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                tvT.text = "${p + 5}字"
-            }
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
 
         val sbM = findViewById<SeekBar>(R.id.sbMaxChars)
         val tvM = findViewById<TextView>(R.id.tvMaxCharsVal)
@@ -921,6 +904,25 @@ class SettingsActivity : AppCompatActivity() {
                 else -> R.id.rbBtnMid
             }
         )
+
+        // 译文文字大小（实时预览）
+        val sbTs = findViewById<SeekBar>(R.id.sbTextSize)
+        val tvTs = findViewById<TextView>(R.id.tvTextSizeVal)
+        sbTs.max = 12
+        sbTs.progress = store.overlayTextSize - 12
+        tvTs.text = "${store.overlayTextSize}sp"
+        sbTs.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                val v = p + 12
+                tvTs.text = "${v}sp"
+                if (fromUser) {
+                    store.overlayTextSize = v
+                    TranslateCoordinator.liveTextSize(v)
+                }
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
     }
 
     // ---------- 面板按钮自定义 ----------
@@ -1044,15 +1046,12 @@ class SettingsActivity : AppCompatActivity() {
             else -> 100
         }
         store.translateMode = when (findViewById<RadioGroup>(R.id.rgMode).checkedRadioButtonId) {
-            R.id.rbModeText -> "text"
             R.id.rbModeOcr -> "ocr"
-            else -> "smart"
+            else -> "text"
         }
         store.ocrLanguages = langIds.mapNotNull { (id, code) ->
             if (findViewById<CheckBox>(id).isChecked) code else null
         }.toSet()
-        store.gameAutoDetect = findViewById<Switch>(R.id.swGameDetect).isChecked
-        store.smartThresholdChars = findViewById<SeekBar>(R.id.sbThreshold).progress + 5
         store.maxChars = findViewById<SeekBar>(R.id.sbMaxChars).progress * 1000 + 4000
         store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
         store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked

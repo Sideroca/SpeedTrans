@@ -265,44 +265,16 @@ class BallService : AccessibilityService() {
 
     /** 单击入口：按当前模式分发 */
     fun startTranslate() {
+        // 两态：仅文本 / 仅识图（智能判定已退役）
         when (SettingsStore(this).translateMode) {
             "ocr" -> captureAndOcr(force = true)
-            "text" -> smartTranslate(forceText = true)
-            else -> smartTranslate()
+            else -> translateText()
         }
     }
 
-    private fun smartTranslate(forceText: Boolean = false) {
-        val st = SettingsStore(this)
-        val ov = TranslateCoordinator.overlay(this)
-        ov.ensure()
-
+    private fun translateText() {
         val collected = collectScreen()
-
-        // 智能判定：文字少于阈值 或 前台是游戏 → 自动转识图
-        val fewText = collected.text.trim().length < st.smartThresholdChars
-        val autoOcr = !forceText && st.ocrFallback && (
-                fewText || (st.gameAutoDetect && isForegroundGame())
-                )
-
-        if (autoOcr && Build.VERSION.SDK_INT >= 30) {
-            ov.showStatus("📷 屏幕文字较少，正在识别画面内容…")
-            captureAndOcr(force = false)
-            return
-        }
-
         TranslateCoordinator.startTranslate(this, collected.text)
-    }
-
-    /** 前台应用是否被系统标记为游戏 */
-    private fun isForegroundGame(): Boolean {
-        if (fgPackage.isEmpty()) return false
-        return try {
-            packageManager.getApplicationInfo(fgPackage, 0).category ==
-                    ApplicationInfo.CATEGORY_GAME
-        } catch (_: Exception) {
-            false
-        }
     }
 
     // ---------------- 静默截屏 + 端侧 OCR ----------------

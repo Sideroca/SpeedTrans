@@ -124,7 +124,7 @@ class ResultOverlay(private val context: Context) {
         }
         val out = TextView(ctx).apply {
             setTextColor(pal.panelText)
-            textSize = 16f
+            textSize = st.overlayTextSize.toFloat()
             setLineSpacing(0f, 1.3f)
             // 长按进入系统文本选择（浮动工具条复制指定内容）；「复制」按钮仍复制全文
             setTextIsSelectable(true)
@@ -214,6 +214,11 @@ class ResultOverlay(private val context: Context) {
     }
 
     fun currentText(): String = tvOut?.text?.toString() ?: ""
+
+    /** 译文文字大小实时生效 */
+    fun applyTextSize(spSize: Int) {
+        tvOut?.textSize = spSize.toFloat()
+    }
 
     fun close() {
         val r = root
