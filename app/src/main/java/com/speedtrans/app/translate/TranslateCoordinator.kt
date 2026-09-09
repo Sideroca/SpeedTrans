@@ -1,5 +1,6 @@
 package com.speedtrans.app.translate
 
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -17,6 +18,8 @@ import okhttp3.Call
  */
 object TranslateCoordinator {
 
+    /** 单例面板（持有 applicationContext，不泄漏 Activity）。lint 静态持有告警在此为误报 */
+    @SuppressLint("StaticFieldLeak")
     private var overlay: ResultOverlay? = null
     private var lastSource = ""
     private var lastTranslation = ""

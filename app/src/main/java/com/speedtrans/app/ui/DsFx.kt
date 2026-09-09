@@ -124,13 +124,14 @@ class ArcView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         color = 0x1F1EA5C7.toInt()   // 12% 青蓝
     }
+    private val arcRect = RectF()    // 预分配，避免 onDraw 每帧分配
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
         val d = resources.displayMetrics.density
         p.strokeWidth = d
-        val r = RectF(0f, 0f, width.toFloat(), height * 2f)
-        canvas.drawArc(r, 180f, 180f, false, p)
+        arcRect.set(0f, 0f, width.toFloat(), height * 2f)
+        canvas.drawArc(arcRect, 180f, 180f, false, p)
     }
 }

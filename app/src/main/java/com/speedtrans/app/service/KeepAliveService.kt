@@ -8,7 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.speedtrans.app.R
@@ -60,10 +62,21 @@ class KeepAliveService : Service() {
     }
 
     private fun startForeground() {
-        ServiceCompat.startForeground(
-            this, NOTIFY_ID, buildNotification(),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        )
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                // Android 14+：specialUse 类型（该常量 API 34 才有）
+                ServiceCompat.startForeground(
+                    this, NOTIFY_ID, buildNotification(),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                // API 26~33：specialUse 在旧平台无定义，退回两参重载（类型取清单声明）
+                startForeground(NOTIFY_ID, buildNotification())
+            }
+        } catch (e: Exception) {
+            // Android 12+ 后台重启等场景可能抛 ForegroundServiceStartNotAllowedException：不闪退
+            Log.e(TAG, "startForeground failed", e)
+        }
     }
 
     private fun buildNotification(): Notification {
@@ -98,6 +111,7 @@ class KeepAliveService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        private const val TAG = "SpeedTrans"
         private const val CHANNEL_ID = "keep_alive"
         private const val NOTIFY_ID = 1
         const val ACTION_TOGGLE = "com.speedtrans.app.action.TOGGLE_MODE"

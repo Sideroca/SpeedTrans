@@ -50,6 +50,18 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    lint {
+        // 按设计关闭的检查（中文单语言 App / 照片图标 / targetSdk 有意冻结 34 / arm64-only），避免报告噪音
+        disable.addAll(
+            setOf(
+                "HardcodedText", "SetTextI18n",
+                "IconLauncherShape", "MonochromeLauncherIcon",
+                "OldTargetApi", "ChromeOsAbiSupport",
+                "ButtonStyle", "Autofill", "Overdraw",
+                "GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable"
+            )
+        )
+    }
 }
 
 dependencies {

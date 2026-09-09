@@ -1,6 +1,7 @@
 package com.speedtrans.app.ui
 
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -54,6 +55,13 @@ class CircuitLampView @JvmOverloads constructor(
 
     private var flow = 0f
     private var flash = 1f
+    // 预分配，避免 onDraw 每帧分配
+    private val dashIntervals = FloatArray(2)
+    private val wirePathCache = Path()
+    private val filamentPath = Path()
+    private val baseRect = RectF()
+    private var glowGradOn: LinearGradient? = null
+    private var glowGradOff: LinearGradient? = null
     private var flowAnim: ValueAnimator? = null
     private var flashAnim: ValueAnimator? = null
     private val embers = ArrayList<Ember>()
@@ -135,6 +143,24 @@ class CircuitLampView @JvmOverloads constructor(
         }
     }
 
+    override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+        super.onSizeChanged(w, h, ow, oh)
+        if (w <= 0 || h <= 0) {
+            glowGradOn = null; glowGradOff = null; return
+        }
+        val bulbR = min(h * 0.30f, w * 0.13f)
+        val bulbX = w * 0.66f
+        val bulbY = h * 0.46f
+        glowGradOn = LinearGradient(
+            bulbX - bulbR, bulbY - bulbR, bulbX + bulbR, bulbY + bulbR,
+            Color.TRANSPARENT, 0x331EA5C7.toInt(), Shader.TileMode.CLAMP
+        )
+        glowGradOff = LinearGradient(
+            bulbX - bulbR, bulbY - bulbR, bulbX + bulbR, bulbY + bulbR,
+            Color.TRANSPARENT, Color.TRANSPARENT, Shader.TileMode.CLAMP
+        )
+    }
+
     override fun onDetachedFromWindow() {
         flowAnim?.cancel(); flashAnim?.cancel()
         flowAnim = null; flashAnim = null
@@ -143,7 +169,8 @@ class CircuitLampView @JvmOverloads constructor(
 
     private fun wirePath(w: Float, h: Float, bulbX: Float, bulbR: Float): Path {
         val cy = h * 0.5f
-        val p = Path()
+        val p = wirePathCache
+        p.reset()
         // 左侧主线：三段交替起伏（“折叠/水浸”感）
         val startX = 0f
         val endX = bulbX - bulbR * 1.25f
@@ -169,6 +196,7 @@ class CircuitLampView @JvmOverloads constructor(
         return p
     }
 
+    @SuppressLint("DrawAllocation")  // DashPathEffect 相位每帧变化必须重建；仅连接测试 ~2s 内运行
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
@@ -183,7 +211,9 @@ class CircuitLampView @JvmOverloads constructor(
         when (state) {
             State.TESTING -> {
                 wire.color = 0xB31EA5C7.toInt()
-                wire.pathEffect = DashPathEffect(floatArrayOf(9f * d, 8f * d), -flow * d)
+                dashIntervals[0] = 9f * d
+                dashIntervals[1] = 8f * d
+                wire.pathEffect = DashPathEffect(dashIntervals, -flow * d)
             }
             State.OK -> {
                 wire.color = 0xFF7CE87C.toInt()
@@ -211,11 +241,7 @@ class CircuitLampView @JvmOverloads constructor(
         val finalFill = if (state == State.OK && flash > 0.6f)
             lerpColor(0xFFFFD54F.toInt(), 0xFF7CE87C.toInt(), (flash - 0.6f) / 0.4f)
         else baseFill
-        glow.shader = LinearGradient(
-            bulbX - bulbR, bulbY - bulbR, bulbX + bulbR, bulbY + bulbR,
-            Color.TRANSPARENT, if (lit || state == State.OK) 0x331EA5C7.toInt() else Color.TRANSPARENT,
-            Shader.TileMode.CLAMP
-        )
+        glow.shader = if (lit || state == State.OK) glowGradOn else glowGradOff
         bulbFill.color = finalFill
         bulbEdge.color = when (state) {
             State.OK -> 0xFF7CE87C.toInt()
@@ -231,19 +257,18 @@ class CircuitLampView @JvmOverloads constructor(
         // 灯丝（小锯齿）
         filament.color = if (lit || state == State.OK) 0xFFFFF3C4.toInt() else 0xFF565C66.toInt()
         val fw = bulbR * 0.9f
-        val f = Path().apply {
-            moveTo(bulbX - fw / 2, bulbY + bulbR * 0.35f)
-            lineTo(bulbX - fw / 6, bulbY)
-            lineTo(bulbX + fw / 6, bulbY + bulbR * 0.35f)
-            lineTo(bulbX + fw / 2, bulbY)
-        }
-        canvas.drawPath(f, filament)
+        filamentPath.reset()
+        filamentPath.moveTo(bulbX - fw / 2, bulbY + bulbR * 0.35f)
+        filamentPath.lineTo(bulbX - fw / 6, bulbY)
+        filamentPath.lineTo(bulbX + fw / 6, bulbY + bulbR * 0.35f)
+        filamentPath.lineTo(bulbX + fw / 2, bulbY)
+        canvas.drawPath(filamentPath, filament)
 
         // 螺口底座
         bulbEdge.color = 0xFF494F58.toInt()
-        val base = RectF(bulbX - bulbR * 0.55f, bulbY + bulbR * 0.85f, bulbX + bulbR * 0.55f, bulbY + bulbR * 1.5f)
-        canvas.drawRect(base, bulbFill.apply { color = 0xFF333941.toInt() })
-        canvas.drawRect(base, bulbEdge)
+        baseRect.set(bulbX - bulbR * 0.55f, bulbY + bulbR * 0.85f, bulbX + bulbR * 0.55f, bulbY + bulbR * 1.5f)
+        canvas.drawRect(baseRect, bulbFill.apply { color = 0xFF333941.toInt() })
+        canvas.drawRect(baseRect, bulbEdge)
 
         // 成功光芒：8 根放射短线，随闪光收束
         if (state == State.OK && flash < 1f) {

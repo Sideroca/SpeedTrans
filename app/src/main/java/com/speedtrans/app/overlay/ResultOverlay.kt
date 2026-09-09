@@ -7,6 +7,7 @@ import android.graphics.Typeface
 import android.text.TextUtils
 import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -165,7 +166,8 @@ class ResultOverlay(private val context: Context) {
         // 全屏捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译（确定性，ROM 无关）
         val catchView = View(ctx).apply {
             setBackgroundColor(Color.TRANSPARENT)
-            setOnTouchListener { _, _ ->
+            setOnTouchListener { v, e ->
+                if (e.actionMasked == MotionEvent.ACTION_UP) v.performClick()  // 无障碍
                 TranslateCoordinator.onOutsideTouch()
                 true
             }

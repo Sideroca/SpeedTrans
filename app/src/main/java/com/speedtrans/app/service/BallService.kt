@@ -1,6 +1,7 @@
 package com.speedtrans.app.service
 
 import android.accessibilityservice.AccessibilityService
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -55,6 +56,8 @@ class BallService : AccessibilityService() {
         private const val TAG = "SpeedTrans"
             const val ACTION_OCR = "com.speedtrans.app.action.OCR"
 
+        /** 服务单例：供通知栏/设置页触发；onDestroy 里已置空。lint 静态持有告警在此为误报 */
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         var instance: BallService? = null
             private set
@@ -218,7 +221,10 @@ class BallService : AccessibilityService() {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragging) onBallTap()
+                    if (!dragging) {
+                        v.performClick()   // 无障碍：让 TalkBack 等能识别为一次点击
+                        onBallTap()
+                    }
                 }
             }
             return true
@@ -374,7 +380,8 @@ class BallService : AccessibilityService() {
         }
     }
 
-    /** 系统尺寸资源（状态栏/导航栏高度，全 ROM 通用的标准 dimen） */
+    /** 系统尺寸资源（状态栏/导航栏高度）。getIdentifier 反射是唯一可行解（这些 dimen 未公开） */
+    @SuppressLint("DiscouragedApi")
     private fun systemDimenPx(name: String): Int = try {
         val res = android.content.res.Resources.getSystem()
         val id = res.getIdentifier(name, "dimen", "android")
