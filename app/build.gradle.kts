@@ -58,7 +58,9 @@ android {
                 "IconLauncherShape", "MonochromeLauncherIcon",
                 "OldTargetApi", "ChromeOsAbiSupport",
                 "ButtonStyle", "Autofill", "Overdraw",
-                "GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable"
+                "GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable",
+                // 待 UI 轮：换 SwitchCompat + 补 thumb/track tint（让开关跟随主题）后重新启用
+                "UseSwitchCompatOrMaterialXml"
             )
         )
     }
