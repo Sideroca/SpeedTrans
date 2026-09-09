@@ -123,6 +123,8 @@ class SettingsActivity : AppCompatActivity() {
             cardIds = setOf(R.id.tvUsage),
             subIds = setOf(R.id.tvProviderNote)
         )
+        findViewById<View>(R.id.cardContact).background =
+            ShellSkins.cut(skin, resources.displayMetrics.density)
         ShellSkins.bindFocusGlow(
             this, { currentSkin ?: ShellSkins.current(this) },
             R.id.acProvider, R.id.etUrl, R.id.etKey, R.id.etModel
@@ -617,6 +619,12 @@ class SettingsActivity : AppCompatActivity() {
         restyleChips(styleRow) { (it.tag as Int) == studioStyle }
         markColor(bgRow, studioBg, d)
         refresh()
+
+        findViewById<LinearLayout>(R.id.cardContact).setOnClickListener {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("qq", "2093523014"))
+            toast("QQ 已复制：2093523014（邮箱同号）")
+        }
 
         findViewById<Button>(R.id.btnPinStudio).setOnClickListener {
             val sm = getSystemService(Context.SHORTCUT_SERVICE) as android.content.pm.ShortcutManager
