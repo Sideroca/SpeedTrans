@@ -68,14 +68,6 @@ class BallService : AccessibilityService() {
     private var ballParams: WindowManager.LayoutParams? = null
     private var lastRects: List<android.graphics.Rect> = emptyList()
 
-    /** 上一次成功提交翻译的完整原文 —— 用于增量翻译判断 */
-    private var lastSource: String = ""
-
-    /** 上一次的完整译文 —— 用于相同内容秒回 */
-    private var lastTranslation: String = ""
-
-    private var currentCall: okhttp3.Call? = null
-
     override fun onCreate() {
         super.onCreate()
     }

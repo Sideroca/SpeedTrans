@@ -20,7 +20,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 最近翻译历史：纯本地（filesDir/history.json，最多 50 条）。
+ * 最近翻译历史：纯本地（filesDir/history.json，最多 200 条）。
  * 入口在主界面（悬浮页空间留给极速）；点卡片 = 复制全文。
  */
 class HistoryActivity : AppCompatActivity() {
@@ -54,7 +54,7 @@ class HistoryActivity : AppCompatActivity() {
         val entries = HistoryStore.load(this)
         if (entries.isEmpty()) {
             box.addView(TextView(this).apply {
-                text = "暂无历史。点球翻译过的内容会出现在这里（仅存本机，最多 50 条）。"
+                text = "暂无历史。点球翻译过的内容会出现在这里（仅存本机，最多 200 条）。"
                 textSize = 13f
                 setTextColor(pal.subText)
                 layoutParams = LinearLayout.LayoutParams(

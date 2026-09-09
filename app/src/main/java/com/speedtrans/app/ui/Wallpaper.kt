@@ -27,12 +27,12 @@ object Wallpaper {
         false
     }
 
-    /** 按请求宽度两级采样解码，防 OOM */
-    fun decode(path: String, reqWidth: Int): Bitmap? = try {
+    /** 按长边两级采样解码，防竖版大图 OOM（横图行为与旧版一致） */
+    fun decode(path: String, reqLongEdge: Int): Bitmap? = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, bounds)
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= reqWidth) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= reqLongEdge) sample *= 2
         BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
     } catch (_: Exception) {
         null
@@ -55,7 +55,8 @@ object Wallpaper {
             iv.setImageDrawable(null)
             return false
         }
-        val bmp = decode(path, activity.resources.displayMetrics.widthPixels)
+        val dm = activity.resources.displayMetrics
+        val bmp = decode(path, maxOf(dm.widthPixels, dm.heightPixels))
         if (bmp == null) {
             iv.visibility = View.GONE
             scrim.visibility = View.GONE

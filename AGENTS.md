@@ -23,7 +23,7 @@ BallService(无障碍) ─┬─ TextCollector(节点树取词,排除自身包�
 TranslateCoordinator(单例总线) ─┬─ TranslateEngine(SSE; 服务商预设+思考档位映射)
                                 └─ ResultOverlay(译文面板+捕捉层)
 ThemeEngine(22套主配色) + ShellSkins(设置页皮肤) + SettingsStore(单一事实源)
-IconStudio(快捷图标工坊) + HistoryStore(本地历史50条)
+IconStudio(快捷图标工坊) + HistoryStore(本地历史200条)
 ```
 - **两态模式**：📄 仅文本 / 🖼 仅识图（智能判定已退役，smart 值自动迁移为仅文本）
 - **智能接口**：六家服务商预设（千问/DeepSeek/豆包/GLM/Kimi/ChatGPT）+ ContainsAdapter 包含式联想 + 钥匙按服务商归档 + 思考档位映射
