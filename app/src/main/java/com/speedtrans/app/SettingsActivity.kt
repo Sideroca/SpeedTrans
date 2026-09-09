@@ -21,6 +21,7 @@ import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.SeekBar
@@ -42,6 +43,7 @@ import com.speedtrans.app.translate.TranslateCoordinator
 import com.speedtrans.app.translate.TranslateEngine
 import com.speedtrans.app.ui.BeamView
 import com.speedtrans.app.ui.CircuitLampView
+import com.speedtrans.app.ui.IconStudio
 import com.speedtrans.app.ui.ScanlineView
 import com.speedtrans.app.ui.Wallpaper
 import java.io.File
@@ -76,6 +78,7 @@ class SettingsActivity : AppCompatActivity() {
         bindSkinRow()
         bindBarColor()
         bindWallpaper()
+        bindIconStudio()
         bindThemePicker()
         bindApi()
         bindPrompt()
@@ -520,6 +523,122 @@ class SettingsActivity : AppCompatActivity() {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor(hex))
                 setStroke(if (isSel) (4 * d).toInt() else 0, 0xFFFFFFFF.toInt())
+            }
+        }
+    }
+
+    // ---------- 快捷图标工坊 ----------
+
+    private var studioStyle = IconStudio.STYLE_GRID
+    private var studioBg = "#8EC9EE"
+    private var studioFg = "#FFFFFF"
+
+    private fun bindIconStudio() {
+        val preview = findViewById<ImageView>(R.id.ivStudioPreview)
+        val styleRow = findViewById<LinearLayout>(R.id.studioStyleRow)
+        val bgRow = findViewById<LinearLayout>(R.id.studioBgRow)
+        val fgRow = findViewById<LinearLayout>(R.id.studioFgRow)
+        val d = resources.displayMetrics.density
+
+        fun refresh() {
+            preview.setImageBitmap(
+                IconStudio.generate(studioStyle, Color.parseColor(studioBg), Color.parseColor(studioFg), 400)
+            )
+        }
+
+        // 样式两选
+        val styles = listOf("网格轨道球" to IconStudio.STYLE_GRID, "双轨道环" to IconStudio.STYLE_RING)
+        styles.forEach { (label, id) ->
+            val chip = TextView(this).apply {
+                text = label
+                textSize = 12f
+                tag = id
+                setPadding((14 * d).toInt(), (8 * d).toInt(), (14 * d).toInt(), (8 * d).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (8 * d).toInt() }
+                setOnClickListener {
+                    studioStyle = id
+                    restyleChips(styleRow) { (it.tag as Int) == studioStyle }
+                    refresh()
+                }
+            }
+            styleRow.addView(chip)
+        }
+
+        // 44 色库双色行：就地改描边，不打断滚动
+        fun buildColorRow(row: LinearLayout, onPick: (String) -> Unit) {
+            barPresets.forEach { (_, hex) ->
+                val sw = View(this).apply {
+                    tag = hex
+                    layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
+                        .apply { marginEnd = (8 * d).toInt() }
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor(hex))
+                    }
+                    setOnClickListener {
+                        onPick(hex)
+                        for (i in 0 until row.childCount) {
+                            val v = row.getChildAt(i)
+                            val g = v.background as? GradientDrawable ?: continue
+                            g.setStroke(
+                                if ((v.tag as String) == hex) (4 * d).toInt() else 0,
+                                Color.WHITE
+                            )
+                        }
+                    }
+                }
+                row.addView(sw)
+            }
+        }
+        buildColorRow(bgRow) { studioBg = it; refresh() }
+        buildColorRow(fgRow) { studioFg = it; refresh() }
+
+        // 默认选中：背景=浅空蓝，图案=白（复刻豆包图 1）
+        restyleChips(styleRow) { (it.tag as Int) == studioStyle }
+        markColor(bgRow, studioBg, d)
+        markColor(fgRow, studioFg, d)
+        refresh()
+
+        findViewById<Button>(R.id.btnPinStudio).setOnClickListener {
+            val sm = getSystemService(Context.SHORTCUT_SERVICE) as android.content.pm.ShortcutManager
+            if (!sm.isRequestPinShortcutSupported) {
+                toast("当前桌面不支持固定快捷方式")
+                return@setOnClickListener
+            }
+            val bmp = IconStudio.generate(
+                studioStyle, Color.parseColor(studioBg), Color.parseColor(studioFg), 192
+            )
+            val name = findViewById<EditText>(R.id.etShortcutName).text.toString().ifBlank { "闪译" }
+            val info = android.content.pm.ShortcutInfo.Builder(this, "studio_${System.currentTimeMillis()}")
+                .setShortLabel(name)
+                .setLongLabel(name)
+                .setIcon(android.graphics.drawable.Icon.createWithBitmap(bmp))
+                .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+                .build()
+            sm.requestPinShortcut(info, null)
+            toast("请在系统弹窗中确认添加到桌面；应用本体可用「切换桌面图标」伪装隐藏")
+        }
+    }
+
+    private fun restyleChips(row: LinearLayout, isOn: (Any) -> Boolean) {
+        val skin = currentSkin ?: ShellSkins.current(this)
+        val d = resources.displayMetrics.density
+        for (i in 0 until row.childCount) {
+            val c = row.getChildAt(i) as TextView
+            val on = isOn(c.tag)
+            c.background = ShellSkins.chipBg(skin, on, d)
+            c.setTextColor(ShellSkins.chipText(skin, on))
+        }
+    }
+
+    private fun markColor(row: LinearLayout, hex: String, d: Float) {
+        for (i in 0 until row.childCount) {
+            val v = row.getChildAt(i)
+            if (v.tag == hex) {
+                (v.background as GradientDrawable)
+                    .setStroke((4 * d).toInt(), Color.WHITE)
             }
         }
     }

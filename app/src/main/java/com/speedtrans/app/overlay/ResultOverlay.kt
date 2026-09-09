@@ -209,7 +209,7 @@ class ResultOverlay(private val context: Context) {
     }
 
     fun finish(err: Throwable?) {
-        tvStatus?.text = if (err == null) "✓ 完成 · 点球继续，✕ 或返回键关闭"
+        tvStatus?.text = if (err == null) "✓ 完成 · 点球继续"
         else "✗ ${err.message?.take(120) ?: "翻译失败"}"
     }
 
