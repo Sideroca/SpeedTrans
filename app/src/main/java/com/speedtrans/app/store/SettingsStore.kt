@@ -169,6 +169,15 @@ class SettingsStore(context: Context) {
 
     // ---------- 页面壁纸 ----------
 
+    /** 服务商独立钥匙记忆：切服务商自动换钥匙（千问/DeepSeek/GLM 各存各的） */
+    fun providerKeyOf(id: String): String? =
+        if (id == "custom") null else sp.getString("pk_$id", null)
+
+    fun setProviderKey(id: String, key: String) {
+        if (id == "custom") return
+        sp.edit().putString("pk_$id", key).apply()
+    }
+
     /** 壁纸图片路径（应用私有目录；空 = 未设置） */
     var wallpaperPath: String
         get() = sp.getString("wallpaper_path", "")!!

@@ -21,6 +21,7 @@ import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.Filter
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioGroup
@@ -312,6 +313,7 @@ class SettingsActivity : AppCompatActivity() {
     // ---------- 翻译接口 ----------
 
     private var thinkingLevel: String = "off"
+    private var lastProviderId: String? = null
 
     private fun bindApi() {
         val acProvider = findViewById<AutoCompleteTextView>(R.id.acProvider)
@@ -321,37 +323,46 @@ class SettingsActivity : AppCompatActivity() {
         val tvNote = findViewById<TextView>(R.id.tvProviderNote)
 
         thinkingLevel = store.thinkingLevel
+        lastProviderId = Providers.match(store.baseUrl)?.id
 
-        acProvider.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line,
-                Providers.all.map { it.label })
+        // 包含式联想（浏览器式）：输入任意片段都能命中，不再要求前缀
+        acProvider.setAdapter(ContainsAdapter(this, Providers.all.map { it.label }))
+        etUrl.setAdapter(ContainsAdapter(this, Providers.all.filter { it.url.isNotEmpty() }.map { it.url }))
+        etModel.setAdapter(
+            ContainsAdapter(this, Providers.all.flatMap { p -> p.models }.distinct())
         )
-        acProvider.setOnItemClickListener { _, _, pos, _ ->
-            val p = Providers.all[pos]
+
+        // 服务商选择：按候选文本解析——过滤后位置会漂移，绝不能按 pos 索引全量表
+        acProvider.setOnItemClickListener { parent, _, pos, _ ->
+            val label = parent.getItemAtPosition(pos)?.toString()
+                ?: return@setOnItemClickListener
+            val p = Providers.all.firstOrNull { it.label == label }
+                ?: return@setOnItemClickListener
+            // 记住旧服务商的钥匙，再换上新服务商的钥匙
+            Providers.match(etUrl.text.toString())?.id?.let { old ->
+                if (old != p.id) store.setProviderKey(old, etKey.text.toString())
+            }
             if (p.url.isNotEmpty()) etUrl.setText(p.url)
             if (p.models.isNotEmpty()) etModel.setText(p.models.first())
+            etKey.setText(store.providerKeyOf(p.id) ?: etKey.text.toString())
             tvNote.text = p.note
             thinkingLevel = p.levels.firstOrNull()?.second ?: "off"
+            lastProviderId = p.id
             refreshThinkingRow()
         }
-
-        etUrl.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line,
-                Providers.all.filter { it.url.isNotEmpty() }.map { it.url })
-        )
-        val modelAdapter = ArrayAdapter(
-            this, android.R.layout.simple_dropdown_item_1line, mutableListOf<String>()
-        )
-        etModel.setAdapter(modelAdapter)
 
         etUrl.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 val u = s?.toString() ?: ""
                 val p = Providers.match(u)
                 tvNote.text = p?.note ?: ""
-                if (p != null) {
-                    modelAdapter.clear()
-                    modelAdapter.addAll(p.models)
+                // 手改地址导致服务商变化时：换上记过的钥匙（没存过则不动，防止误清）
+                if (p?.id != lastProviderId) {
+                    lastProviderId = p?.id
+                    p?.let {
+                        store.providerKeyOf(it.id)?.takeIf { k -> k.isNotBlank() }
+                            ?.let { k -> etKey.setText(k) }
+                    }
                 }
                 refreshThinkingRow()
             }
@@ -997,6 +1008,8 @@ class SettingsActivity : AppCompatActivity() {
         store.baseUrl = findViewById<EditText>(R.id.etUrl).text.toString()
         store.apiKey = findViewById<EditText>(R.id.etKey).text.toString()
         store.model = findViewById<EditText>(R.id.etModel).text.toString()
+        // 钥匙按服务商归档，切回来不用重贴
+        Providers.match(store.baseUrl)?.let { store.setProviderKey(it.id, store.apiKey) }
         store.thinkingLevel = thinkingLevel
         store.customPrompt = findViewById<EditText>(R.id.etPrompt).text.toString()
 
@@ -1039,5 +1052,55 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** 包含式匹配的下拉适配器：输入任意片段即可命中（浏览器式联想），不受 ArrayAdapter 前缀过滤限制 */
+private class ContainsAdapter(
+    context: Context,
+    private val originals: List<String>
+) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, originals) {
+
+    private var shown: List<String> = originals
+
+    override fun getCount() = shown.size
+    override fun getItem(position: Int): String = shown[position]
+
+    override fun getFilter(): Filter = object : Filter() {
+        override fun performFiltering(constraint: CharSequence?): Filter.FilterResults {
+            val q = (constraint?.toString() ?: "").trim()
+            val list = if (q.isEmpty()) originals else originals.filter { it.contains(q, true) }
+            return Filter.FilterResults().apply { values = list; count = list.size }
+        }
+        override fun publishResults(constraint: CharSequence?, results: Filter.FilterResults) {
+            shown = results.values as? List<String> ?: originals
+            if (shown.isNotEmpty()) notifyDataSetChanged() else notifyDataSetInvalidated()
+        }
+    }
+}
+
+/** 包含式匹配的下拉适配器：输入任意片段即可命中（浏览器式联想），不受 ArrayAdapter 前缀过滤限制 */
+private class ContainsAdapter(
+    context: Context,
+    private val originals: List<String>
+) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, originals) {
+
+    private var shown: List<String> = originals
+
+    override fun getCount() = shown.size
+    override fun getItem(position: Int): String = shown[position]
+
+    override fun getFilter(): Filter = object : Filter() {
+        override fun performFiltering(constraint: CharSequence?): Filter.FilterResults {
+            val q = (constraint?.toString() ?: "").trim()
+            val list = if (q.isEmpty()) originals else originals.filter { it.contains(q, true) }
+            return Filter.FilterResults().apply { values = list; count = list.size }
+        }
+
+        override fun publishResults(constraint: CharSequence?, results: Filter.FilterResults) {
+            @Suppress("UNCHECKED_CAST")
+            shown = results.values as? List<String> ?: originals
+            if (shown.isNotEmpty()) notifyDataSetChanged() else notifyDataSetInvalidated()
+        }
     }
 }

@@ -34,7 +34,8 @@ object Providers {
             "https://api.deepseek.com/chat/completions",
             listOf("deepseek-chat", "deepseek-v4-pro"),
             listOf("deepseek"),
-            listOf("关" to "off", "低" to "low", "高" to "high")
+            listOf("关" to "off", "低" to "low", "高" to "high"),
+            "Key 在 platform.deepseek.com 获取；与千问 Key 不通用"
         ),
         Preset(
             "doubao", "豆包 · 火山方舟",
