@@ -463,15 +463,20 @@ class SettingsActivity : AppCompatActivity() {
     private var selectedBarColor: String? = null
 
     private val barPresets = listOf(
-        "天水碧" to "#D4F2E7", "月白" to "#D6ECF0", "青白" to "#E0F0E8", "粉青釉" to "#A8C3B4",
-        "梅子青" to "#6F9E7F", "竹青" to "#789262", "孔雀绿" to "#1F8A70", "石绿" to "#57C3C2",
-        "天青釉" to "#7FA9B0", "钧窑天蓝" to "#6E8FB5", "青花钴" to "#2E4E8F", "霁蓝" to "#1E3A5F",
-        "黛蓝" to "#425066", "鸦青" to "#424C50", "玄青" to "#3D3B4F", "藕荷" to "#E4C6D0",
-        "桃红" to "#F4A7B9", "海棠红" to "#DB5A6B", "豇豆红" to "#C45A65", "胭脂水" to "#E7A6A6",
-        "郎窑红" to "#A72126", "矾红" to "#C3272B", "朱砂" to "#FF4C00", "故宫红墙" to "#8C1F28",
-        "绛紫" to "#8C4356", "钧窑紫红" to "#8E4A5B", "缃色" to "#F0C239", "赤金" to "#F2BE45",
-        "鳝鱼黄" to "#B89A6A", "茶叶末" to "#6E5B3F", "赭石" to "#955539", "檀" to "#B36D61",
-        "绾" to "#A98175", "琥珀" to "#CA6924", "烟霞" to "#D8A7B1", "艾背" to "#A8BFA0"
+        // 釉色系（窑口学名，不带年号人名）
+        "天青釉" to "#7FA9B0", "粉青釉" to "#A8C3B4", "梅子青" to "#6F9E7F", "影青" to "#E0F0E8",
+        "牙白" to "#F2EDDE", "乌金釉" to "#3B3630", "钧窑天蓝" to "#6E8FB5", "钧窑紫红" to "#8E4A5B",
+        "郎窑红" to "#A72126", "豇豆红" to "#C45A65", "胭脂水" to "#E7A6A6", "甜白" to "#F6F3EC",
+        "霁蓝" to "#1E3A5F", "茶叶末" to "#6E5B3F", "孔雀绿" to "#1F8A70", "矾红" to "#C3272B",
+        "青花钴蓝" to "#2E4E8F", "鳝鱼黄" to "#B89A6A",
+        // 传统色系（染织/矿物/诗文）
+        "玄色" to "#2B2B33", "石榴红" to "#F20C00", "绯红" to "#C04243", "柘黄" to "#C89B3C",
+        "朱砂" to "#FF4C00", "故宫红墙" to "#8C1F28", "绛紫" to "#8C4356", "藕荷" to "#E4C6D0",
+        "桃红" to "#F4A7B9", "海棠红" to "#DB5A6B", "天水碧" to "#D4F2E7", "月白" to "#D6ECF0",
+        "竹青" to "#789262", "石绿" to "#57C3C2", "石青" to "#2E59A7", "黛蓝" to "#425066",
+        "鸦青" to "#424C50", "玄青" to "#3D3B4F", "缃色" to "#F0C239", "赤金" to "#F2BE45",
+        "赭石" to "#955539", "檀" to "#B36D61", "绾" to "#A98175", "琥珀" to "#CA6924",
+        "烟霞" to "#D8A7B1", "艾绿" to "#A8BFA0"
     )
 
     private fun bindBarColor() {
