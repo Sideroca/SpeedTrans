@@ -78,7 +78,7 @@ class KeepAliveService : Service() {
             else -> "🤖 智能"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_app)
+            .setSmallIcon(R.drawable.ic_notif)
             .setContentTitle("闪译 · $modeName")
             .setContentText("点通知条切换模式 · 点球即翻")
             .setContentIntent(togglePendingIntent())   // 点通知条 = 立即循环切换（折叠态也生效）

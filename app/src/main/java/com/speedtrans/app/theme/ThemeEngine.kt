@@ -198,6 +198,23 @@ object ThemeEngine {
         if (strokeColor != 0) setStroke((1 * density).toInt(), strokeColor)
     }
 
+    /** 撞色条水浸渐变：主色 → 原色 → 提亮（同族色相两档过渡，DeepSeek 官网蓝的思路） */
+    fun barGradient(base: Int, radiusPx: Float, strokeColor: Int = 0, strokePx: Float = 1f): GradientDrawable {
+        fun toward(base: Int, target: Int, k: Float): Int {
+            val a = (k * 255).toInt()
+            fun ch(b: Int, f: Int) = (b * (255 - a) + f * a) / 255
+            return Color.argb(255, ch(Color.red(base), Color.red(target)),
+                ch(Color.green(base), Color.green(target)), ch(Color.blue(base), Color.blue(target)))
+        }
+        return GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(toward(base, 0xFF000000.toInt(), 0.18f), base, toward(base, 0xFFFFFFFF.toInt(), 0.22f))
+        ).apply {
+            cornerRadius = radiusPx
+            if (strokeColor != 0 && strokePx > 0) setStroke(strokePx.toInt().coerceAtLeast(1), strokeColor)
+        }
+    }
+
     /**
      * 递归应用主题到视图树（语义色 + 形状语言 + 撞色条）。
      */

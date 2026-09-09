@@ -56,11 +56,17 @@ class ResultOverlay(private val context: Context) {
         val top = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            // 传统撞色条：每套主题配一个对撞的传统色
-            background = ThemeEngine.cardDrawable(
-                barBg, pal.cardRadius.toFloat(),
-                ctx.resources.displayMetrics.density, pal.cardStroke
-            )
+            // 撞色条：独立选色 = 水浸渐变（主色→原色→提亮）；跟随主题 = 平色
+            background = if (st.barColorOverride() != null)
+                ThemeEngine.barGradient(
+                    barBg, pal.cardRadius * ctx.resources.displayMetrics.density,
+                    pal.cardStroke, if (pal.cardStroke != 0) ctx.resources.displayMetrics.density else 0f
+                )
+            else
+                ThemeEngine.cardDrawable(
+                    barBg, pal.cardRadius.toFloat(),
+                    ctx.resources.displayMetrics.density, pal.cardStroke
+                )
         }
         val btnClose = TextView(ctx).apply {
             text = "✕"

@@ -85,9 +85,13 @@ class MainActivity : AppCompatActivity() {
         val pal = ThemeEngine.current(this)
         val cur = pal.id
         val d = resources.displayMetrics.density
-        // 撞色条背景：用户独立选色优先，未设置跟随主题
-        val barBg = SettingsStore(this).barColorOverride() ?: pal.barBg
-        row.background = ThemeEngine.cardDrawable(barBg, 14f, d)
+        // 撞色条背景：用户独立选色 = 水浸渐变；未选则跟随主题平色
+        val barOverride = SettingsStore(this).barColorOverride()
+        val barBg = barOverride ?: pal.barBg
+        row.background = if (barOverride != null)
+            ThemeEngine.barGradient(barBg, 14f * d)
+        else
+            ThemeEngine.cardDrawable(barBg, 14f, d)
         row.setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
         val size = (30 * d).toInt()
         val margin = (8 * d).toInt()
