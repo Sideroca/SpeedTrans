@@ -205,7 +205,15 @@ class ResultOverlay(private val context: Context) {
     }
 
     fun append(delta: String) {
-        tvOut?.append(delta)
+        val tv = tvOut ?: return
+        // 锁存内外两层滚动位置再 append——TextView.append 会请求把新增区域滚到可见处，
+        // 长文本流式时会强制把 ScrollView 拉到底部（偶发“页面强制下滑”的根因）
+        val sv = tv.parent as? ScrollView
+        val keepSv = sv?.scrollY
+        val keepTv = tv.scrollY
+        tv.append(delta)
+        sv?.let { it.scrollTo(0, keepSv) }
+        tv.scrollTo(0, keepTv)
     }
 
     fun finish(err: Throwable?) {
