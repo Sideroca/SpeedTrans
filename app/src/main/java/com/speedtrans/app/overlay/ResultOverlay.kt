@@ -213,7 +213,7 @@ class ResultOverlay(private val context: Context) {
         val keepSv = sv?.scrollY
         val keepTv = tv.scrollY
         tv.append(delta)
-        sv?.let { it.scrollTo(0, keepSv) }
+        keepSv?.let { y -> sv?.scrollTo(0, y) }
         tv.scrollTo(0, keepTv)
     }
 

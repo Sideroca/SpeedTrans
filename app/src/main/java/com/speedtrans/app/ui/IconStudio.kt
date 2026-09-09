@@ -24,12 +24,12 @@ object IconStudio {
         val cosD = cos(rad).toFloat()
         val sinD = sin(rad).toFloat()
         val t = Math.toRadians(theta.toDouble())
-        val x0 = rx * cos(t)
-        val y0 = ry * sin(t)
+        val x0 = rx * cos(t).toFloat()
+        val y0 = ry * sin(t).toFloat()
         return (cx + x0 * cosD - y0 * sinD) to (cy + x0 * sinD + y0 * cosD)
     }
 
-    fun generate(style: Int, bg: Int, fg: Int, size: Int): Bitmap {
+    fun generate(styleId: Int, bg: Int, fg: Int, size: Int): Bitmap {
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         c.drawColor(bg)
@@ -45,7 +45,7 @@ object IconStudio {
         val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fg }
         fun dotAt(x: Float, y: Float, r: Float = s * 0.016f) = c.drawCircle(x, y, r, dot)
 
-        if (style == STYLE_GRID) {
+        if (styleId == STYLE_GRID) {
             // 网格轨道球（图 1）：经纬网格球 + 外轨道环
             val r = s * 0.30f
             for (k in listOf(0.12f, 0.24f, 0.30f)) {

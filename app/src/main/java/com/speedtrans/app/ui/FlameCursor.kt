@@ -2,7 +2,8 @@ package com.speedtrans.app.ui
 
 import android.os.Build
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatResources
+import androidx.appcompat.content.res.AppCompatResources
+import com.speedtrans.app.R
 
 /**
  * 火把光标：输入框光标换成小火把（火苗 + 木杆）。

@@ -590,7 +590,7 @@ class SettingsActivity : AppCompatActivity() {
                 ).apply { marginEnd = (8 * d).toInt() }
                 setOnClickListener {
                     studioStyle = id
-                    restyleChips(styleRow) { (it.tag as Int) == studioStyle }
+                    restyleChips(styleRow) { (it as Int) == studioStyle }
                     refresh()
                 }
             }
@@ -626,7 +626,7 @@ class SettingsActivity : AppCompatActivity() {
         buildColorRow(bgRow) { studioBg = it; refresh() }
 
         // 默认选中：背景=浅空蓝（复刻豆包图 1）
-        restyleChips(styleRow) { (it.tag as Int) == studioStyle }
+        restyleChips(styleRow) { (it as Int) == studioStyle }
         markColor(bgRow, studioBg, d)
         refresh()
 

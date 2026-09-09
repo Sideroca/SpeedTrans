@@ -22,6 +22,9 @@ import kotlin.math.sin
  *
  * 纯 Canvas 粒子（上限 160），只在删除瞬间运行；任何滚动/输入操作即无痕，
  * 极速红线零影响。边界：跨换行删除时，每个字各自落在自己所在行。
+ *
+ * 注：TextView 没有 beforeTextChanged 回调（只有 onTextChanged），
+ * 因此由宿主保留上一帧文本、在 onTextChanged 里反推被删片段。
  */
 internal class BurnFx(private val host: View) {
 
@@ -47,21 +50,10 @@ internal class BurnFx(private val host: View) {
     private val list = ArrayList<P>(MAX_PARTICLES)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val oval = RectF()          // 复用，避免每帧分配
-    private var captured = ""
     private var lastNs = 0L
 
-    /** beforeTextChanged 时调用：记住被删的字符片段 */
-    fun capture(text: CharSequence?, start: Int, count: Int) {
-        if (count <= 0) return
-        val s = text?.toString() ?: return
-        val end = min(start + count, s.length)
-        if (start < end) captured = s.substring(start, end)
-    }
-
-    /** onTextChanged 时调用：在删除点逐字引燃 */
-    fun spawn(delStart: Int, n: Int) {
-        val snippet = captured
-        captured = ""
+    /** 删除发生时调用：在删除点逐字引燃（snippet = 被删掉的原文） */
+    fun fire(snippet: String, delStart: Int, n: Int) {
         if (snippet.isEmpty() || n <= 0) return
         val tv = host as? TextView ?: return
         val layout = tv.layout ?: return
@@ -232,14 +224,17 @@ class BurnEditText @JvmOverloads constructor(
 ) : AppCompatEditText(context, attrs) {
 
     private val fx = BurnFx(this)
-
-    override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {
-        fx.capture(text, start, count)
-    }
+    private var prev: String? = null
 
     override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter)
-        fx.spawn(start, lengthBefore - lengthAfter)
+        val p = prev
+        if (p != null && lengthBefore > lengthAfter &&
+            start >= 0 && start + lengthBefore <= p.length
+        ) {
+            fx.fire(p.substring(start, start + lengthBefore), start, lengthBefore - lengthAfter)
+        }
+        prev = text?.toString()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -254,14 +249,17 @@ class BurnAutoCompleteTextView @JvmOverloads constructor(
 ) : AppCompatAutoCompleteTextView(context, attrs) {
 
     private val fx = BurnFx(this)
-
-    override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {
-        fx.capture(text, start, count)
-    }
+    private var prev: String? = null
 
     override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
         super.onTextChanged(text, start, lengthBefore, lengthAfter)
-        fx.spawn(start, lengthBefore - lengthAfter)
+        val p = prev
+        if (p != null && lengthBefore > lengthAfter &&
+            start >= 0 && start + lengthBefore <= p.length
+        ) {
+            fx.fire(p.substring(start, start + lengthBefore), start, lengthBefore - lengthAfter)
+        }
+        prev = text?.toString()
     }
 
     override fun onDraw(canvas: Canvas) {

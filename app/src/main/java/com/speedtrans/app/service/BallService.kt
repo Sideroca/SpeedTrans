@@ -163,7 +163,7 @@ class BallService : AccessibilityService() {
                 typeface = Typeface.DEFAULT_BOLD
                 background = ballBackground(shape, st.ballColorInt, st.ballSizeDp / 4)
                 // 三角形尖朝上：文字下移让出尖角
-                if (shape == "triangle") setPadding(0, dp(st.ballSizeDp * 0.30f), 0, 0)
+                if (shape == "triangle") setPadding(0, dp((st.ballSizeDp * 0.30f).toInt()), 0, 0)
             }
         }
 
@@ -383,14 +383,14 @@ class BallService : AccessibilityService() {
         0
     }
 
-    /** 悬浮球底色/形状（文字球） */
-    private fun ballBackground(shape: String, color: Int, cornerDp: Int): Drawable = when (shape) {
+    /** 悬浮球底色/形状（文字球）。参数名避开 shapeName，防止遮蔽 GradientDrawable.shape */
+    private fun ballBackground(shapeName: String, color: Int, cornerDp: Int): Drawable = when (shapeName) {
         "roundrect" -> GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(cornerDp).toFloat()
             setColor(color)
         }
-        "cut" -> com.speedtrans.app.theme.ShellSkins.CutCornerDrawable(color, dp(8), 0, 0f)
+        "cut" -> com.speedtrans.app.theme.ShellSkins.CutCornerDrawable(color, dp(8).toFloat(), 0, 0f)
         "triangle" -> triangleDrawable(color)
         else -> GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
     }

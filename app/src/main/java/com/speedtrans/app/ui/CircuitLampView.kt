@@ -183,7 +183,7 @@ class CircuitLampView @JvmOverloads constructor(
         when (state) {
             State.TESTING -> {
                 wire.color = 0xB31EA5C7.toInt()
-                wire.pathEffect = PathEffect.createDashPathEffect(floatArrayOf(9f * d, 8f * d), -flow * d)
+                wire.pathEffect = DashPathEffect(floatArrayOf(9f * d, 8f * d), -flow * d)
             }
             State.OK -> {
                 wire.color = 0xFF7CE87C.toInt()
