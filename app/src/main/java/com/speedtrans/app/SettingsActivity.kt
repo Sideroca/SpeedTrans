@@ -531,18 +531,22 @@ class SettingsActivity : AppCompatActivity() {
 
     private var studioStyle = IconStudio.STYLE_GRID
     private var studioBg = "#8EC9EE"
-    private var studioFg = "#FFFFFF"
 
     private fun bindIconStudio() {
         val preview = findViewById<ImageView>(R.id.ivStudioPreview)
         val styleRow = findViewById<LinearLayout>(R.id.studioStyleRow)
         val bgRow = findViewById<LinearLayout>(R.id.studioBgRow)
-        val fgRow = findViewById<LinearLayout>(R.id.studioFgRow)
         val d = resources.displayMetrics.density
+
+        // 图案纹色按背景明度自动反色：浅底深纹、深底白纹（44 色全可用的前提）
+        fun fgFor(bgHex: String): Int {
+            val bgInt = Color.parseColor(bgHex)
+            return if (android.graphics.Color.luminance(bgInt) > 0.55f) 0xFF2B2B33.toInt() else 0xFFFFFFFF.toInt()
+        }
 
         fun refresh() {
             preview.setImageBitmap(
-                IconStudio.generate(studioStyle, Color.parseColor(studioBg), Color.parseColor(studioFg), 400)
+                IconStudio.generate(studioStyle, Color.parseColor(studioBg), fgFor(studioBg), 400)
             )
         }
 
@@ -593,12 +597,10 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         buildColorRow(bgRow) { studioBg = it; refresh() }
-        buildColorRow(fgRow) { studioFg = it; refresh() }
 
-        // 默认选中：背景=浅空蓝，图案=白（复刻豆包图 1）
+        // 默认选中：背景=浅空蓝（复刻豆包图 1）
         restyleChips(styleRow) { (it.tag as Int) == studioStyle }
         markColor(bgRow, studioBg, d)
-        markColor(fgRow, studioFg, d)
         refresh()
 
         findViewById<Button>(R.id.btnPinStudio).setOnClickListener {
@@ -608,7 +610,7 @@ class SettingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val bmp = IconStudio.generate(
-                studioStyle, Color.parseColor(studioBg), Color.parseColor(studioFg), 192
+                studioStyle, Color.parseColor(studioBg), fgFor(studioBg), 192
             )
             val name = findViewById<EditText>(R.id.etShortcutName).text.toString().ifBlank { "闪译" }
             val info = android.content.pm.ShortcutInfo.Builder(this, "studio_${System.currentTimeMillis()}")

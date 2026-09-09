@@ -790,27 +790,6 @@
                         android:orientation="horizontal" />
                 </HorizontalScrollView>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="图案颜色"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:scrollbars="none">
-
-                    <LinearLayout
-                        android:id="@+id/studioFgRow"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
-
                 <Button
                     android:id="@+id/btnPinStudio"
                     android:layout_width="match_parent"
