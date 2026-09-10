@@ -111,14 +111,31 @@ class SoundKit {
         return tr
     }
 
+    // 播放放到后台线程：AudioTrack 的 stop/reload/play 是 binder 调用，主线程调用会掉帧（击球卡顿元凶之一）
+    private var worker: android.os.HandlerThread? = null
+    private var workerHandler: android.os.Handler? = null
+
+    private fun handler(): android.os.Handler {
+        var h = workerHandler
+        if (h == null) {
+            val t = android.os.HandlerThread("st-sfx").apply { start() }
+            worker = t
+            h = android.os.Handler(t.looper)
+            workerHandler = h
+        }
+        return h
+    }
+
     private fun play(tr: AudioTrack?, vol: Float) {
         if (muted || dead || tr == null) return
-        try {
-            tr.stop()
-            tr.reloadStaticData()
-            tr.setVolume(vol.coerceIn(0f, 1f))
-            tr.play()
-        } catch (_: Throwable) {
+        handler().post {
+            try {
+                tr.stop()
+                tr.reloadStaticData()
+                tr.setVolume(vol.coerceIn(0f, 1f))
+                tr.play()
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -130,6 +147,8 @@ class SoundKit {
     fun playSpeed() = play(speed, 0.42f)
 
     fun release() {
+        try { worker?.quitSafely() } catch (_: Throwable) {}
+        worker = null; workerHandler = null
         for (t in arrayOf(hit, wall, goal, win, lose, speed)) {
             try { t?.stop() } catch (_: Throwable) {}
             try { t?.release() } catch (_: Throwable) {}

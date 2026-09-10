@@ -120,8 +120,13 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         var rot = 0f; var vr = 0f; var w = 6f; var h = 10f; var color = 0
     }
 
-    private val particles = ArrayList<Particle>(256)
-    private val confetti = ArrayList<Confetti>(128)
+    // 预分配对象池（修复击球瞬间的卡顿：原来每次击球 new 40 个粒子触发 GC 抖动）
+    private val MAX_PART = 480
+    private val parts = Array(MAX_PART) { Particle() }
+    private var partN = 0
+    private val MAX_CONF = 160
+    private val confs = Array(MAX_CONF) { Confetti() }
+    private var confN = 0
     private val trailX = FloatArray(18)
     private val trailY = FloatArray(18)
     private var trailN = 0
@@ -240,7 +245,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         sadFace = 0f
         overT = 0f
         speedUpTimer = 0
-        particles.clear(); confetti.clear()
+        partN = 0; confN = 0
         resetRound(0)
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
@@ -496,70 +501,79 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
     // ---------------- 特效 ----------------
     private fun burst(x: Float, y: Float, color: Int, n: Int) {
-        for (i in 0 until n) {
-            if (particles.size > 400) break
+        var i = 0
+        while (i < n && partN < MAX_PART) {
+            val p = parts[partN++]
             val a = Random.nextFloat() * 6.2832f
             val v = 1f + Random.nextFloat() * 5f
-            particles.add(Particle().apply {
-                this.x = x; this.y = y
-                vx = kotlin.math.cos(a) * v; vy = kotlin.math.sin(a) * v
-                life = 18f + Random.nextFloat() * 22f
-                size = 1.5f + Random.nextFloat() * 2.5f
-                this.color = color
-            })
+            p.x = x; p.y = y
+            p.vx = kotlin.math.cos(a) * v; p.vy = kotlin.math.sin(a) * v
+            p.t = 0f
+            p.life = 18f + Random.nextFloat() * 22f
+            p.size = 1.5f + Random.nextFloat() * 2.5f
+            p.color = color
+            i++
         }
     }
 
     private fun spark(x: Float, y: Float, color: Int) {
         sound.playWall()
-        for (i in 0 until 6) {
-            if (particles.size > 400) break
-            particles.add(Particle().apply {
-                this.x = x; this.y = y
-                vx = (Random.nextFloat() - 0.5f) * 4f
-                vy = (Random.nextFloat() - 0.5f) * 4f
-                life = 8f + Random.nextFloat() * 8f
-                size = 1.2f + Random.nextFloat() * 1.6f
-                this.color = color
-            })
+        var i = 0
+        while (i < 6 && partN < MAX_PART) {
+            val p = parts[partN++]
+            p.x = x; p.y = y
+            p.vx = (Random.nextFloat() - 0.5f) * 4f
+            p.vy = (Random.nextFloat() - 0.5f) * 4f
+            p.t = 0f
+            p.life = 8f + Random.nextFloat() * 8f
+            p.size = 1.2f + Random.nextFloat() * 1.6f
+            p.color = color
+            i++
         }
     }
 
     private fun updateParticles(ts: Float) {
         var i = 0
-        while (i < particles.size) {
-            val p = particles[i]
+        while (i < partN) {
+            val p = parts[i]
             p.t += ts
             p.x += p.vx * ts
             p.y += p.vy * ts
             p.vx *= 0.96f; p.vy *= 0.96f
-            if (p.t >= p.life) particles.removeAt(i) else i++
+            if (p.t >= p.life) {
+                partN--
+                val tmp = parts[i]; parts[i] = parts[partN]; parts[partN] = tmp
+            } else i++
         }
     }
 
     private fun spawnConfetti(n: Int) {
         val cols = intArrayOf(C_PLAYER, C_CPU, C_GOLD, Color.WHITE)
-        for (i in 0 until n) {
-            if (confetti.size > 160) break
-            confetti.add(Confetti().apply {
-                x = Random.nextFloat() * VW
-                y = -20f - Random.nextFloat() * 200f
-                vx = (Random.nextFloat() - 0.5f) * 2f
-                vy = 1.5f + Random.nextFloat() * 2.5f
-                vr = (Random.nextFloat() - 0.5f) * 0.3f
-                w = 5f + Random.nextFloat() * 5f
-                h = 8f + Random.nextFloat() * 8f
-                color = cols[i % cols.size]
-            })
+        var i = 0
+        while (i < n && confN < MAX_CONF) {
+            val c = confs[confN++]
+            c.x = Random.nextFloat() * VW
+            c.y = -20f - Random.nextFloat() * 200f
+            c.vx = (Random.nextFloat() - 0.5f) * 2f
+            c.vy = 1.5f + Random.nextFloat() * 2.5f
+            c.rot = 0f
+            c.vr = (Random.nextFloat() - 0.5f) * 0.3f
+            c.w = 5f + Random.nextFloat() * 5f
+            c.h = 8f + Random.nextFloat() * 8f
+            c.color = cols[i % cols.size]
+            i++
         }
     }
 
     private fun updateConfetti() {
         var i = 0
-        while (i < confetti.size) {
-            val c = confetti[i]
+        while (i < confN) {
+            val c = confs[i]
             c.x += c.vx; c.y += c.vy; c.rot += c.vr; c.vy += 0.02f
-            if (c.y > VH + 30f) confetti.removeAt(i) else i++
+            if (c.y > VH + 30f) {
+                confN--
+                val tmp = confs[i]; confs[i] = confs[confN]; confs[confN] = tmp
+            } else i++
         }
     }
 
@@ -637,7 +651,10 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     private fun drawParticles(canvas: Canvas) {
-        for (p in particles) {
+        var pi = 0
+        while (pi < partN) {
+            val p = parts[pi]
+            pi++
             val a = max(0f, 1f - p.t / p.life)
             fill.color = p.color
             fill.alpha = (a * 220).toInt()
@@ -688,7 +705,10 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     private fun drawConfetti(canvas: Canvas) {
-        for (c in confetti) {
+        var ci = 0
+        while (ci < confN) {
+            val c = confs[ci]
+            ci++
             canvas.save()
             canvas.rotate(c.rot * 57.3f, c.x, c.y)
             fill.color = c.color
