@@ -22,7 +22,9 @@ import kotlin.random.Random
 /**
  * 闪译彩蛋：霓虹空气曲棍球（原生 Kotlin 移植版）
  *
- * 原作：Matt Cannon 的 CodePen「Air Hockey」（Canvas 2D，1440 行 JS）
+ * 原作：Matt Cannon 的 CodePen「Air Hockey」（Canvas 2D，1440 行 JS，MIT © 2026）
+ * https://codepen.io/matt-cannon/pen/yyVLNNj
+ * 布局/文案按原作 CSS 1:1 对齐（两侧数据面板、GAME · SET · MATCH、PLAY AGAIN 切角按钮等）。
  * 本移植保持：虚拟画布 760×520、物理常量、CPU 五参数、慢动作/加速机制与霓虹配色。
  *
  * 性能约定：所有 Paint/Path/RectF 预分配，帧循环零 new（对齐项目的动画预分配惯例）。
@@ -33,6 +35,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     // ---------------- 虚拟画布 ----------------
     private val VW = 760f
     private val VH = 520f
+    // 1:1 布局（原版 #outer：两侧 130px 数据面板 + 760×520 竞技场）
+    private val PANEL = 130f
     private var scale = 1f
     private var offX = 0f
     private var offY = 0f
@@ -97,6 +101,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var speedUpMsg = ""
     private var speedUpTimer = 0
     private var overT = 0f          // 结算画面的落定进度（0→1）
+    private var overTick = 0L
+    private var pPower = 0; private var cPower = 0
     private var sloMo = false
     private var sloMoAlpha = 0f
     private var sloMoIntro = 0
@@ -186,8 +192,9 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
-        scale = min(w / VW, h / VH)
-        offX = (w - VW * scale) / 2f
+        val layW = VW + PANEL * 2f
+        scale = min(w / layW, h / VH)
+        offX = (w - layW * scale) / 2f
         offY = (h - VH * scale) / 2f
     }
 
@@ -197,7 +204,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastVY = 0f
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        val vx = (e.x - offX) / scale
+        val vx = (e.x - offX) / scale - PANEL
         val vy = (e.y - offY) / scale
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -238,6 +245,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         state = 1
         scoreP[0] = 0; scoreC[0] = 0
         pStreak = 0; cStreak = 0; pTopSpeed = 0; cTopSpeed = 0
+        pPower = 0; cPower = 0
         pBestStreak = 0; cBestStreak = 0
         puckSpeedMult = 1f
         lastSpeedUpAt = 0
@@ -320,8 +328,10 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             if (goalTimer <= 0) {
                 if (scoreP[0] >= MAX_SCORE || scoreC[0] >= MAX_SCORE) {
                     state = 3
+                    overTick = tick
                     sadFace = if (scoreC[0] >= MAX_SCORE) 1f else 0f
-                    if (scoreP[0] >= MAX_SCORE) { spawnConfetti(90); sound.playWin() } else sound.playLose()
+                    burst(CX, CY, C_GOLD, 80)                  // 原作：终局金色爆裂
+                    if (scoreP[0] >= MAX_SCORE) { spawnConfetti(80); sound.playWin() } else sound.playLose()
                 } else {
                     resetRound(if (goalWho == 0) 1 else 0)
                     state = 1
@@ -329,7 +339,13 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             }
         }
 
-        if (state == 3) overT = min(1f, overT + 0.045f)
+        if (state == 3) {
+            overT = min(1f, overT + 0.045f)
+            if (scoreP[0] >= MAX_SCORE) {
+                val dt = tick - overTick
+                if (dt == 24L || dt == 48L) spawnConfetti(80)   // 原作：0/400/800ms 三波彩带
+            }
+        }
         if (state == 1) {
             updateCPU(ts)
             updatePuck(ts)
@@ -490,6 +506,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
         val mph = Math.round(spd * 4f)
         if (isPlayer) { if (mph > pTopSpeed) pTopSpeed = mph } else { if (mph > cTopSpeed) cTopSpeed = mph }
+        if (spd > 14f) { if (isPlayer) pPower++ else cPower++ }   // POWER HITS（原作阈值 14）
 
         if (spd > 3f) {
             burst(pk.x, pk.y, if (isPlayer) C_PLAYER else C_CPU, min((spd * 1.5f).toInt(), 40))
@@ -584,9 +601,11 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         super.onDraw(canvas)
         canvas.drawColor(C_BG)
         canvas.save()
-        canvas.translate(offX + shakeX * scale, offY + shakeY * scale)
+        canvas.translate(offX, offY)
         canvas.scale(scale, scale)
-
+        drawPanels(canvas)
+        canvas.save()
+        canvas.translate(PANEL + shakeX, shakeY)
         drawTable(canvas)
         drawParticles(canvas)
         drawTrailAndPuck(canvas)
@@ -594,12 +613,12 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         drawMallet(canvas, player, C_PLAYER)
         drawGoalFlash(canvas)
         drawConfetti(canvas)
-        drawHud(canvas)
-        if (state == 0) drawTitle(canvas)
+        if (state == 0) drawReady(canvas)
         if (state == 0 || state == 3) drawSoundIcon(canvas)
         if (state == 3) drawOver(canvas)
         if (sadFace > 0f) drawSadFace(canvas)
         if (sloMoAlpha > 0f) drawVignette(canvas)
+        canvas.restore()
         canvas.restore()
     }
 
@@ -717,29 +736,45 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         }
     }
 
-    private fun drawHud(canvas: Canvas) {
-        text.textSize = 20f
-        text.textAlign = Paint.Align.LEFT
-        text.color = C_PLAYER
-        canvas.drawText("YOU", TABLE_X + 4f, 20f, text)
-        text.color = C_CPU
-        text.textAlign = Paint.Align.RIGHT
-        canvas.drawText("CPU", TABLE_X + TABLE_W - 4f, 20f, text)
+    /** 两侧数据面板（1:1 复刻原作 #stat-left/#stat-right） */
+    private fun drawPanels(canvas: Canvas) {
+        fill.color = Color.parseColor("#080D14")
+        rect.set(0f, 0f, PANEL, VH); canvas.drawRoundRect(rect, 16f, 16f, fill)
+        rect.set(VW + PANEL, 0f, VW + PANEL * 2f, VH); canvas.drawRoundRect(rect, 16f, 16f, fill)
+        line.color = 0x0DFFFFFF; line.strokeWidth = 1f
+        rect.set(0f, 0f, PANEL, VH); canvas.drawRoundRect(rect, 16f, 16f, line)
+        rect.set(VW + PANEL, 0f, VW + PANEL * 2f, VH); canvas.drawRoundRect(rect, 16f, 16f, line)
+        panel(canvas, 0f, C_PLAYER, "YOU", scoreP[0], pStreak, pTopSpeed, pPower)
+        panel(canvas, VW + PANEL, C_CPU, "CPU", scoreC[0], cStreak, cTopSpeed, cPower)
+    }
 
-        text.textSize = 22f
-        text.color = Color.WHITE
-        text.textAlign = Paint.Align.LEFT
-        canvas.drawText(scoreP[0].toString(), TABLE_X + 66f, 21f, text)
-        text.textAlign = Paint.Align.RIGHT
-        canvas.drawText(scoreC[0].toString(), TABLE_X + TABLE_W - 66f, 21f, text)
+    private fun panel(canvas: Canvas, x0: Float, col: Int, name: String,
+                      score: Int, streak: Int, top: Int, power: Int) {
+        val cx = x0 + PANEL / 2f
+        text.textAlign = Paint.Align.CENTER
+        text.letterSpacing = 0.4f; text.textSize = 10f; text.color = col
+        canvas.drawText(name, cx, 30f, text)
+        text.letterSpacing = -0.04f; text.textSize = 52f
+        text.setShadowLayer(20f, 0f, 0f, col)          // 比分辉光
+        canvas.drawText(score.toString(), cx, 88f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        line.color = 0x12FFFFFF; line.strokeWidth = 1f
+        canvas.drawLine(x0 + 10f, 104f, x0 + PANEL - 10f, 104f, line)
+        row(canvas, x0, 128f, "STREAK", streak.toString())
+        row(canvas, x0, 152f, "TOP SPEED", top.toString())
+        row(canvas, x0, 176f, "POWER HITS", power.toString())
+        text.textAlign = Paint.Align.CENTER
+        text.letterSpacing = 0.2f; text.textSize = 9f; text.color = 0x33FFFFFF
+        canvas.drawText("FIRST TO 7 WINS", cx, 204f, text)
+    }
 
-        // 底部小字：连胜 / 最高球速
-        text.textSize = 12f
-        text.color = C_TEXT
+    private fun row(canvas: Canvas, x0: Float, y: Float, label: String, value: String) {
         text.textAlign = Paint.Align.LEFT
-        canvas.drawText("STREAK $pStreak   TOP SPEED $pTopSpeed", TABLE_X + 4f, VH - 8f, text)
+        text.letterSpacing = 0.15f; text.textSize = 9f; text.color = 0x4DFFFFFF
+        canvas.drawText(label, x0 + 12f, y, text)
         text.textAlign = Paint.Align.RIGHT
-        canvas.drawText("STREAK $cStreak   TOP SPEED $cTopSpeed", TABLE_X + TABLE_W - 4f, VH - 8f, text)
+        text.letterSpacing = 0f; text.textSize = 12f; text.color = 0xBFFFFFFF
+        canvas.drawText(value, x0 + PANEL - 12f, y, text)
     }
 
     private fun drawSoundIcon(canvas: Canvas) {
@@ -749,44 +784,71 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawText(if (sound.muted) "🔇" else "🔊", VW - 16f, 32f, text)
     }
 
-    private fun drawTitle(canvas: Canvas) {
-        fill.color = Color.argb(210, 4, 6, 10)
+    /** Ready 屏（1:1 复刻原作 .ready-*：白色 AIR + 蓝辉光 HOCKEY + 金副标 + 呼吸提示） */
+    private fun drawReady(canvas: Canvas) {
+        fill.color = Color.argb(102, 4, 6, 10)
         canvas.drawRect(0f, 0f, VW, VH, fill)
-        text.color = C_PLAYER
-        text.textSize = 54f
         text.textAlign = Paint.Align.CENTER
-        canvas.drawText("AIR HOCKEY", CX, CY - 40f, text)
-        text.color = Color.WHITE
-        text.textSize = 20f
-        canvas.drawText("点按开始", CX, CY + 16f, text)
-        text.color = C_TEXT
-        text.textSize = 14f
-        canvas.drawText("拖动屏幕控制球拍 · 先进 7 球者胜", CX, CY + 52f, text)
+        text.letterSpacing = 0f
+        text.textSize = 58f; text.color = Color.WHITE
+        canvas.drawText("AIR", CX, 218f, text)
+        text.color = C_PLAYER
+        text.setShadowLayer(30f, 0f, 0f, C_PLAYER)
+        canvas.drawText("HOCKEY", CX, 278f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        text.letterSpacing = 0.85f; text.textSize = 12f; text.color = C_GOLD
+        canvas.drawText("FIRST TO 7 WINS", CX, 310f, text)
+        val a = 0.4f + 0.6f * (0.5f + 0.5f * kotlin.math.sin(tick * 0.045f))
+        text.letterSpacing = 0.3f; text.textSize = 14f; text.color = Color.WHITE
+        text.alpha = (a * 255).toInt()
+        canvas.drawText("TAP TO PLAY", CX, 358f, text)
+        text.alpha = 255
+        text.letterSpacing = 0.12f; text.textSize = 11f; text.color = 0x38FFFFFF
+        canvas.drawText("拖动球拍 · 先到 7 分 · 返回键退出", CX, 392f, text)
     }
 
+    /** 结算屏（1:1 复刻原作 #gameover-screen：表情 + 发光标题 + 副标 + 金比分 + PLAY AGAIN 切角钮） */
     private fun drawOver(canvas: Canvas) {
-        // 注意：结算遮罩只做"轻纱"，不做整屏压暗（旧版把屏幕压黑，被误认为"亮度突然变暗"）
-        fill.color = Color.argb((110 * overT).toInt(), 4, 6, 10)
-        canvas.drawRect(0f, 0f, VW, VH, fill)
         val win = scoreP[0] >= MAX_SCORE
-        val pulse = 0.97f + 0.03f * kotlin.math.sin(tick * 0.06f)
-        val k = (0.78f + 0.22f * overT) * pulse
-        // 标题：带辉光地放大落定
-        canvas.save()
-        canvas.translate(CX, CY - 30f)
-        canvas.scale(k, k)
-        text.color = if (win) C_PLAYER else C_CPU
-        text.textSize = 52f
+        // 胜 = 轻纱；败 = 暗红底（原作 .lose-state: rgba(20,4,8,.9)）
+        fill.color = if (win) Color.argb((102 * overT).toInt(), 4, 6, 10)
+        else Color.argb((230 * overT).toInt(), 20, 4, 8)
+        canvas.drawRect(0f, 0f, VW, VH, fill)
+        val k = 0.78f + 0.22f * overT                    // 落定动画
         text.textAlign = Paint.Align.CENTER
+        text.letterSpacing = 0f
+        canvas.save(); canvas.translate(CX, 150f); canvas.scale(k, k)
+        text.textSize = 60f
+        canvas.drawText(if (win) "😄" else "😢", 0f, 0f, text)
+        canvas.restore()
+        val col = if (win) C_PLAYER else C_CPU
+        text.textSize = 54f; text.color = col
+        text.setShadowLayer(28f, 0f, 0f, col)
+        canvas.save(); canvas.translate(CX, 232f); canvas.scale(k, k)
         canvas.drawText(if (win) "YOU WIN" else "CPU WINS", 0f, 0f, text)
         canvas.restore()
-        text.color = Color.WHITE
-        text.textSize = 26f
-        text.textAlign = Paint.Align.CENTER
-        canvas.drawText("${scoreP[0]} : ${scoreC[0]}", CX, CY + 22f, text)
-        text.color = C_TEXT
-        text.textSize = 15f
-        canvas.drawText("点按重新开始 · 返回键退出", CX, CY + 60f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        text.letterSpacing = 0.7f; text.textSize = 16f; text.color = 0x99FFFFFF
+        canvas.drawText(if (win) "GAME · SET · MATCH" else "BETTER LUCK NEXT TIME", CX, 272f, text)
+        text.letterSpacing = 0f; text.textSize = 30f; text.color = C_GOLD
+        text.setShadowLayer(20f, 0f, 0f, C_GOLD)
+        canvas.drawText("${scoreP[0]} – ${scoreC[0]}", CX, 322f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        drawPlayAgain(canvas)
+    }
+
+    private fun drawPlayAgain(canvas: Canvas) {
+        val w = 240f; val h = 50f; val cut = 12f; val cy = 378f
+        path.reset()
+        path.moveTo(CX - w / 2 + cut, cy - h / 2)
+        path.lineTo(CX + w / 2, cy - h / 2)
+        path.lineTo(CX + w / 2 - cut, cy + h / 2)
+        path.lineTo(CX - w / 2, cy + h / 2)
+        path.close()
+        line.color = C_PLAYER; line.strokeWidth = 2f
+        canvas.drawPath(path, line)
+        text.letterSpacing = 0.3f; text.textSize = 13f; text.color = C_PLAYER
+        canvas.drawText("PLAY AGAIN", CX, cy + 5f, text)
     }
 
     private fun drawSadFace(canvas: Canvas) {
