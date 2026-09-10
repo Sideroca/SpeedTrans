@@ -212,11 +212,17 @@ class ResultOverlay(private val context: Context) {
         // 锁存内外两层滚动位置再 append——TextView.append 会请求把新增区域滚到可见处，
         // 长文本流式时会强制把 ScrollView 拉到底部（偶发“页面强制下滑”的根因）
         val sv = tv.parent as? ScrollView
-        val keepSv = sv?.scrollY
+        val keepSv = sv?.scrollY ?: 0
         val keepTv = tv.scrollY
         tv.append(delta)
-        keepSv?.let { y -> sv?.scrollTo(0, y) }
-        tv.scrollTo(0, keepTv)
+        // 同步锁一次
+        if (sv != null && sv.scrollY != keepSv) sv.scrollTo(0, keepSv)
+        if (tv.scrollY != keepTv) tv.scrollTo(0, keepTv)
+        // 再在"下一帧（重新布局之后）"锁一次——append 引发的布局可能在本帧之后才把视图拉走（偶发强滚的残留路径）
+        tv.post {
+            if (sv != null && sv.scrollY != keepSv) sv.scrollTo(0, keepSv)
+            if (tv.scrollY != keepTv) tv.scrollTo(0, keepTv)
+        }
     }
 
     fun finish(err: Throwable?) {

@@ -198,7 +198,7 @@ object ThemeEngine {
         if (strokeColor != 0) setStroke((1 * density).toInt(), strokeColor)
     }
 
-    /** 撞色条水浸渐变：主色 → 原色 → 提亮（同族色相两档过渡，DeepSeek 官网蓝的思路） */
+    /** 撞色条：整体均匀的横条——左右完全均匀、上下仅 ±5% 极轻明暗做体积感（44 色通用） */
     fun barGradient(base: Int, radiusPx: Float, strokeColor: Int = 0, strokePx: Float = 1f): GradientDrawable {
         fun toward(base: Int, target: Int, k: Float): Int {
             val a = (k * 255).toInt()
@@ -207,8 +207,8 @@ object ThemeEngine {
                 ch(Color.green(base), Color.green(target)), ch(Color.blue(base), Color.blue(target)))
         }
         return GradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(toward(base, 0xFF000000.toInt(), 0.18f), base, toward(base, 0xFFFFFFFF.toInt(), 0.22f))
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(toward(base, 0xFFFFFFFF.toInt(), 0.05f), base, toward(base, 0xFF000000.toInt(), 0.05f))
         ).apply {
             cornerRadius = radiusPx
             if (strokeColor != 0 && strokePx > 0) setStroke(strokePx.toInt().coerceAtLeast(1), strokeColor)
