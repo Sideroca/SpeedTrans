@@ -147,7 +147,7 @@ class ResultOverlay(private val context: Context) {
                 val now = android.os.SystemClock.elapsedRealtime()
                 if (!streaming) {
                     pinY = scrollY
-                } else if (userTouching || now - lastTouchUpAt < 350L) {
+                } else if (userTouching || now - lastTouchUpAt < 1200L) {
                     pinY = scrollY          // 用户自己滑的：跟随
                 } else if (!selfScroll && scrollY != pinY) {
                     selfScroll = true
@@ -266,7 +266,7 @@ class ResultOverlay(private val context: Context) {
         val keepTv = tv.scrollY
         tv.append(delta)
         // 同步锁一次；用户正在拖动时不抢（非用户滚动由 ScrollView 的"钉住"监听兜底）
-        if (!userTouching) {
+        if (!userTouching && android.os.SystemClock.elapsedRealtime() - lastTouchUpAt > 1200L) {
             if (sv != null && sv.scrollY != keepSv) sv.scrollTo(0, keepSv)
             if (tv.scrollY != keepTv) tv.scrollTo(0, keepTv)
         }
