@@ -1020,6 +1020,14 @@
                     android:gravity="center"
                     android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译"
                     android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btnEgg"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="🏒 空气曲棍球（彩蛋）" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

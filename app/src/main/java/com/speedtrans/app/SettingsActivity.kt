@@ -100,6 +100,10 @@ class SettingsActivity : AppCompatActivity() {
         bindLauncherSection()
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
+        // 彩蛋：霓虹空气曲棍球（独立 Activity，不触碰任何翻译链路）
+        findViewById<Button>(R.id.btnEgg).setOnClickListener {
+            startActivity(android.content.Intent(this, com.speedtrans.app.game.AirHockeyActivity::class.java))
+        }
 
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
     }

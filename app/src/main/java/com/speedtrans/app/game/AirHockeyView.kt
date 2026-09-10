@@ -1,0 +1,775 @@
+package com.speedtrans.app.game
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RadialGradient
+import android.graphics.RectF
+import android.graphics.Shader
+import android.view.Choreographer
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.View
+import kotlin.math.abs
+import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.random.Random
+
+/**
+ * 闪译彩蛋：霓虹空气曲棍球（原生 Kotlin 移植版）
+ *
+ * 原作：Matt Cannon 的 CodePen「Air Hockey」（Canvas 2D，1440 行 JS）
+ * 本移植保持：虚拟画布 760×520、物理常量、CPU 五参数、慢动作/加速机制与霓虹配色。
+ *
+ * 性能约定：所有 Paint/Path/RectF 预分配，帧循环零 new（对齐项目的动画预分配惯例）。
+ * 帧驱动：Choreographer + 固定 1/60s 步进（90/120Hz 屏也不会变快）。
+ */
+class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallback {
+
+    // ---------------- 虚拟画布 ----------------
+    private val VW = 760f
+    private val VH = 520f
+    private var scale = 1f
+    private var offX = 0f
+    private var offY = 0f
+
+    // ---------------- 几何 / 物理常量（与原作一致） ----------------
+    private val TABLE_X = 30f
+    private val TABLE_Y = 30f
+    private val TABLE_W = 700f
+    private val TABLE_H = 460f
+    private val CX = 380f
+    private val CY = 260f
+    private val GOAL_W = 160f
+    private val GOAL_Y1 = CY - GOAL_W / 2
+    private val GOAL_Y2 = CY + GOAL_W / 2
+    private val PUCK_R = 14f
+    private val MALLET_R = 24f
+    private val MAX_SCORE = 7
+    private val FRICTION = 0.995f
+    private val WALL_BOUNCE = 0.82f
+    private val CPU_SPEED = 4.6f
+    private val CPU_REACT = 0.62f
+    private val CPU_ERROR_Y = 26f
+    private val CPU_MISTAKE_CHANCE = 0.018f
+    private val CPU_MISTAKE_DUR = 42
+
+    // ---------------- 颜色 ----------------
+    private val C_BG = Color.parseColor("#04060a")
+    private val C_PLAYER = Color.parseColor("#00d4ff")
+    private val C_CPU = Color.parseColor("#ff2d55")
+    private val C_GOLD = Color.parseColor("#ffc940")
+    private val C_TABLE = Color.parseColor("#0a1018")
+    private val C_LINE = Color.parseColor("#16202e")
+    private val C_TEXT = Color.parseColor("#7d8ea3")
+
+    // ---------------- 实体 ----------------
+    private class Body {
+        var x = 0f; var y = 0f; var vx = 0f; var vy = 0f; var r = 0f
+    }
+
+    private val puck = Body().apply { r = PUCK_R; x = CX; y = CY }
+    private val player = Body().apply { r = MALLET_R; x = TABLE_X + 110f; y = CY }
+    private val cpu = Body().apply { r = MALLET_R; x = VW - TABLE_X - 110f; y = CY }
+
+    private var pvx = 0f
+    private var pvy = 0f
+    private var cpuHitCool = 0
+    private var cpuMistake = 0
+    private var cpuErrY = 0f
+
+    // ---------------- 局面 ----------------
+    private var state = 0          // 0 标题 / 1 对战 / 2 进球停顿 / 3 结束
+    private var goalTimer = 0
+    private var goalWho = 0        // 0 玩家 / 1 CPU（进球方）
+    private var goalFlash = 0f
+    private var goalMsgScale = 0f
+    private var tick = 0L
+    private var shakeAmt = 0f
+    private var shakeX = 0f
+    private var shakeY = 0f
+    private var puckSpeedMult = 1f
+    private var lastSpeedUpAt = 0
+    private var speedUpMsg = ""
+    private var speedUpTimer = 0
+    private var sloMo = false
+    private var sloMoAlpha = 0f
+    private var sloMoIntro = 0
+    private var sloMoLabelTimer = 0
+    private var sadFace = 0f
+
+    private val scoreP = IntArray(1)
+    private val scoreC = IntArray(1)
+    private var pStreak = 0; private var pBestStreak = 0; private var pTopSpeed = 0
+    private var cStreak = 0; private var cBestStreak = 0; private var cTopSpeed = 0
+
+    // ---------------- 特效 ----------------
+    private class Particle {
+        var x = 0f; var y = 0f; var vx = 0f; var vy = 0f
+        var t = 0f; var life = 1f; var size = 2f; var color = 0
+    }
+
+    private class Confetti {
+        var x = 0f; var y = 0f; var vx = 0f; var vy = 0f
+        var rot = 0f; var vr = 0f; var w = 6f; var h = 10f; var color = 0
+    }
+
+    private val particles = ArrayList<Particle>(256)
+    private val confetti = ArrayList<Confetti>(128)
+    private val trailX = FloatArray(18)
+    private val trailY = FloatArray(18)
+    private var trailN = 0
+
+    // ---------------- 画笔（全部预分配） ----------------
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.MONOSPACE
+    }
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rect = RectF()
+    private val path = Path()
+
+    // ---------------- 帧循环 ----------------
+    private var running = false
+    private var lastNanos = 0L
+    private var acc = 0.0
+    private val STEP_NS = 1_000_000_000L / 60L
+
+    init {
+        setBackgroundColor(C_BG)
+        isFocusable = true
+    }
+
+    fun start() {
+        if (running) return
+        running = true
+        lastNanos = 0L
+        acc = 0.0
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    fun stop() {
+        running = false
+        Choreographer.getInstance().removeFrameCallback(this)
+    }
+
+    override fun doFrame(frameTimeNanos: Long) {
+        if (!running) return
+        if (lastNanos == 0L) lastNanos = frameTimeNanos
+        var d = frameTimeNanos - lastNanos
+        lastNanos = frameTimeNanos
+        if (d > 100_000_000L) d = 100_000_000L
+        acc += d.toDouble()
+        var steps = 0
+        while (acc >= STEP_NS && steps < 4) {
+            tick()
+            acc -= STEP_NS.toDouble()
+            steps++
+        }
+        invalidate()
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+        super.onSizeChanged(w, h, ow, oh)
+        scale = min(w / VW, h / VH)
+        offX = (w - VW * scale) / 2f
+        offY = (h - VH * scale) / 2f
+    }
+
+    // ---------------- 输入：相对拖动（手指不挡球拍） ----------------
+    private var touching = false
+    private var lastVX = 0f
+    private var lastVY = 0f
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        val vx = (e.x - offX) / scale
+        val vy = (e.y - offY) / scale
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (state == 0 || state == 3) {
+                    startGame()
+                } else {
+                    touching = true
+                    lastVX = vx; lastVY = vy
+                }
+            }
+            MotionEvent.ACTION_MOVE -> if (touching) {
+                val dx = vx - lastVX
+                val dy = vy - lastVY
+                lastVX = vx; lastVY = vy
+                player.x = clamp(player.x + dx, TABLE_X + MALLET_R + 2, CX - 10)
+                player.y = clamp(player.y + dy, TABLE_Y + MALLET_R + 2, TABLE_Y + TABLE_H - MALLET_R - 2)
+                pvx = pvx * 0.4f + dx * 0.6f
+                pvy = pvy * 0.4f + dy * 0.6f
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> touching = false
+        }
+        return true
+    }
+
+    private fun clamp(v: Float, a: Float, b: Float) = max(a, min(b, v))
+
+    // ---------------- 流程 ----------------
+    private fun startGame() {
+        state = 1
+        scoreP[0] = 0; scoreC[0] = 0
+        pStreak = 0; cStreak = 0; pTopSpeed = 0; cTopSpeed = 0
+        pBestStreak = 0; cBestStreak = 0
+        puckSpeedMult = 1f
+        lastSpeedUpAt = 0
+        sloMo = false; sloMoAlpha = 0f; sloMoIntro = 0; sloMoLabelTimer = 0
+        sadFace = 0f
+        speedUpTimer = 0
+        particles.clear(); confetti.clear()
+        resetRound(0)
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    private fun resetRound(server: Int) {
+        puck.x = CX; puck.y = CY
+        puck.vx = if (server == 0) -2.2f else 2.2f
+        puck.vy = (Random.nextFloat() - 0.5f) * 1.6f
+        player.x = TABLE_X + 110f; player.y = CY
+        cpu.x = VW - TABLE_X - 110f; cpu.y = CY
+        pvx = 0f; pvy = 0f
+        cpuHitCool = 0; cpuMistake = 0
+        trailN = 0
+    }
+
+    private fun goalScored(who: Int) {
+        if (state != 1) return
+        state = 2
+        goalTimer = 100
+        goalWho = who
+        goalFlash = 1f
+        goalMsgScale = 0f
+        if (who == 0) { scoreP[0]++; pStreak++; pBestStreak = max(pBestStreak, pStreak); cStreak = 0 }
+        else { scoreC[0]++; cStreak++; cBestStreak = max(cBestStreak, cStreak); pStreak = 0 }
+
+        val total = scoreP[0] + scoreC[0]
+        if (total % 2 == 0 && total > lastSpeedUpAt) {
+            lastSpeedUpAt = total
+            puckSpeedMult = min(puckSpeedMult + 0.14f, 2f)
+            val msgs = arrayOf("SPEEDING UP!", "FASTER!!", "KICK IT UP!", "NO MERCY!", "LIGHT SPEED!", "HOLD ON!!")
+            speedUpMsg = msgs[min(total / 2 - 1, msgs.size - 1).coerceAtLeast(0)]
+            speedUpTimer = 130
+        }
+        val gx = if (who == 0) TABLE_X else VW - TABLE_X
+        val gcol = if (who == 0) C_PLAYER else C_CPU
+        burst(gx, CY, gcol, 40)
+        burst(puck.x, puck.y, C_GOLD, 30)
+        shake(8f)
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+
+        // 赛点慢动作（原作：任一方到 MAX_SCORE-1 触发，一局只进一次）
+        if ((scoreP[0] == MAX_SCORE - 1 || scoreC[0] == MAX_SCORE - 1) && !sloMo) {
+            sloMo = true
+            sloMoIntro = 80
+            sloMoLabelTimer = 170
+        }
+    }
+
+    // ---------------- 每帧更新 ----------------
+    private fun tick() {
+        tick++
+        if (goalFlash > 0f) goalFlash = max(0f, goalFlash - 0.04f)
+        if (goalMsgScale < 1f) goalMsgScale = min(1f, goalMsgScale + 0.08f)
+        if (speedUpTimer > 0) speedUpTimer--
+        if (sloMoIntro > 0) sloMoIntro--
+        if (sloMoLabelTimer > 0) sloMoLabelTimer--
+        if (sloMo) sloMoAlpha = min(1f, sloMoAlpha + 0.055f) else sloMoAlpha = max(0f, sloMoAlpha - 0.07f)
+        if (sadFace > 0f) sadFace = max(0f, sadFace - 0.01f)
+
+        if (shakeAmt > 0.3f) {
+            shakeX = (Random.nextFloat() - 0.5f) * shakeAmt * 2f
+            shakeY = (Random.nextFloat() - 0.5f) * shakeAmt * 2f
+            shakeAmt *= 0.72f
+        } else { shakeX = 0f; shakeY = 0f; shakeAmt = 0f }
+
+        val ts = if (sloMo) 0.55f else 1f
+
+        if (state == 2) {
+            goalTimer--
+            if (goalTimer <= 0) {
+                if (scoreP[0] >= MAX_SCORE || scoreC[0] >= MAX_SCORE) {
+                    state = 3
+                    sadFace = if (scoreC[0] >= MAX_SCORE) 1f else 0f
+                    if (scoreC[0] >= MAX_SCORE) { /* 输：苦脸 */ }
+                    if (scoreP[0] >= MAX_SCORE) spawnConfetti(90)
+                } else {
+                    resetRound(if (goalWho == 0) 1 else 0)
+                    state = 1
+                }
+            }
+        }
+
+        if (state == 1) {
+            updateCPU(ts)
+            updatePuck(ts)
+            updateParticles(ts)
+        } else if (state == 2) {
+            updateParticles(ts)
+        }
+        updateConfetti()
+    }
+
+    // ---------------- 玩家 / CPU ----------------
+    // （玩家位置由触摸直接驱动；此处只做速度衰减，供碰撞使用）
+    private fun updatePlayer(ts: Float) {
+        pvx *= 0.86f * ts
+        pvy *= 0.86f * ts
+    }
+
+    private fun updateCPU(ts: Float) {
+        val halfW = VW / 2
+        val homeX = VW - TABLE_X - 110f
+        val minX = halfW + 10f
+        val maxX = VW - TABLE_X - MALLET_R - 2f
+        val minY = TABLE_Y + MALLET_R + 2f
+        val maxY = TABLE_Y + TABLE_H - MALLET_R - 2f
+
+        if (Random.nextFloat() < CPU_MISTAKE_CHANCE && cpuMistake == 0 && puck.vx > 0f) {
+            cpuMistake = CPU_MISTAKE_DUR
+            cpuErrY = (Random.nextFloat() - 0.5f) * CPU_ERROR_Y * 2f
+        }
+        if (cpuMistake > 0) cpuMistake--
+        if (cpuHitCool > 0) cpuHitCool--
+
+        val err = if (cpuMistake > 0) cpuErrY else 0f
+        val puckOnMySide = puck.x > halfW
+        val puckToMe = puck.vx > 0f
+
+        val nearTop = cpu.y < minY + 20f
+        val nearBottom = cpu.y > maxY - 20f
+        val nearSide = cpu.x > maxX - 20f
+        val cornered = (nearTop || nearBottom) && nearSide
+        val farHome = hypot((cpu.x - homeX).toDouble(), (cpu.y - CY).toDouble()).toFloat() > 150f
+
+        var tx: Float
+        var ty: Float
+        if (cornered || (farHome && !puckToMe)) {
+            tx = homeX; ty = CY
+        } else if (puckOnMySide && puckToMe) {
+            val frames = max(1f, min((cpu.x - puck.x) / max(0.5f, puck.vx), 60f))
+            tx = clamp(puck.x + puck.vx * frames * CPU_REACT, minX, maxX)
+            ty = clamp(puck.y + puck.vy * frames * CPU_REACT + err, minY, maxY)
+        } else if (puckOnMySide) {
+            tx = clamp(puck.x - 8f, minX, maxX - 30f)
+            ty = clamp(puck.y + err, minY, maxY)
+        } else {
+            tx = homeX
+            ty = clamp(puck.y * 0.5f + CY * 0.5f + err * 0.3f, minY, maxY)
+        }
+
+        val px = cpu.x; val py = cpu.y
+        val dx = tx - cpu.x; val dy = ty - cpu.y
+        val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        if (dist > 0.1f) {
+            val step = min(dist, CPU_SPEED * ts)
+            cpu.x += dx / dist * step
+            cpu.y += dy / dist * step
+        }
+        cpu.x = clamp(cpu.x, minX, maxX)
+        cpu.y = clamp(cpu.y, minY, maxY)
+        cpu.vx = cpu.x - px
+        cpu.vy = cpu.y - py
+    }
+
+    // ---------------- 冰球 ----------------
+    private fun updatePuck(ts: Float) {
+        updatePlayer(ts)
+        if (ts != 1f) { puck.vx *= ts; puck.vy *= ts }
+
+        val spd = hypot(puck.vx.toDouble(), puck.vy.toDouble()).toFloat()
+        // 拖尾
+        if (trailN < 18) trailN++ else {
+            for (i in 0 until 17) { trailX[i] = trailX[i + 1]; trailY[i] = trailY[i + 1] }
+        }
+        trailX[trailN - 1] = puck.x; trailY[trailN - 1] = puck.y
+
+        if (spd < 0.8f) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.18f
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.18f
+        } else if (spd < 2.5f) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.06f
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.06f
+        }
+
+        puck.x += puck.vx
+        puck.y += puck.vy
+        puck.vx *= FRICTION
+        puck.vy *= FRICTION
+
+        val tx = TABLE_X; val ty = TABLE_Y; val tw = TABLE_W; val th = TABLE_H
+        if (puck.y - puck.r < ty) {
+            puck.y = ty + puck.r; puck.vy = abs(puck.vy) * WALL_BOUNCE
+            spark(puck.x, ty, C_PLAYER)
+        }
+        if (puck.y + puck.r > ty + th) {
+            puck.y = ty + th - puck.r; puck.vy = -abs(puck.vy) * WALL_BOUNCE
+            spark(puck.x, ty + th, C_PLAYER)
+        }
+        if (puck.x - puck.r < tx) {
+            if (puck.y > GOAL_Y1 && puck.y < GOAL_Y2) { goalScored(1); return }
+            puck.x = tx + puck.r; puck.vx = abs(puck.vx) * WALL_BOUNCE
+            spark(tx, puck.y, C_CPU)
+        }
+        if (puck.x + puck.r > tx + tw) {
+            if (puck.y > GOAL_Y1 && puck.y < GOAL_Y2) { goalScored(0); return }
+            puck.x = tx + tw - puck.r; puck.vx = -abs(puck.vx) * WALL_BOUNCE
+            spark(tx + tw, puck.y, C_CPU)
+        }
+
+        collide(puck, player, true)
+        collide(puck, cpu, false)
+
+        if (ts != 1f && state == 1) { puck.vx /= ts; puck.vy /= ts }
+    }
+
+    private fun collide(pk: Body, mallet: Body, isPlayer: Boolean) {
+        val dx = pk.x - mallet.x
+        val dy = pk.y - mallet.y
+        val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        val minDist = pk.r + mallet.r
+        if (dist >= minDist || dist < 0.01f) return
+
+        if (!isPlayer && cpuHitCool > 0) {
+            val nx2 = dx / dist; val ny2 = dy / dist
+            pk.x += nx2 * (minDist - dist)
+            pk.y += ny2 * (minDist - dist)
+            return
+        }
+
+        val nx = dx / dist; val ny = dy / dist
+        pk.x += nx * (minDist - dist)
+        pk.y += ny * (minDist - dist)
+
+        val mvx = if (isPlayer) pvx * 1.8f else mallet.vx
+        val mvy = if (isPlayer) pvy * 1.8f else mallet.vy
+        val relVX = pk.vx - mvx
+        val relVY = pk.vy - mvy
+        val dot = relVX * nx + relVY * ny
+        if (dot >= 0f) return
+
+        val restitution = if (isPlayer) 1.3f else 1.1f
+        val impulse = -(1f + restitution) * dot
+        pk.vx += impulse * nx
+        pk.vy += impulse * ny
+
+        var spd = hypot(pk.vx.toDouble(), pk.vy.toDouble()).toFloat()
+        val cap = (if (isPlayer) 20f else 16f) * puckSpeedMult
+        if (spd > cap) { pk.vx = pk.vx / spd * cap; pk.vy = pk.vy / spd * cap; spd = cap }
+        if (!isPlayer) cpuHitCool = 20
+
+        val mph = Math.round(spd * 4f)
+        if (isPlayer) { if (mph > pTopSpeed) pTopSpeed = mph } else { if (mph > cTopSpeed) cTopSpeed = mph }
+
+        if (spd > 3f) {
+            burst(pk.x, pk.y, if (isPlayer) C_PLAYER else C_CPU, min((spd * 1.5f).toInt(), 40))
+            if (isPlayer) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+        if (spd > 19f) shake(min((spd - 19f) * 0.4f, 3f))
+    }
+
+    // ---------------- 特效 ----------------
+    private fun burst(x: Float, y: Float, color: Int, n: Int) {
+        for (i in 0 until n) {
+            if (particles.size > 400) break
+            val a = Random.nextFloat() * 6.2832f
+            val v = 1f + Random.nextFloat() * 5f
+            particles.add(Particle().apply {
+                this.x = x; this.y = y
+                vx = kotlin.math.cos(a) * v; vy = kotlin.math.sin(a) * v
+                life = 18f + Random.nextFloat() * 22f
+                size = 1.5f + Random.nextFloat() * 2.5f
+                this.color = color
+            })
+        }
+    }
+
+    private fun spark(x: Float, y: Float, color: Int) {
+        for (i in 0 until 6) {
+            if (particles.size > 400) break
+            particles.add(Particle().apply {
+                this.x = x; this.y = y
+                vx = (Random.nextFloat() - 0.5f) * 4f
+                vy = (Random.nextFloat() - 0.5f) * 4f
+                life = 8f + Random.nextFloat() * 8f
+                size = 1.2f + Random.nextFloat() * 1.6f
+                this.color = color
+            })
+        }
+    }
+
+    private fun updateParticles(ts: Float) {
+        var i = 0
+        while (i < particles.size) {
+            val p = particles[i]
+            p.t += ts
+            p.x += p.vx * ts
+            p.y += p.vy * ts
+            p.vx *= 0.96f; p.vy *= 0.96f
+            if (p.t >= p.life) particles.removeAt(i) else i++
+        }
+    }
+
+    private fun spawnConfetti(n: Int) {
+        val cols = intArrayOf(C_PLAYER, C_CPU, C_GOLD, Color.WHITE)
+        for (i in 0 until n) {
+            if (confetti.size > 160) break
+            confetti.add(Confetti().apply {
+                x = Random.nextFloat() * VW
+                y = -20f - Random.nextFloat() * 200f
+                vx = (Random.nextFloat() - 0.5f) * 2f
+                vy = 1.5f + Random.nextFloat() * 2.5f
+                vr = (Random.nextFloat() - 0.5f) * 0.3f
+                w = 5f + Random.nextFloat() * 5f
+                h = 8f + Random.nextFloat() * 8f
+                color = cols[i % cols.size]
+            })
+        }
+    }
+
+    private fun updateConfetti() {
+        var i = 0
+        while (i < confetti.size) {
+            val c = confetti[i]
+            c.x += c.vx; c.y += c.vy; c.rot += c.vr; c.vy += 0.02f
+            if (c.y > VH + 30f) confetti.removeAt(i) else i++
+        }
+    }
+
+    private fun shake(a: Float) { shakeAmt = max(shakeAmt, a) }
+
+    // ---------------- 绘制 ----------------
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawColor(C_BG)
+        canvas.save()
+        canvas.translate(offX + shakeX * scale, offY + shakeY * scale)
+        canvas.scale(scale, scale)
+
+        drawTable(canvas)
+        drawParticles(canvas)
+        drawTrailAndPuck(canvas)
+        drawMallet(canvas, cpu, C_CPU)
+        drawMallet(canvas, player, C_PLAYER)
+        drawGoalFlash(canvas)
+        drawConfetti(canvas)
+        drawHud(canvas)
+        if (state == 0) drawTitle(canvas)
+        if (state == 3) drawOver(canvas)
+        if (sadFace > 0f) drawSadFace(canvas)
+        if (sloMoAlpha > 0f) drawVignette(canvas)
+        canvas.restore()
+    }
+
+    private fun glowAt(canvas: Canvas, x: Float, y: Float, r: Float, color: Int, alpha: Float) {
+        glowPaint.shader = RadialGradient(
+            x, y, r,
+            Color.argb((90 * alpha).toInt(), Color.red(color), Color.green(color), Color.blue(color)),
+            Color.argb(0, Color.red(color), Color.green(color), Color.blue(color)),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(x, y, r, glowPaint)
+    }
+
+    private fun drawTable(canvas: Canvas) {
+        fill.shader = LinearGradient(
+            0f, TABLE_Y, 0f, TABLE_Y + TABLE_H,
+            Color.parseColor("#0b1220"), Color.parseColor("#060a12"), Shader.TileMode.CLAMP
+        )
+        rect.set(TABLE_X, TABLE_Y, TABLE_X + TABLE_W, TABLE_Y + TABLE_H)
+        canvas.drawRoundRect(rect, 22f, 22f, fill)
+        fill.shader = null   // 切回纯色模式（后面还要用 fill 画纯色）
+
+        line.color = Color.parseColor("#1d2c40"); line.strokeWidth = 2.5f
+        canvas.drawRoundRect(rect, 22f, 22f, line)
+
+        // 中线 + 中圈
+        line.color = Color.parseColor("#14202f"); line.strokeWidth = 2f
+        canvas.drawLine(CX, TABLE_Y + 6f, CX, TABLE_Y + TABLE_H - 6f, line)
+        canvas.drawCircle(CX, CY, 70f, line)
+        canvas.drawCircle(CX, CY, 6f, fill.apply { color = Color.parseColor("#1d2c40") })
+
+        // 球门（左=玩家青 / 右=CPU 红）
+        line.strokeWidth = 6f
+        line.color = C_PLAYER
+        canvas.drawLine(TABLE_X, GOAL_Y1, TABLE_X, GOAL_Y2, line)
+        line.color = C_CPU
+        canvas.drawLine(TABLE_X + TABLE_W, GOAL_Y1, TABLE_X + TABLE_W, GOAL_Y2, line)
+
+        // GOAL 字样
+        text.color = Color.parseColor("#1b2a3d"); text.textSize = 15f
+        canvas.save()
+        canvas.rotate(-90f, TABLE_X + 18f, CY)
+        canvas.drawText("GOAL", TABLE_X + 18f, CY + 5f, text)
+        canvas.restore()
+        canvas.save()
+        canvas.rotate(90f, TABLE_X + TABLE_W - 18f, CY)
+        canvas.drawText("GOAL", TABLE_X + TABLE_W - 18f, CY + 5f, text)
+        canvas.restore()
+    }
+
+    private fun drawParticles(canvas: Canvas) {
+        for (p in particles) {
+            val a = max(0f, 1f - p.t / p.life)
+            fill.color = p.color
+            fill.alpha = (a * 220).toInt()
+            canvas.drawCircle(p.x, p.y, p.size * (0.4f + a * 0.6f), fill)
+        }
+        fill.alpha = 255
+    }
+
+    private fun drawTrailAndPuck(canvas: Canvas) {
+        // 拖尾
+        var i = 0
+        while (i < trailN - 1) {
+            val a = (i.toFloat() / trailN) * 0.35f
+            fill.color = C_PLAYER
+            fill.alpha = (a * 255).toInt()
+            canvas.drawCircle(trailX[i], trailY[i], PUCK_R * (0.35f + 0.55f * i / trailN), fill)
+            i++
+        }
+        fill.alpha = 255
+        glowAt(canvas, puck.x, puck.y, PUCK_R * 3.2f, Color.WHITE, 0.8f)
+        fill.color = Color.WHITE
+        canvas.drawCircle(puck.x, puck.y, PUCK_R, fill)
+        fill.color = Color.parseColor("#9fd8ff")
+        canvas.drawCircle(puck.x, puck.y, PUCK_R * 0.55f, fill)
+    }
+
+    private fun drawMallet(canvas: Canvas, m: Body, color: Int) {
+        glowAt(canvas, m.x, m.y, m.r * 2.6f, color, 0.9f)
+        fill.color = Color.parseColor("#0a0f16")
+        canvas.drawCircle(m.x, m.y, m.r, fill)
+        line.color = color; line.strokeWidth = 5f
+        canvas.drawCircle(m.x, m.y, m.r - 2f, line)
+        fill.color = color
+        canvas.drawCircle(m.x, m.y, m.r * 0.28f, fill)
+    }
+
+    private fun drawGoalFlash(canvas: Canvas) {
+        if (goalFlash <= 0f) return
+        val col = if (goalWho == 0) C_PLAYER else C_CPU
+        fill.color = col
+        fill.alpha = (goalFlash * 60).toInt()
+        canvas.drawRect(0f, 0f, VW, VH, fill)
+        fill.alpha = 255
+        text.color = col
+        text.textSize = 64f * (0.6f + 0.4f * goalMsgScale)
+        glowPaint.shader = null
+        canvas.drawText("GOAL!", CX, CY - 40f, text)
+    }
+
+    private fun drawConfetti(canvas: Canvas) {
+        for (c in confetti) {
+            canvas.save()
+            canvas.rotate(c.rot * 57.3f, c.x, c.y)
+            fill.color = c.color
+            canvas.drawRect(c.x - c.w / 2, c.y - c.h / 2, c.x + c.w / 2, c.y + c.h / 2, fill)
+            canvas.restore()
+        }
+    }
+
+    private fun drawHud(canvas: Canvas) {
+        text.textSize = 20f
+        text.textAlign = Paint.Align.LEFT
+        text.color = C_PLAYER
+        canvas.drawText("YOU", TABLE_X + 4f, 20f, text)
+        text.color = C_CPU
+        text.textAlign = Paint.Align.RIGHT
+        canvas.drawText("CPU", TABLE_X + TABLE_W - 4f, 20f, text)
+
+        text.textSize = 22f
+        text.color = Color.WHITE
+        text.textAlign = Paint.Align.LEFT
+        canvas.drawText(scoreP[0].toString(), TABLE_X + 66f, 21f, text)
+        text.textAlign = Paint.Align.RIGHT
+        canvas.drawText(scoreC[0].toString(), TABLE_X + TABLE_W - 66f, 21f, text)
+
+        // 底部小字：连胜 / 最高球速
+        text.textSize = 12f
+        text.color = C_TEXT
+        text.textAlign = Paint.Align.LEFT
+        canvas.drawText("STREAK $pStreak   TOP SPEED $pTopSpeed", TABLE_X + 4f, VH - 8f, text)
+        text.textAlign = Paint.Align.RIGHT
+        canvas.drawText("STREAK $cStreak   TOP SPEED $cTopSpeed", TABLE_X + TABLE_W - 4f, VH - 8f, text)
+    }
+
+    private fun drawTitle(canvas: Canvas) {
+        fill.color = Color.argb(210, 4, 6, 10)
+        canvas.drawRect(0f, 0f, VW, VH, fill)
+        text.color = C_PLAYER
+        text.textSize = 54f
+        text.textAlign = Paint.Align.CENTER
+        canvas.drawText("AIR HOCKEY", CX, CY - 40f, text)
+        text.color = Color.WHITE
+        text.textSize = 20f
+        canvas.drawText("点按开始", CX, CY + 16f, text)
+        text.color = C_TEXT
+        text.textSize = 14f
+        canvas.drawText("拖动屏幕控制球拍 · 先进 7 球者胜", CX, CY + 52f, text)
+    }
+
+    private fun drawOver(canvas: Canvas) {
+        fill.color = Color.argb(200, 4, 6, 10)
+        canvas.drawRect(0f, 0f, VW, VH, fill)
+        val win = scoreP[0] >= MAX_SCORE
+        text.color = if (win) C_PLAYER else C_CPU
+        text.textSize = 52f
+        text.textAlign = Paint.Align.CENTER
+        canvas.drawText(if (win) "YOU WIN" else "CPU WINS", CX, CY - 30f, text)
+        text.color = Color.WHITE
+        text.textSize = 26f
+        canvas.drawText("${scoreP[0]} : ${scoreC[0]}", CX, CY + 22f, text)
+        text.color = C_TEXT
+        text.textSize = 15f
+        canvas.drawText("点按重新开始 · 返回键退出", CX, CY + 60f, text)
+    }
+
+    private fun drawSadFace(canvas: Canvas) {
+        val r = 52f
+        glowAt(canvas, CX, CY - 30f, r * 2.2f, C_CPU, sadFace)
+        fill.color = Color.parseColor("#1a0a0a")
+        canvas.drawCircle(CX, CY - 30f, r, fill)
+        line.color = C_CPU; line.strokeWidth = 3f
+        canvas.drawCircle(CX, CY - 30f, r, line)
+        line.strokeWidth = 4f
+        // X 眼
+        canvas.drawLine(CX - 26f, CY - 44f, CX - 12f, CY - 30f, line)
+        canvas.drawLine(CX - 12f, CY - 44f, CX - 26f, CY - 30f, line)
+        canvas.drawLine(CX + 12f, CY - 44f, CX + 26f, CY - 30f, line)
+        canvas.drawLine(CX + 26f, CY - 44f, CX + 12f, CY - 30f, line)
+        // 撇嘴
+        path.reset()
+        path.moveTo(CX - 22f, CY - 6f)
+        path.quadTo(CX, CY - 20f, CX + 22f, CY - 6f)
+        canvas.drawPath(path, line)
+    }
+
+    private fun drawVignette(canvas: Canvas) {
+        glowPaint.shader = RadialGradient(
+            CX, CY, 150f,
+            Color.argb(0, 0, 0, 0),
+            Color.argb((170 * sloMoAlpha).toInt(), 0, 0, 0),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRect(0f, 0f, VW, VH, glowPaint)
+        if (sloMoIntro > 0) {
+            text.color = C_GOLD
+            text.textSize = 34f
+            text.textAlign = Paint.Align.CENTER
+            fill.color = C_GOLD; fill.alpha = (sloMoIntro / 80f * 255).toInt()
+            canvas.drawText("SLOW MOTION", CX, 120f, text)
+            fill.alpha = 255
+        }
+    }
+}
