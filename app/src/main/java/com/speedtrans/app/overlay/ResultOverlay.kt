@@ -93,7 +93,8 @@ class ResultOverlay(private val context: Context) {
             textSize = 14f * bs
             setTextColor(barTextC)
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), 0, dp((8 * bs).toInt()))
+            // 右侧留出与「✕」的间距（跟着按钮大小缩放）——原来 0 间距贴太近
+            setPadding(dp((6 * bs).toInt()), dp((8 * bs).toInt()), dp((10 * bs).toInt()), dp((8 * bs).toInt()))
             setOnClickListener {
                 val tv = tvOut ?: return@setOnClickListener
                 // 有系统选区 → 只复制所选；无选区 → 复制全文
