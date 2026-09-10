@@ -3,53 +3,50 @@
     android:height="24dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
-    <!-- 点阵 · 网格轨道球（点位取自艺术稿实拍；白描单色，系统染色） -->
+    <!-- 点阵 · 网格轨道球（核心1+赤道6+内层4+外环2+经络2；白描单色，系统染色） -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M28.16,27.20 a1.52,1.52 0 1,0 3.04,0 a1.52,1.52 0 1,0 -3.04,0 Z" />
+        android:pathData="M21.30,24.00 a2.70,2.70 0 1,0 5.40,0 a2.70,2.70 0 1,0 -5.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M22.88,23.26 a2.80,2.80 0 1,0 5.60,0 a2.80,2.80 0 1,0 -5.60,0 Z" />
+        android:pathData="M31.63,33.33 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M14.98,23.30 a2.42,2.42 0 1,0 4.84,0 a2.42,2.42 0 1,0 -4.84,0 Z" />
+        android:pathData="M22.30,37.20 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M31.51,23.29 a2.41,2.41 0 1,0 4.82,0 a2.41,2.41 0 1,0 -4.82,0 Z" />
+        android:pathData="M12.97,33.33 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M5.50,25.65 a1.50,1.50 0 1,0 3.00,0 a1.50,1.50 0 1,0 -3.00,0 Z" />
+        android:pathData="M12.97,14.67 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M16.22,15.79 a2.23,2.23 0 1,0 4.46,0 a2.23,2.23 0 1,0 -4.46,0 Z" />
+        android:pathData="M22.30,10.80 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30.73,31.36 a2.23,2.23 0 1,0 4.46,0 a2.23,2.23 0 1,0 -4.46,0 Z" />
+        android:pathData="M31.63,14.67 a1.70,1.70 0 1,0 3.40,0 a1.70,1.70 0 1,0 -3.40,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M30.74,15.79 a2.19,2.19 0 1,0 4.38,0 a2.19,2.19 0 1,0 -4.38,0 Z" />
+        android:pathData="M27.50,28.95 a1.45,1.45 0 1,0 2.90,0 a1.45,1.45 0 1,0 -2.90,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M16.31,31.37 a2.09,2.09 0 1,0 4.18,0 a2.09,2.09 0 1,0 -4.18,0 Z" />
+        android:pathData="M17.60,28.95 a1.45,1.45 0 1,0 2.90,0 a1.45,1.45 0 1,0 -2.90,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M8.21,30.63 a2.10,2.10 0 1,0 4.21,0 a2.10,2.10 0 1,0 -4.21,0 Z" />
+        android:pathData="M17.60,19.05 a1.45,1.45 0 1,0 2.90,0 a1.45,1.45 0 1,0 -2.90,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M38.92,30.65 a2.08,2.08 0 1,0 4.16,0 a2.08,2.08 0 1,0 -4.16,0 Z" />
+        android:pathData="M27.50,19.05 a1.45,1.45 0 1,0 2.90,0 a1.45,1.45 0 1,0 -2.90,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M36.17,12.53 a2.03,2.03 0 1,0 4.06,0 a2.03,2.03 0 1,0 -4.06,0 Z" />
+        android:pathData="M4.75,24.00 a1.75,1.75 0 1,0 3.50,0 a1.75,1.75 0 1,0 -3.50,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M11.25,12.49 a2.01,2.01 0 1,0 4.02,0 a2.01,2.01 0 1,0 -4.02,0 Z" />
+        android:pathData="M39.75,24.00 a1.75,1.75 0 1,0 3.50,0 a1.75,1.75 0 1,0 -3.50,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M6.70,23.41 a2.04,2.04 0 1,0 4.08,0 a2.04,2.04 0 1,0 -4.08,0 Z" />
+        android:pathData="M22.50,16.80 a1.50,1.50 0 1,0 3.00,0 a1.50,1.50 0 1,0 -3.00,0 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M23.69,15.32 a2.03,2.03 0 1,0 4.06,0 a2.03,2.03 0 1,0 -4.06,0 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M35.56,35.51 a1.96,1.96 0 1,0 3.92,0 a1.96,1.96 0 1,0 -3.92,0 Z" />
+        android:pathData="M22.50,31.20 a1.50,1.50 0 1,0 3.00,0 a1.50,1.50 0 1,0 -3.00,0 Z" />
 </vector>
