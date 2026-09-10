@@ -89,7 +89,38 @@ class BallService : AccessibilityService() {
     override fun onInterrupt() {}
 
     /** 窗口事件：智能判定退役后暂无用途，保留空实现（无障碍服务必须覆写） */
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        // 回桌面（launcher 到前台）→ 关闭译文面板，与返回键行为一致。
+        // HOME 键不允许被无障碍过滤键拦截（系统限制），所以走"窗口变化 + launcher 当前活跃"这条路。
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (!TranslateCoordinator.overlayVisible) return
+        if (!isLauncher(event.packageName?.toString())) return
+        val launcherActive = try {
+            windows.any { w -> w.isActive && isLauncher(w.root?.packageName?.toString()) }
+        } catch (_: Exception) {
+            false
+        }
+        if (launcherActive) mainHandler.post { TranslateCoordinator.closeOverlay() }
+    }
+
+    /** 主屏 launcher 包名集合（缓存；各 ROM 桌面都覆盖） */
+    private var launcherPkgs: Set<String>? = null
+
+    private fun isLauncher(pkg: String?): Boolean {
+        if (pkg.isNullOrEmpty()) return false
+        var cached = launcherPkgs
+        if (cached == null) {
+            val set = HashSet<String>()
+            try {
+                val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                packageManager.queryIntentActivities(home, 0).forEach { set.add(it.activityInfo.packageName) }
+            } catch (_: Exception) {
+            }
+            cached = set
+            launcherPkgs = set
+        }
+        return cached.contains(pkg)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // 通知栏「🖼 识图翻译」入口：全屏游戏场景下拉通知即可触发
