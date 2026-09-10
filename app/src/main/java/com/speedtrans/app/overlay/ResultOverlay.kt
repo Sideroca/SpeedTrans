@@ -166,9 +166,24 @@ class ResultOverlay(private val context: Context) {
         // 全屏捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译（确定性，ROM 无关）
         val catchView = View(ctx).apply {
             setBackgroundColor(Color.TRANSPARENT)
+            // 点球 = 放行给球（继续翻译/累积追加）；点其他空白 = 照旧关闭面板；
+            // 在球上拖动 = 不误触（视为未发生，球本身也不会动）
+            var downX = 0f; var downY = 0f; var moved = false
             setOnTouchListener { v, e ->
-                if (e.actionMasked == MotionEvent.ACTION_UP) v.performClick()  // 无障碍
-                TranslateCoordinator.onOutsideTouch()
+                val b = com.speedtrans.app.service.BallService.instance?.ballBoundsOnScreen()
+                val onBall = b != null && b.contains(e.rawX.toInt(), e.rawY.toInt())
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; moved = false }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = e.rawX - downX; val dy = e.rawY - downY
+                        if (dx * dx + dy * dy > 60f * 60f) moved = true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        v.performClick()  // 无障碍
+                        if (onBall && !moved) com.speedtrans.app.service.BallService.instance?.tapFromPanel()
+                        else if (!onBall) TranslateCoordinator.onOutsideTouch()
+                    }
+                }
                 true
             }
         }

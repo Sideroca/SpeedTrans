@@ -125,6 +125,11 @@ class SettingsStore(context: Context) {
         set(v) = sp.edit().putStringSet("ocr_langs", v).apply()
 
     /** 标题栏显示「复制」按钮 */
+    /** 译文累积：面板未关闭时，新译文追加在下方（不清空重开） */
+    var panelAccumulate: Boolean
+        get() = sp.getBoolean("panel_accumulate", true)
+        set(v) = sp.edit().putBoolean("panel_accumulate", v).apply()
+
     var showCopy: Boolean
         get() = sp.getBoolean("show_copy", true)
         set(v) = sp.edit().putBoolean("show_copy", v).apply()

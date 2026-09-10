@@ -652,6 +652,12 @@
                     android:layout_height="wrap_content"
                     android:text="显示「✕ 关闭」按钮" />
 
+                <Switch
+                    android:id="@+id/swAccumulate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="译文累积（面板不关时，新译文追加在下方）" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

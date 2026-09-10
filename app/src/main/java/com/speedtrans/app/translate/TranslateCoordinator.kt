@@ -18,6 +18,9 @@ import okhttp3.Call
  */
 object TranslateCoordinator {
 
+    /** 累积模式：译文块之间的分隔线 */
+    private const val BLOCK_SEP = "\n\n────────────\n\n"
+
     /** 单例面板（持有 applicationContext，不泄漏 Activity）。lint 静态持有告警在此为误报 */
     @SuppressLint("StaticFieldLeak")
     private var overlay: ResultOverlay? = null
@@ -101,9 +104,13 @@ object TranslateCoordinator {
             return
         }
 
+        val accumulate = SettingsStore(context.applicationContext).panelAccumulate
+
         // 1) 内容完全没变：0 请求直接回显
         if (text == lastSource && lastTranslation.isNotEmpty()) {
-            ov.showFinished(text.length, lastTranslation)
+            // 累积模式下面板开着：不动内容（避免把整页累积推倒重来），只闪状态
+            if (accumulate && ov.visible) ov.showStatus("⚡ 内容未变 · 未追加（译文累积已开）")
+            else ov.showFinished(text.length, lastTranslation)
             return
         }
 
@@ -113,13 +120,20 @@ object TranslateCoordinator {
                 text.startsWith(lastSource)
         val segment = if (incremental) text.substring(lastSource.length) else text
 
+        // 2.5) 译文累积：面板开着 + 非增量 + 已有内容 → 不清空，追加新块
+        val appendBlock = !incremental && accumulate && ov.visible && lastSource.isNotEmpty()
+
         // 3) 发起新请求（能走到这里必然无进行中请求）
         val mySeq = ++seq
-        ov.begin(
-            reset = !incremental,
-            status = if (incremental) "⚡ 增量 ${segment.length} 字 · 翻译中…"
-            else "⚡ 原文 ${text.length} 字 · 翻译中…"
-        )
+        val beforeLen = if (appendBlock) ov.currentText().length else 0
+        when {
+            incremental -> ov.begin(reset = false, status = "⚡ 增量 ${segment.length} 字 · 翻译中…")
+            appendBlock -> {
+                ov.begin(reset = false, status = "⚡ 原文 ${text.length} 字 · 追加翻译中…")
+                ov.append(BLOCK_SEP)
+            }
+            else -> ov.begin(reset = true, status = "⚡ 原文 ${text.length} 字 · 翻译中…")
+        }
 
         currentCall = try {
             engine!!.translate(
@@ -133,7 +147,12 @@ object TranslateCoordinator {
                         if (err == null) {
                             lastSource = text
                             lastTranslation = ov.currentText()
-                            HistoryStore.append(context.applicationContext, "翻译", text, ov.currentText())
+                            // 累积模式：历史只存本次新增的那一块（否则每次都会把整页快照塞进历史）
+                            val full = ov.currentText()
+                            val histText = if (appendBlock && full.length > beforeLen)
+                                full.substring(beforeLen).removePrefix(BLOCK_SEP).trim()
+                            else full
+                            HistoryStore.append(context.applicationContext, "翻译", text, histText)
                             ov.finish(null)
                         } else {
                             ov.finish(err)

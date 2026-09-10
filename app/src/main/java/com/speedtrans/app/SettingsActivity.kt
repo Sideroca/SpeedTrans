@@ -962,6 +962,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun bindPanelButtons() {
         findViewById<Switch>(R.id.swShowCopy).isChecked = store.showCopy
         findViewById<Switch>(R.id.swShowClose).isChecked = store.showClose
+        findViewById<Switch>(R.id.swAccumulate).isChecked = store.panelAccumulate
 
         val rgSide = findViewById<RadioGroup>(R.id.rgBtnSide)
         rgSide.check(if (store.btnCloseLeft) R.id.rbSideLeft else R.id.rbSideRight)
@@ -1092,6 +1093,7 @@ class SettingsActivity : AppCompatActivity() {
         store.maxChars = findViewById<SeekBar>(R.id.sbMaxChars).progress * 1000 + 4000
         store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
         store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked
+        store.panelAccumulate = findViewById<Switch>(R.id.swAccumulate).isChecked
         store.btnCloseLeft =
             findViewById<RadioGroup>(R.id.rgBtnSide).checkedRadioButtonId == R.id.rbSideLeft
         store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress

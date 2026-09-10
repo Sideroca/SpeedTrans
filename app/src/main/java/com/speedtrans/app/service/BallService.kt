@@ -234,6 +234,18 @@ class BallService : AccessibilityService() {
         startTranslate()
     }
 
+    /** 供译文面板捕捉层查询：球在屏幕上的位置（点落在球上要放行给球，而不是关面板） */
+    fun ballBoundsOnScreen(): android.graphics.Rect? {
+        val v = ball ?: return null
+        if (v.width <= 0 || v.height <= 0) return null
+        val loc = IntArray(2)
+        v.getLocationOnScreen(loc)
+        return android.graphics.Rect(loc[0], loc[1], loc[0] + v.width, loc[1] + v.height)
+    }
+
+    /** 面板开着时点球：由捕捉层转交（走完整守卫：翻译中/刚关面板都忽略） */
+    fun tapFromPanel() = onBallTap()
+
     // ---------------- 抓取 + 三态判定 + OCR ----------------
 
     private fun collectScreen(): TextCollector.Collected {
