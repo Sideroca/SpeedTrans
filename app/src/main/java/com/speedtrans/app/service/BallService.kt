@@ -78,6 +78,11 @@ class BallService : AccessibilityService() {
         mainHandler.post { showBall() }
         // 后台预热 OCR 模型（消除首次识图的冷启动）
         mainHandler.postDelayed({ warmUpOcr() }, 800)
+        // 桌面图标自愈（旧伪装别名残留 → 复位为默认图标；不必打开主界面）
+        try {
+            com.speedtrans.app.ui.LauncherAliases.repair(this)
+        } catch (_: Exception) {
+        }
         // 后台预热翻译连接（DNS/TCP/TLS，首字更快）
         mainHandler.postDelayed({
             try {
