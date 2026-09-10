@@ -91,6 +91,9 @@ object TranslateCoordinator {
 
         ensureInit(context)
         val ov = overlay(context)
+        // 关键：必须记录"本次点击之前"面板是否已经开着——ensure() 之后必然为 true，
+        // 否则"面板关着→重新打开"会被误判成累积追加（横线bug）/误判成未变不回显（空白bug）
+        val wasOpen = ov.visible
         ov.ensure()
 
         val text = rawText
@@ -108,8 +111,8 @@ object TranslateCoordinator {
 
         // 1) 内容完全没变：0 请求直接回显
         if (text == lastSource && lastTranslation.isNotEmpty()) {
-            // 累积模式下面板开着：不动内容（避免把整页累积推倒重来），只闪状态
-            if (accumulate && ov.visible) ov.showStatus("⚡ 内容未变 · 未追加（译文累积已开）")
+            // 累积模式下"面板本来就开着"：不动内容，只闪状态；面板是这次才打开的 → 照旧回显上次译文
+            if (accumulate && wasOpen) ov.showStatus("⚡ 内容未变 · 未追加（译文累积已开）")
             else ov.showFinished(text.length, lastTranslation)
             return
         }
@@ -121,7 +124,7 @@ object TranslateCoordinator {
         val segment = if (incremental) text.substring(lastSource.length) else text
 
         // 2.5) 译文累积：面板开着 + 非增量 + 已有内容 → 不清空，追加新块
-        val appendBlock = !incremental && accumulate && ov.visible && lastSource.isNotEmpty()
+        val appendBlock = !incremental && accumulate && wasOpen && lastSource.isNotEmpty()
 
         // 3) 发起新请求（能走到这里必然无进行中请求）
         val mySeq = ++seq

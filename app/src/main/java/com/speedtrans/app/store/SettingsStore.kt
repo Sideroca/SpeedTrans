@@ -29,18 +29,18 @@ class SettingsStore(context: Context) {
 
     /** 最大输出 tokens；0 = 不发送此参数（交给服务端默认）。默认给大一些：长文翻译不被截断 */
     var maxTokens: Int
-        get() = sp.getInt("max_tokens", 8192)
+        get() = sp.getInt("max_tokens", 100000)
         set(v) = sp.edit().putInt("max_tokens", v).apply()
 
-    /** 采样温度；负数 = 不发送。翻译场景低温更稳（默认 0.3） */
+    /** 采样温度；负数 = 不发送（默认不发送，尊重各家模型默认值，用户想调才调） */
     var temperature: Float
-        get() = sp.getFloat("temperature", 0.3f)
+        get() = sp.getFloat("temperature", -1f)
         set(v) = sp.edit().putFloat("temperature", v).apply()
 
     /** 自定义翻译提示词（留空用默认） */
     var customPrompt: String
         // 未保存过时预填默认文案（可见可删可改）；用户保存空 = 真正为空，不发 system
-        get() = sp.getString("custom_prompt", DEFAULT_SYS_PROMPT)!!.trim()
+        get() = sp.getString("custom_prompt", "")!!.trim()   // 空 = 用内置（不再把内置词预填进输入框）
         set(v) = sp.edit().putString("custom_prompt", v.trim()).apply()
 
     // ---------- 悬浮球外观 ----------

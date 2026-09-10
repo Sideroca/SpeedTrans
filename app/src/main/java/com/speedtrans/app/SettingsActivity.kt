@@ -46,7 +46,7 @@ import com.speedtrans.app.translate.Providers
 import com.speedtrans.app.translate.TranslateCoordinator
 import com.speedtrans.app.translate.TranslateEngine
 import com.speedtrans.app.ui.BeamView
-import com.speedtrans.app.ui.CircuitLampView
+import com.speedtrans.app.ui.CircuitTestView
 import com.speedtrans.app.ui.FlameCursor
 import com.speedtrans.app.ui.IconStudio
 import com.speedtrans.app.ui.ScanlineView
@@ -337,9 +337,21 @@ class SettingsActivity : AppCompatActivity() {
         val etKey = findViewById<EditText>(R.id.etKey)
         val etModel = findViewById<AutoCompleteTextView>(R.id.etModel)
         val tvNote = findViewById<TextView>(R.id.tvProviderNote)
+        // 钥匙提示：不再自动填入（防止无意间把密钥显示在屏幕上）；有已存钥匙时显示"点此填入"
+        val tvKeyHint = findViewById<TextView>(R.id.tvKeyHint)
+        tvKeyHint.setOnClickListener {
+            val id = lastProviderId ?: return@setOnClickListener
+            val k = store.providerKeyOf(id)
+            if (!k.isNullOrBlank()) {
+                etKey.setText(k)
+                tvKeyHint.visibility = View.GONE
+            }
+        }
         // 高级参数（可留空用默认）
         findViewById<EditText>(R.id.etMaxTokens).setText(store.maxTokens.toString())
-        findViewById<EditText>(R.id.etTemp).setText(store.temperature.toString())
+        findViewById<EditText>(R.id.etTemp).setText(
+            if (store.temperature < 0f) "" else store.temperature.toString()
+        )
 
         thinkingLevel = store.thinkingLevel
         lastProviderId = Providers.match(store.baseUrl)?.id
@@ -363,7 +375,9 @@ class SettingsActivity : AppCompatActivity() {
             }
             if (p.url.isNotEmpty()) etUrl.setText(p.url)
             if (p.models.isNotEmpty()) etModel.setText(p.models.first())
-            etKey.setText(store.providerKeyOf(p.id) ?: etKey.text.toString())
+            // 不自动填入已存钥匙（防泄漏）→ 显示可点提示
+            tvKeyHint.visibility =
+                if (!store.providerKeyOf(p.id).isNullOrBlank()) View.VISIBLE else View.GONE
             tvNote.text = p.note
             thinkingLevel = p.levels.firstOrNull()?.second ?: "off"
             lastProviderId = p.id
@@ -379,10 +393,9 @@ class SettingsActivity : AppCompatActivity() {
                 if (p?.id != lastProviderId) {
                     lastProviderId = p?.id
                     acProvider.setText(p?.label ?: "自定义", false)
-                    p?.let {
-                        store.providerKeyOf(it.id)?.takeIf { k -> k.isNotBlank() }
-                            ?.let { k -> etKey.setText(k) }
-                    }
+                    // 不自动填入已存钥匙（防泄漏）→ 显示可点提示
+                    tvKeyHint.visibility =
+                        if (!store.providerKeyOf(p?.id ?: "").isNullOrBlank()) View.VISIBLE else View.GONE
                 }
                 refreshThinkingRow()
             }
@@ -398,17 +411,17 @@ class SettingsActivity : AppCompatActivity() {
         etModel.setText(store.model)
         refreshThinkingRow()
 
-        val lamp = findViewById<CircuitLampView>(R.id.lampTest)
+        val lamp = findViewById<CircuitTestView>(R.id.lampTest)
         findViewById<Button>(R.id.btnTest).setOnClickListener {
             // 先落字段再测试（未保存也能测）
             store.baseUrl = etUrl.text.toString()
             store.apiKey = etKey.text.toString()
             store.model = etModel.text.toString()
-            lamp.setState(CircuitLampView.State.TESTING)
+            lamp.setState(CircuitTestView.State.TESTING)
             TranslateEngine(store).testConnection { msg ->
                 val ok = msg.startsWith("✅")
                 runOnUiThread {
-                    lamp.setState(if (ok) CircuitLampView.State.OK else CircuitLampView.State.FAIL)
+                    lamp.setState(if (ok) CircuitTestView.State.OK else CircuitTestView.State.FAIL)
                     tvNote.text = msg
                 }
             }
@@ -1070,7 +1083,7 @@ class SettingsActivity : AppCompatActivity() {
         store.maxTokens = findViewById<EditText>(R.id.etMaxTokens).text.toString().trim()
             .toIntOrNull()?.coerceIn(0, 200000) ?: 8192
         store.temperature = findViewById<EditText>(R.id.etTemp).text.toString().trim()
-            .toFloatOrNull()?.coerceIn(-1f, 2f) ?: 0.3f
+            .toFloatOrNull()?.coerceIn(-1f, 2f) ?: -1f
         // 钥匙按服务商归档，切回来不用重贴
         Providers.match(store.baseUrl)?.let { store.setProviderKey(it.id, store.apiKey) }
         store.thinkingLevel = thinkingLevel

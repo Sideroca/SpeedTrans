@@ -93,7 +93,7 @@ object ShellSkins {
 
     fun current(context: Context): ShellSkin {
         val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        return when (sp.getString(KEY, "ds_holo")) {
+        return when (sp.getString(KEY, "follow_theme")) {
             "follow_theme" -> follow(ThemeEngine.current(context))
             else -> dsHolo
         }

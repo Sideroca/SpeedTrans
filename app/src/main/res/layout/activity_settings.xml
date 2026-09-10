@@ -133,6 +133,15 @@
                     android:inputType="text"
                     android:textSize="13sp" />
 
+                <TextView
+                    android:id="@+id/tvKeyHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="🔑 已保存此服务商的钥匙 · 点此填入"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
                 <com.speedtrans.app.ui.BurnAutoCompleteTextView
                     android:id="@+id/etModel"
                     android:layout_width="match_parent"
@@ -154,7 +163,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="最大输出 Tokens（0 = 不发送；默认 8192，长文翻译不被截断）"
+                    android:text="最大输出 Tokens（默认 100000；0 = 不发送）"
                     android:textSize="12sp" />
 
                 <EditText
@@ -169,7 +178,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="温度（-1 = 不发送；0~2，翻译建议 0.2~0.5，默认 0.3）"
+                    android:text="温度（留空 = 用模型默认；可填 0~2）"
                     android:textSize="12sp" />
 
                 <EditText
@@ -214,10 +223,10 @@
                         android:textSize="11sp"
                         android:text="⚡ 测试连接" />
 
-                    <com.speedtrans.app.ui.CircuitLampView
+                    <com.speedtrans.app.ui.CircuitTestView
                         android:id="@+id/lampTest"
-                        android:layout_width="110dp"
-                        android:layout_height="44dp"
+                        android:layout_width="160dp"
+                        android:layout_height="100dp"
                         android:layout_marginStart="6dp" />
                 </LinearLayout>
 

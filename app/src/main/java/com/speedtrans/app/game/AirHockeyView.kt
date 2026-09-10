@@ -96,6 +96,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastSpeedUpAt = 0
     private var speedUpMsg = ""
     private var speedUpTimer = 0
+    private var overT = 0f          // 结算画面的落定进度（0→1）
     private var sloMo = false
     private var sloMoAlpha = 0f
     private var sloMoIntro = 0
@@ -237,6 +238,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         lastSpeedUpAt = 0
         sloMo = false; sloMoAlpha = 0f; sloMoIntro = 0; sloMoLabelTimer = 0
         sadFace = 0f
+        overT = 0f
         speedUpTimer = 0
         particles.clear(); confetti.clear()
         resetRound(0)
@@ -322,6 +324,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             }
         }
 
+        if (state == 3) overT = min(1f, overT + 0.045f)
         if (state == 1) {
             updateCPU(ts)
             updatePuck(ts)
@@ -742,15 +745,24 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     private fun drawOver(canvas: Canvas) {
-        fill.color = Color.argb(200, 4, 6, 10)
+        // 注意：结算遮罩只做"轻纱"，不做整屏压暗（旧版把屏幕压黑，被误认为"亮度突然变暗"）
+        fill.color = Color.argb((110 * overT).toInt(), 4, 6, 10)
         canvas.drawRect(0f, 0f, VW, VH, fill)
         val win = scoreP[0] >= MAX_SCORE
+        val pulse = 0.97f + 0.03f * kotlin.math.sin(tick * 0.06f)
+        val k = (0.78f + 0.22f * overT) * pulse
+        // 标题：带辉光地放大落定
+        canvas.save()
+        canvas.translate(CX, CY - 30f)
+        canvas.scale(k, k)
         text.color = if (win) C_PLAYER else C_CPU
         text.textSize = 52f
         text.textAlign = Paint.Align.CENTER
-        canvas.drawText(if (win) "YOU WIN" else "CPU WINS", CX, CY - 30f, text)
+        canvas.drawText(if (win) "YOU WIN" else "CPU WINS", 0f, 0f, text)
+        canvas.restore()
         text.color = Color.WHITE
         text.textSize = 26f
+        text.textAlign = Paint.Align.CENTER
         canvas.drawText("${scoreP[0]} : ${scoreC[0]}", CX, CY + 22f, text)
         text.color = C_TEXT
         text.textSize = 15f
