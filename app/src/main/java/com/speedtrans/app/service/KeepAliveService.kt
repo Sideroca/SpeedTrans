@@ -19,7 +19,7 @@ import com.speedtrans.app.store.SettingsStore
 /**
  * 前台保活 + 控制中心：
  * 常驻通知（划不掉），带两个按钮——「切换模式」「🖼 识图翻译」。
- * 模式：🤖 智能（默认）/ 📄 仅文本 / 🖼 仅识图，手动选择永远优先。
+ * 模式：📄 仅文本（默认）/ 🖼 仅识图，与设置页同步。
  */
 class KeepAliveService : Service() {
 
@@ -30,7 +30,6 @@ class KeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val fromToggle = intent?.action == ACTION_TOGGLE
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 val st = SettingsStore(this)
@@ -39,14 +38,7 @@ class KeepAliveService : Service() {
         }
         // 任何命令都重建通知：标题始终显示当前模式（含设置页保存后的同步）
         startForeground()
-        // 点通知条触发时系统会收起通知栏——借无障碍全局动作拉回来（无障碍未开则优雅降级）
-        if (fromToggle && BallService.instance != null) {
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                BallService.instance?.performGlobalAction(
-                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
-                )
-            }, 250)
-        }
+        // 注：旧版「点通知后自动把通知栏再拉下来」的无障碍动作已删除（智能模式时代残留，会造成通知栏"下滑→收缩→再下滑"的抖动）
         return START_STICKY
     }
 
