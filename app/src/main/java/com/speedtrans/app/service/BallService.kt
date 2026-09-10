@@ -78,6 +78,13 @@ class BallService : AccessibilityService() {
         mainHandler.post { showBall() }
         // 后台预热 OCR 模型（消除首次识图的冷启动）
         mainHandler.postDelayed({ warmUpOcr() }, 800)
+        // 后台预热翻译连接（DNS/TCP/TLS，首字更快）
+        mainHandler.postDelayed({
+            try {
+                com.speedtrans.app.translate.TranslateEngine(SettingsStore(this@BallService)).warmUp()
+            } catch (_: Exception) {
+            }
+        }, 600)
     }
 
     override fun onDestroy() {

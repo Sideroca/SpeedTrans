@@ -145,13 +145,38 @@ object TranslateCoordinator {
         }
 
         currentCall = try {
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            val buf = StringBuilder()
+            var flushPosted = false
+            var firstMs = 0L
+            val flush = Runnable {
+                flushPosted = false
+                val s = synchronized(buf) {
+                    val x = buf.toString(); buf.setLength(0); x
+                }
+                if (s.isNotEmpty() && mySeq == seq) {
+                    if (firstMs == 0L) firstMs = android.os.SystemClock.elapsedRealtime() - t0
+                    ov.append(s)
+                }
+            }
             engine!!.translate(
                 segment,
                 isContinuation = incremental,
-                onDelta = { d -> mainHandler.post { if (mySeq == seq) ov.append(d) } },
+                onDelta = { d ->
+                    // 合批：高频 delta 先入缓冲，~30ms 一批上屏（大幅减少 TextView 重排 → 更快更顺）
+                    synchronized(buf) { buf.append(d) }
+                    if (!flushPosted) {
+                        flushPosted = true
+                        mainHandler.postDelayed(flush, 30)
+                    }
+                },
                 onDone = { err ->
                     mainHandler.post {
                         if (mySeq != seq) return@post   // 迟到回调（请求已被取消）
+                        if (flushPosted) {
+                            mainHandler.removeCallbacks(flush)
+                            flush()                     // 落地剩余缓冲（保证完整）
+                        }
                         currentCall = null
                         if (err == null) {
                             lastSource = text
@@ -163,6 +188,9 @@ object TranslateCoordinator {
                             else full
                             HistoryStore.append(context.applicationContext, "翻译", text, histText)
                             ov.finish(null)
+                            if (firstMs > 0L) {
+                                ov.showStatus("✓ 完成 · 首字 ${"%.1f".format(firstMs / 1000f)}s · 点球继续")
+                            }
                         } else {
                             ov.finish(err)
                         }

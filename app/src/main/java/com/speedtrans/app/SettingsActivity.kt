@@ -1158,6 +1158,11 @@ class SettingsActivity : AppCompatActivity() {
             findViewById<RadioGroup>(R.id.rgBtnSide).checkedRadioButtonId == R.id.rbSideLeft
         store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress
         store.barColorHex = selectedBarColor ?: ""
+        // 保存后预热新地址的连接（换服务商后首字同样快）
+        try {
+            com.speedtrans.app.translate.TranslateEngine(store).warmUp()
+        } catch (_: Exception) {
+        }
 
         BallService.instance?.refreshBall()
         TranslateCoordinator.closeOverlay()

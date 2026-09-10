@@ -30,6 +30,26 @@ class TranslateEngine(private val store: SettingsStore) {
         .build()
 
     /**
+     * 连接预热：提前完成 DNS 解析 / TCP 握手 / TLS（HEAD 请求，忽略状态码）。
+     * 首次点球可省 200~600ms 建连时间；连接由 OkHttp 连接池复用给后续请求。
+     */
+    fun warmUp() {
+        try {
+            if (store.baseUrl.isBlank()) return
+            val req = Request.Builder().url(store.baseUrl).head().build()
+            client.newCall(req).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.close()
+                }
+            })
+        } catch (_: Exception) {
+        }
+    }
+
+    /**
      * 连接测试：非流式小请求，快速验证地址/Key/模型三项是否正确。
      * 返回人性化结果信息（含常见 404/401 的排查提示）。
      */
