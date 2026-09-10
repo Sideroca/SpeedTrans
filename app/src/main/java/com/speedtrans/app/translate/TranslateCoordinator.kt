@@ -175,7 +175,7 @@ object TranslateCoordinator {
                         if (mySeq != seq) return@post   // 迟到回调（请求已被取消）
                         if (flushPosted) {
                             mainHandler.removeCallbacks(flush)
-                            flush()                     // 落地剩余缓冲（保证完整）
+                            flush.run()                 // 落地剩余缓冲（保证完整）
                         }
                         currentCall = null
                         if (err == null) {
