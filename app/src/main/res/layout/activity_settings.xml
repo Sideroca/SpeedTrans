@@ -1036,7 +1036,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:gravity="center"
-                    android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译\n✦ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
+                    android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译\ndeepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
                     android:textSize="12sp" />
 
                 <Button

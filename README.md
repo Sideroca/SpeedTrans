@@ -101,6 +101,6 @@ IconStudio(快捷图标工坊) + HistoryStore(本地历史)
 
 ## 📄 说明
 
-- 夕汀系列第二款作品；签名 ✦ glm5.3flash(๑ت๑)
+- 夕汀系列第二款作品；双行签名：✦ glm5.3flash(๑ت๑) ／ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_
 - 开发者：轻响 · QQ 2093523014（邮箱同号，见设置页 → 其他）
 - 详细设计文档见 `SPEC.md`，AI 接手入口见 `AGENTS.md`
