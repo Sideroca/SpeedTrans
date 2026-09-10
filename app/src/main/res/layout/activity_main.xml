@@ -99,6 +99,13 @@
             android:text="② 去开启无障碍服务" />
 
         <Button
+            android:id="@+id/btnTut"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="📷 小米权限图解（3 步，点开看图）" />
+
+        <Button
             android:id="@+id/btnApi"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -118,7 +125,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:padding="14dp"
-            android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 用最新屏幕内容重新翻译\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n· 译文面板打开时按返回键 = 关闭面板\n\n小米/MIUI 权限补充（开关点了没反应时）：\n设置 → 权限管控 → 已下载的应用 → 闪译 → 把需要的权限打开（悬浮窗 / 无障碍 / 通知）\n\n改 App 图标/名字：③ 配置页最上方「🖼 App 图标与桌面入口」\n\n日常无需打开本应用，点球即用。"
+            android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 用最新屏幕内容重新翻译\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n· 译文面板打开时按返回键 = 关闭面板\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启（关键一步；打开后后台划掉、通知清掉也照常可用）\n\n小米/MIUI 权限被挡（开关点了没反应）：\n设置 → 辅助功能 → 权限管控 → 已下载的应用 → 找到「闪译悬浮球」→ 打开权限\n（图解：点上方「📷 小米权限图解」按钮，3 张步骤图）\n\n改 App 图标/名字：③ 配置页最上方「🖼 App 图标与桌面入口」\n\n日常无需打开本应用，点球即用。"
             android:textSize="13sp" />
 
         <TextView

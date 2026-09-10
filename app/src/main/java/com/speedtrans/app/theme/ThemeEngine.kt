@@ -198,13 +198,22 @@ object ThemeEngine {
         if (strokeColor != 0) setStroke((1 * density).toInt(), strokeColor)
     }
 
-    /** 撞色条：纯平色（行业标准——Material / iOS 顶栏均为纯色，渐变会"一边深一边浅"），44 色通用 */
-    fun barGradient(base: Int, radiusPx: Float, strokeColor: Int = 0, strokePx: Float = 1f): GradientDrawable =
-        GradientDrawable().apply {
-            setColor(base)
+    /** 撞色条：同色系轻微渐变（DeepSeek 式微光：上 +10% 白 → 原色 → 下 -8% 暗），左右均匀、44 色通用 */
+    fun barGradient(base: Int, radiusPx: Float, strokeColor: Int = 0, strokePx: Float = 1f): GradientDrawable {
+        fun toward(base: Int, target: Int, k: Float): Int {
+            val a = (k * 255).toInt()
+            fun ch(b: Int, f: Int) = (b * (255 - a) + f * a) / 255
+            return Color.argb(255, ch(Color.red(base), Color.red(target)),
+                ch(Color.green(base), Color.green(target)), ch(Color.blue(base), Color.blue(target)))
+        }
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(toward(base, 0xFFFFFFFF.toInt(), 0.10f), base, toward(base, 0xFF000000.toInt(), 0.08f))
+        ).apply {
             cornerRadius = radiusPx
             if (strokeColor != 0 && strokePx > 0) setStroke(strokePx.toInt().coerceAtLeast(1), strokeColor)
         }
+    }
 
     /**
      * 递归应用主题到视图树（语义色 + 形状语言 + 撞色条）。

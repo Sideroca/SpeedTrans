@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
         btnA11y.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
+        findViewById<Button>(R.id.btnTut).setOnClickListener { showPermissionTutorial() }
+
         findViewById<Button>(R.id.btnApi).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -119,6 +121,48 @@ class MainActivity : AppCompatActivity() {
         }
         val hsv = row.parent as? android.widget.HorizontalScrollView
         hsv?.post { hsv.scrollTo(themeScrollX, 0) }
+    }
+
+    /** 小米权限设置图解：3 张步骤截图（辅助功能 → 已下载的应用 → 闪译悬浮球） */
+    private fun showPermissionTutorial() {
+        val d = android.app.Dialog(this)
+        val den = resources.displayMetrics.density
+        val col = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((14 * den).toInt(), (10 * den).toInt(), (14 * den).toInt(), (14 * den).toInt())
+        }
+        val steps = listOf(
+            "① 设置 → 辅助功能 → 权限管控「已下载的应用」" to R.drawable.tut_miui_1,
+            "② 已下载的应用 → 找到「闪译悬浮球」" to R.drawable.tut_miui_2,
+            "③ 打开「使用“闪译悬浮球”」开关" to R.drawable.tut_miui_3
+        )
+        steps.forEach { (cap, img) ->
+            col.addView(android.widget.TextView(this).apply {
+                text = cap
+                textSize = 14f
+                setPadding(0, (12 * den).toInt(), 0, (6 * den).toInt())
+            })
+            col.addView(android.widget.ImageView(this).apply {
+                setImageResource(img)
+                adjustViewBounds = true
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            })
+        }
+        col.addView(android.widget.Button(this).apply {
+            text = "关闭"
+            setOnClickListener { d.dismiss() }
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = (16 * den).toInt() }
+        })
+        d.setContentView(android.widget.ScrollView(this).apply { addView(col) })
+        d.show()
+        val dm = resources.displayMetrics
+        d.window?.setLayout((dm.widthPixels * 0.92f).toInt(), (dm.heightPixels * 0.88f).toInt())
     }
 
     override fun onResume() {
