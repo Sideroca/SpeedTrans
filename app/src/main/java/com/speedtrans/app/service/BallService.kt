@@ -387,8 +387,10 @@ class BallService : AccessibilityService() {
                         ocrBusy = false
                         mainHandler.post {
                             if (t.isNotEmpty()) {
-                                ov.showStatus("✓ 识别 ${t.length} 字 · 耗时 ${tAll}ms")
-                                TranslateCoordinator.startTranslate(this@BallService, t)
+                                // 识图文字净化：去开头空白 + 折叠 3+ 连续空行（避免悬浮页顶部出现大片空白）
+                                val clean = t.trim().replace(Regex("\\n{3,}"), "\\n\\n")
+                                ov.showStatus("✓ 识别 ${clean.length} 字 · 耗时 ${tAll}ms")
+                                TranslateCoordinator.startTranslate(this@BallService, clean)
                             } else if (scaled && allowRetry) {
                                 // 缩放版识别为空 → 原尺寸重试一次（防小字丢失）
                                 ov.showStatus("🔍 缩放识别为空，原尺寸重试…")

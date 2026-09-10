@@ -31,6 +31,44 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvApi: TextView
     private lateinit var btnA11y: Button
 
+    /**
+     * 旧"伪装"别名自愈：早期版本可在 闪译/备忘录/工具箱 三态循环（按钮已移除）。
+     * 若设备上仍残留启用的别名，会在启动时复位——确保默认图标（浅空蓝·白球）能正常显示。
+     */
+    private fun repairLauncherAliases() {
+        try {
+            val pm = packageManager
+            val pkg = packageName
+            var repaired = false
+            for (suffix in listOf(".main_blue", ".main_green")) {
+                val cn = android.content.ComponentName(this, "$pkg$suffix")
+                if (pm.getComponentEnabledSetting(cn) ==
+                    android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                ) {
+                    pm.setComponentEnabledSetting(
+                        cn,
+                        android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+                        android.content.pm.PackageManager.DONT_KILL_APP
+                    )
+                    repaired = true
+                }
+            }
+            val red = android.content.ComponentName(this, "$pkg.main_red")
+            if (pm.getComponentEnabledSetting(red) ==
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            ) {
+                pm.setComponentEnabledSetting(
+                    red,
+                    android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    android.content.pm.PackageManager.DONT_KILL_APP
+                )
+                repaired = true
+            }
+            if (repaired) android.util.Log.i("SpeedTrans", "launcher aliases repaired → default icon")
+        } catch (_: Exception) {
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -57,7 +95,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnTut).setOnClickListener { showPermissionTutorial() }
 
         findViewById<Button>(R.id.btnApi).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+            repairLauncherAliases()
+        startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         findViewById<Button>(R.id.btnHistory).setOnClickListener {
