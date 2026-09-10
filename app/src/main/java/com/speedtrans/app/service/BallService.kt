@@ -297,7 +297,8 @@ class BallService : AccessibilityService() {
         var root: AccessibilityNodeInfo? = rootInActiveWindow
         // 译文面板可聚焦，可能成为活动窗口：此时改取其下方最新的第三方应用窗口
         if (root?.packageName?.toString() == packageName) {
-            root = windows.firstOrNull { w ->
+            // 找最顶层的第三方应用窗口（按 layer 降序；避免撞上旧的残留窗口）
+            root = windows.sortedByDescending { it.layer }.firstOrNull { w ->
                 w.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
                         w.root?.packageName?.toString() != packageName
             }?.root ?: root

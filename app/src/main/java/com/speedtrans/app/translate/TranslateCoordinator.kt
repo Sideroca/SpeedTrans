@@ -112,8 +112,14 @@ object TranslateCoordinator {
         // 1) 内容完全没变：0 请求直接回显
         if (text == lastSource && lastTranslation.isNotEmpty()) {
             // 累积模式下"面板本来就开着"：不动内容，只闪状态；面板是这次才打开的 → 照旧回显上次译文
-            if (accumulate && wasOpen) ov.showStatus("⚡ 内容未变 · 未追加（译文累积已开）")
-            else ov.showFinished(text.length, lastTranslation)
+            if (accumulate && wasOpen) {
+                if (text.contains("内容过长已截断"))
+                    ov.showStatus("⚡ 全文相同（原文超最大字数已截断）· 设置→悬浮可调大")
+                else
+                    ov.showStatus("⚡ 内容未变 · 未追加（译文累积已开）")
+            } else {
+                ov.showFinished(text.length, lastTranslation)
+            }
             return
         }
 
