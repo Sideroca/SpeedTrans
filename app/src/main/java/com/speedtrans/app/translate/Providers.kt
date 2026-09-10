@@ -32,10 +32,10 @@ object Providers {
         Preset(
             "deepseek", "DeepSeek · 深度求索",
             "https://api.deepseek.com/chat/completions",
-            listOf("deepseek-flash", "deepseek-v4-flash-vision-exp", "deepseek-v4-pro", "deepseek-v4-flash"),
+            listOf("deepseek-v4.1-flash-expires-on-0910", "deepseek-flash", "deepseek-v4-flash-vision-exp", "deepseek-v4-pro"),
             listOf("deepseek"),
             listOf("关" to "off", "低" to "low", "高" to "high", "极高" to "max"),
-            "deepseek-flash = V4.1（09-10 发布，原生多模态）；deepseek-chat/reasoner 已下线"
+            "deepseek-flash = V4.1 稳定名；deepseek-v4.1-flash-expires-on-0910 为体验 ID（0910 到期）"
         ),
         Preset(
             "doubao", "豆包 · 火山方舟",

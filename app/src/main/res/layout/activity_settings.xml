@@ -1008,7 +1008,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-flash（V4.1）\n点一下复制"
+                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash-expires-on-0910\n点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
 
