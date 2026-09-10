@@ -96,7 +96,9 @@ object TextCollector {
         if (t != null && node.isVisibleToUser) {
             val r = Rect()
             node.getBoundsInScreen(r)
-            if (r.width() > 0 && r.height() > 0 && r.top >= 0) {
+            // 不要求 top >= 0：长文本节点（LLM 思考全文等）顶部滚出屏幕时仍携带全文，
+            // 旧检查会把整段 CoT 一起丢；现在只要求"还露出屏幕范围"（bottom > 0）
+            if (r.width() > 0 && r.height() > 0 && r.bottom > 0) {
                 out.add(RectText(t, r))
             }
         }
