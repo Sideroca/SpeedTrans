@@ -5,6 +5,7 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRequestFilterKeyEvents"
     android:canRetrieveWindowContent="true"
+    android:canRequestFilterKeyEvents="true"
     android:canTakeScreenshot="true"
     android:notificationTimeout="200"
     android:summary="@string/a11y_label"
