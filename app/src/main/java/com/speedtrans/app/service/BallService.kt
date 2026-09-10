@@ -83,6 +83,7 @@ class BallService : AccessibilityService() {
     override fun onDestroy() {
         instance = null
         mainHandler.post { hideBall() }
+        mainHandler.post { TranslateCoordinator.closeOverlay() }   // 服务没了，面板也不该留在屏幕上
         super.onDestroy()
     }
 
