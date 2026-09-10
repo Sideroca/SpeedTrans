@@ -24,23 +24,23 @@ object Providers {
         Preset(
             "qwen", "千问 · 阿里云百炼",
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-            listOf("qwen3.7-flash", "qwen-mt-flash", "qwen-mt-lite", "qwen-mt-plus"),
+            listOf("qwen3.8-flash", "qwen3.8-max", "qwen3-vl-plus", "qwen3.7-flash", "qwen-mt-flash", "qwen-mt-plus"),
             listOf("dashscope", "aliyun"),
             listOf("关" to "off", "开" to "on"),
-            "qwen-mt 系为翻译特化模型，无思考概念"
+            "qwen-mt 系为翻译特化模型；qwen3.8-flash 为最新主力"
         ),
         Preset(
             "deepseek", "DeepSeek · 深度求索",
             "https://api.deepseek.com/chat/completions",
-            listOf("deepseek-chat", "deepseek-v4-pro"),
+            listOf("deepseek-flash", "deepseek-v4-flash-vision-exp", "deepseek-v4-pro", "deepseek-v4-flash"),
             listOf("deepseek"),
             listOf("关" to "off", "低" to "low", "高" to "high"),
-            "Key 在 platform.deepseek.com 获取；与千问 Key 不通用"
+            "deepseek-flash = V4.1（09-10 发布，原生多模态）；deepseek-chat/reasoner 已下线"
         ),
         Preset(
             "doubao", "豆包 · 火山方舟",
             "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-            listOf("doubao-seed-1.6-flash", "doubao-1.5-pro-32k"),
+            listOf("doubao-seed-2-1-turbo", "doubao-seed-2-1-pro", "doubao-seed-2-1-pro-260628", "doubao-seed-character"),
             listOf("volces.com"),
             listOf("关" to "off", "自动" to "auto", "开" to "on"),
             "部分账号需使用接入点号 ep-xxx 代替模型名"
@@ -48,22 +48,23 @@ object Providers {
         Preset(
             "glm", "GLM · 智谱",
             "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            listOf("glm-4.5-flash", "glm-4.5-air", "glm-4.5"),
+            listOf("glm-5.3", "glm-5.2", "glm-5", "glm-4.5-flash", "glm-4.5-air"),
             listOf("bigmodel.cn"),
             listOf("关" to "off", "开" to "on"),
-            "glm-4.5-flash 免费档；glm-5 系强制思考，极速场景慎选"
+            "glm-5 系强制思考（极速场景慎选）；glm-4.5-flash 免费档"
         ),
         Preset(
             "kimi", "Kimi · 月之暗面",
             "https://api.moonshot.cn/v1/chat/completions",
-            listOf("kimi-k3", "kimi-k2"),
+            listOf("kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"),
             listOf("moonshot"),
-            listOf("关" to "off", "开" to "on")
+            listOf("关" to "off", "开" to "on"),
+            "kimi-k2 / moonshot-v1 已于 2026-08-31 下线"
         ),
         Preset(
             "openai", "ChatGPT · OpenAI",
             "https://api.openai.com/v1/chat/completions",
-            listOf("gpt-5", "gpt-4o-mini"),
+            listOf("gpt-5.2", "gpt-5.2-chat-latest", "gpt-5.2-pro", "gpt-5", "gpt-5-mini"),
             listOf("openai.com"),
             listOf("低" to "min", "中" to "mid", "高" to "max"),
             "国内需代理/VPN"
