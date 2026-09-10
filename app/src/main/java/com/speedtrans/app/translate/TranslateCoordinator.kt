@@ -19,7 +19,7 @@ import okhttp3.Call
 object TranslateCoordinator {
 
     /** 累积模式：译文块之间的分隔线 */
-    private const val BLOCK_SEP = "\n\n────────────\n\n"
+    private const val BLOCK_SEP = "\n\n"   // 仅空行分隔：不再出现横线（用户钦定，识图/文本统一）
 
     /** 单例面板（持有 applicationContext，不泄漏 Activity）。lint 静态持有告警在此为误报 */
     @SuppressLint("StaticFieldLeak")

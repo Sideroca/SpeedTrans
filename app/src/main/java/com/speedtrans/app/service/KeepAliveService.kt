@@ -77,14 +77,8 @@ class KeepAliveService : Service() {
             "ocr" -> "🖼 仅识图"
             else -> "📄 仅文本"
         }
-        // 大图标：浅空蓝双轨道球（IconStudio 现场生成，配色与图标工坊同源）
-        val ringIcon = com.speedtrans.app.ui.IconStudio.generate(
-            com.speedtrans.app.ui.IconStudio.STYLE_RING,
-            0xFF8EC9EE.toInt(), 0xFFFFFFFF.toInt(), 192
-        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notif)
-            .setLargeIcon(ringIcon)
             .setColor(0xFF8EC9EE.toInt())
             .setContentTitle("闪译 · $modeName")
             .setContentText("点通知条切换模式 · 点球即翻")
