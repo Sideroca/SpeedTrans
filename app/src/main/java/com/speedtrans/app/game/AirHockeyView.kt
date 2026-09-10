@@ -209,9 +209,10 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 // 标题/结束页右上角：点按开关音效
-                val nearSound = vx > VW - 70f && vy < 60f
+                val nearSound = vx > VW - 46f && vx < VW - 6f && vy > 6f && vy < 46f   // 收紧到图标本体，防误触
                 if ((state == 0 || state == 3) && nearSound) {
                     sound.muted = !sound.muted
+                    muteToast = 70
                 } else if (state == 0 || state == 3) {
                     startGame()
                 } else {
@@ -819,11 +820,21 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawText(value, x0 + PANEL - 12f, y, text)
     }
 
+    private var muteToast = 0
+
     private fun drawSoundIcon(canvas: Canvas) {
         text.textSize = 22f
         text.textAlign = Paint.Align.RIGHT
         text.color = if (sound.muted) Color.parseColor("#5a6678") else C_PLAYER
         canvas.drawText(if (sound.muted) "🔇" else "🔊", VW - 16f, 32f, text)
+        if (muteToast > 0) {   // 切换音效的可见反馈（免得"以为误触关了"却不知道）
+            text.textSize = 16f
+            text.textAlign = Paint.Align.CENTER
+            text.color = if (sound.muted) 0xFF9AA4B2.toInt() else C_PLAYER
+            text.alpha = (muteToast / 70f * 255f).toInt().coerceIn(0, 255)
+            canvas.drawText(if (sound.muted) "🔇 已静音" else "🔊 声音开启", CX, 84f, text)
+            text.alpha = 255
+        }
     }
 
     /** Ready 屏（1:1 复刻原作 .ready-*：白色 AIR + 蓝辉光 HOCKEY + 金副标 + 呼吸提示） */
@@ -923,11 +934,11 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             glowPaint.shader = RadialGradient(
                 CX, CY, VH * 0.75f,
                 Color.argb(0, 0, 0, 0),
-                Color.argb((38 * a).toInt(), 0, 0, 0),          // 0.15 × 255 ≈ 38（用户钦定的轻压暗）
+                Color.argb((64 * a).toInt(), 0, 0, 0),          // 0.25 × 255 = 64（用户钦定 -25%）（用户钦定的轻压暗）
                 Shader.TileMode.CLAMP
             )
             canvas.drawRect(0f, 0f, VW, VH, glowPaint)
-            fill.color = Color.argb((51 * a).toInt(), 0, 0, 0)   // 0.20 × 255 = 51
+            fill.color = Color.argb((64 * a).toInt(), 0, 0, 0)   // 0.25 × 255 = 64
             canvas.drawRect(0f, 0f, VW, 24f * a, fill)
             canvas.drawRect(0f, VH - 24f * a, VW, VH, fill)
         }
