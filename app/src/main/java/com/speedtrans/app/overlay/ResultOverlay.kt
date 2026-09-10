@@ -228,7 +228,22 @@ class ResultOverlay(private val context: Context) {
         wm?.addView(catchView, clp)
         catcher = catchView
 
+        // 返回键第二道防线：面板窗口可聚焦（flags=0），焦点在面板上时由面板自己收返回键。
+        // 不再只依赖无障碍键过滤——修复"有时按返回关不掉面板"。
+        box.isFocusable = true
+        box.isFocusableInTouchMode = true
+        box.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                event.action == android.view.KeyEvent.ACTION_DOWN
+            ) {
+                TranslateCoordinator.closeOverlay()
+                true
+            } else {
+                false
+            }
+        }
         wm?.addView(box, lp)
+        box.post { if (box.isAttachedToWindow) box.requestFocus() }
         box.requestFocus()
         root = box
         tvStatus = status
