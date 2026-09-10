@@ -163,7 +163,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="最大输出 Tokens（默认 100000；0 = 不发送）"
+                    android:text="最大输出 Tokens（默认 8192；0 = 不发送）"
                     android:textSize="12sp" />
 
                 <EditText
