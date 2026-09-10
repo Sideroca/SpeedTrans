@@ -34,7 +34,7 @@ object Providers {
             "https://api.deepseek.com/chat/completions",
             listOf("deepseek-flash", "deepseek-v4-flash-vision-exp", "deepseek-v4-pro", "deepseek-v4-flash"),
             listOf("deepseek"),
-            listOf("关" to "off", "低" to "low", "高" to "high"),
+            listOf("关" to "off", "低" to "low", "高" to "high", "极高" to "max"),
             "deepseek-flash = V4.1（09-10 发布，原生多模态）；deepseek-chat/reasoner 已下线"
         ),
         Preset(
@@ -48,10 +48,10 @@ object Providers {
         Preset(
             "glm", "GLM · 智谱",
             "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            listOf("glm-5.3", "glm-5.2", "glm-5", "glm-4.5-flash", "glm-4.5-air"),
+            listOf("glm-5.3-flash", "glm-5.3", "glm-5.2", "glm-5", "glm-4.5-flash"),
             listOf("bigmodel.cn"),
-            listOf("关" to "off", "开" to "on"),
-            "glm-5 系强制思考（极速场景慎选）；glm-4.5-flash 免费档"
+            listOf("关" to "off", "低" to "low", "高" to "high", "极高" to "max"),
+            "glm-5.3-flash 为多模态速档；glm-5 系强制思考（选「关」自动降为最低强度）"
         ),
         Preset(
             "kimi", "Kimi · 月之暗面",

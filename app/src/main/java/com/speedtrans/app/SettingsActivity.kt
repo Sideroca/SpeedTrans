@@ -137,7 +137,7 @@ class SettingsActivity : AppCompatActivity() {
             ShellSkins.cut(skin, resources.displayMetrics.density)
         ShellSkins.bindFocusGlow(
             this, { currentSkin ?: ShellSkins.current(this) },
-            R.id.acProvider, R.id.etUrl, R.id.etKey, R.id.etModel
+            R.id.acProvider, R.id.etUrl, R.id.etKey, R.id.etModel, R.id.etMaxTokens, R.id.etTemp
         )
         refreshThinkingRow()
         styleThinkingChips()
@@ -333,6 +333,9 @@ class SettingsActivity : AppCompatActivity() {
         val etKey = findViewById<EditText>(R.id.etKey)
         val etModel = findViewById<AutoCompleteTextView>(R.id.etModel)
         val tvNote = findViewById<TextView>(R.id.tvProviderNote)
+        // 高级参数（可留空用默认）
+        findViewById<EditText>(R.id.etMaxTokens).setText(store.maxTokens.toString())
+        findViewById<EditText>(R.id.etTemp).setText(store.temperature.toString())
 
         thinkingLevel = store.thinkingLevel
         lastProviderId = Providers.match(store.baseUrl)?.id
@@ -1058,6 +1061,11 @@ class SettingsActivity : AppCompatActivity() {
         store.baseUrl = findViewById<EditText>(R.id.etUrl).text.toString()
         store.apiKey = findViewById<EditText>(R.id.etKey).text.toString()
         store.model = findViewById<EditText>(R.id.etModel).text.toString()
+        // 高级参数：留空/非法 = 回落默认（容错）
+        store.maxTokens = findViewById<EditText>(R.id.etMaxTokens).text.toString().trim()
+            .toIntOrNull()?.coerceIn(0, 200000) ?: 8192
+        store.temperature = findViewById<EditText>(R.id.etTemp).text.toString().trim()
+            .toFloatOrNull()?.coerceIn(-1f, 2f) ?: 0.3f
         // 钥匙按服务商归档，切回来不用重贴
         Providers.match(store.baseUrl)?.let { store.setProviderKey(it.id, store.apiKey) }
         store.thinkingLevel = thinkingLevel

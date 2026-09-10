@@ -27,6 +27,16 @@ class SettingsStore(context: Context) {
 
     val isConfigured: Boolean get() = apiKey.isNotEmpty() && baseUrl.startsWith("http")
 
+    /** 最大输出 tokens；0 = 不发送此参数（交给服务端默认）。默认给大一些：长文翻译不被截断 */
+    var maxTokens: Int
+        get() = sp.getInt("max_tokens", 8192)
+        set(v) = sp.edit().putInt("max_tokens", v).apply()
+
+    /** 采样温度；负数 = 不发送。翻译场景低温更稳（默认 0.3） */
+    var temperature: Float
+        get() = sp.getFloat("temperature", 0.3f)
+        set(v) = sp.edit().putFloat("temperature", v).apply()
+
     /** 自定义翻译提示词（留空用默认） */
     var customPrompt: String
         // 未保存过时预填默认文案（可见可删可改）；用户保存空 = 真正为空，不发 system

@@ -121,6 +121,14 @@ class TranslateEngine(private val store: SettingsStore) {
         val body = JSONObject().apply {
             put("model", store.model)
             put("stream", true)
+            // 高级参数（可留空/置 0 关闭）：老模型兼容用 max_tokens，OpenAI 新系用 max_completion_tokens
+            val mt = store.maxTokens
+            if (mt > 0) {
+                if (store.baseUrl.contains("openai.com", true)) put("max_completion_tokens", mt)
+                else put("max_tokens", mt)
+            }
+            val tp = store.temperature
+            if (tp >= 0f) put("temperature", tp.toDouble())
             if (isMtModel) {
                 // 千问翻译特化模型：仅单条 user 消息，配置经 translation_options
                 put(
@@ -149,18 +157,28 @@ class TranslateEngine(private val store: SettingsStore) {
                             "on" -> "enabled"
                             else -> "disabled"
                         }))
-                    u.contains("bigmodel.cn", true) ->
-                        put("thinking", JSONObject().put("type", if (lvl == "off") "disabled" else "enabled"))
+                    u.contains("bigmodel.cn", true) -> {
+                        // glm-5 系始终思考（仅支持 enabled）：选"关"时降级为最低强度，避免直接报错（容错）
+                        val glm5 = store.model.startsWith("glm-5")
+                        if (lvl == "off" && !glm5) {
+                            put("thinking", JSONObject().put("type", "disabled"))
+                        } else {
+                            put("thinking", JSONObject().put("type", "enabled"))
+                            val eff = when (lvl) {
+                                "low", "high", "max" -> lvl
+                                "off" -> "low"
+                                else -> null
+                            }
+                            if (eff != null) put("reasoning_effort", eff)
+                        }
+                    }
                     u.contains("deepseek.com", true) -> when (lvl) {
-                        "low" -> {
+                        "low", "high", "max" -> {
                             put("thinking", JSONObject().put("type", "enabled"))
-                            put("reasoning_effort", "low")
+                            put("reasoning_effort", lvl)
                         }
-                        "high" -> {
-                            put("thinking", JSONObject().put("type", "enabled"))
-                            put("reasoning_effort", "high")
-                        }
-                        else -> put("thinking", JSONObject().put("type", "disabled"))
+                        "off" -> put("thinking", JSONObject().put("type", "disabled"))
+                        // 其他未知档位：不发思考参数（容错，交给服务端默认）
                     }
                     u.contains("moonshot.cn", true) ->
                         put("thinking", JSONObject().put("type", if (lvl == "off") "disabled" else "enabled"))
