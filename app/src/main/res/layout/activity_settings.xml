@@ -1007,25 +1007,25 @@
                     android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 忽略（一次只跑第一次的反应）\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启\n\n日常无需打开本应用，点球即用。"
                     android:textSize="13sp" />
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="🐧 开发者联系与支持"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
                 <LinearLayout
                     android:id="@+id/cardContact"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="6dp"
                     android:orientation="vertical"
                     android:padding="14dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🐧 开发者联系与支持"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
                         android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash\n点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
