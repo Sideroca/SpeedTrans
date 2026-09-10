@@ -61,6 +61,7 @@ class SettingsActivity : AppCompatActivity() {
     private var selectedSizeDp = 52
 
     private val ballColors = listOf(
+        "#E68EC9EE",
         "#E6FF4757", "#E62E86FF", "#E600C853",
         "#E6333333", "#E69C27B0", "#E6FF9500"
     )
@@ -522,6 +523,8 @@ class SettingsActivity : AppCompatActivity() {
     private var selectedBarColor: String? = null
 
     private val barPresets = listOf(
+        // 浅空蓝：工坊默认底色 + 撞色条可选（2026-09-11 用户钦定加入）
+        "浅空蓝" to "#8EC9EE",
         // 釉色系（窑口学名，不带年号人名）
         "天青釉" to "#7FA9B0", "粉青釉" to "#A8C3B4", "梅子青" to "#6F9E7F", "影青" to "#E0F0E8",
         "牙白" to "#F2EDDE", "乌金釉" to "#3B3630", "钧窑天蓝" to "#6E8FB5", "钧窑紫红" to "#8E4A5B",
@@ -662,8 +665,8 @@ class SettingsActivity : AppCompatActivity() {
                 row.addView(sw)
             }
         }
-        // 色板 = 浅空蓝（工坊默认底色，来自参考图）+ 44 中国色库
-        buildColorRow(bgRow, listOf("#8EC9EE")) { studioBg = it; refresh() }
+        // 色板 = 浅空蓝（默认底色）+ 44 中国色库（均来自 barPresets）
+        buildColorRow(bgRow) { studioBg = it; refresh() }
 
         // 默认选中：背景=浅空蓝（复刻豆包图 1）
         restyleChips(styleRow) { (it as Int) == studioStyle }
