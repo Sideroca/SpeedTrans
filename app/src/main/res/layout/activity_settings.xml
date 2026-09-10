@@ -306,7 +306,7 @@
                     android:orientation="horizontal" />
 
                 <RadioGroup
-                    android:id="@+id/rgShape"
+                    android:id="@+id/rgShapeRow1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -331,13 +331,27 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
                         android:text="切角八边形" />
+                </RadioGroup>
+
+                <RadioGroup
+                    android:id="@+id/rgShapeRow2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
 
                     <RadioButton
                         android:id="@+id/rbTriangle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
                         android:text="三角形" />
+
+                    <RadioButton
+                        android:id="@+id/rbRect"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="长方形（竖）" />
                 </RadioGroup>
 
                 <RadioGroup
@@ -372,12 +386,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="从相册选择悬浮球图片（自动裁形状）" />
+                    android:gravity="center"
+                    android:text="从相册选择悬浮球图片" />
 
                 <Button
                     android:id="@+id/btnClearImage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
                     android:text="恢复文字球" />
 
                 <TextView
@@ -769,7 +786,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="🔀 切换桌面图标（闪译 / 备忘录 / 工具箱）" />
+                    android:text="🔀 切换桌面图标" />
 
                 <TextView
                     android:layout_width="match_parent"

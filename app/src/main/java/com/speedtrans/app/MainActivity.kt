@@ -21,6 +21,9 @@ import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.ui.Wallpaper
 
+/** 快捷主题条滚动位置（跨 recreate 恢复用） */
+private var themeScrollX = 0
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var tvOverlay: TextView
@@ -107,11 +110,15 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             v.setOnClickListener {
+                // 记住色球条滚动位置（recreate 后恢复，点右边的球不再跳回最左）
+                themeScrollX = (row.parent as? android.widget.HorizontalScrollView)?.scrollX ?: 0
                 ThemeEngine.save(this, p.id)
                 recreate()
             }
             row.addView(v)
         }
+        val hsv = row.parent as? android.widget.HorizontalScrollView
+        hsv?.post { hsv.scrollTo(themeScrollX, 0) }
     }
 
     override fun onResume() {

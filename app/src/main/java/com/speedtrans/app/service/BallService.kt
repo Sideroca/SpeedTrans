@@ -123,9 +123,12 @@ class BallService : AccessibilityService() {
         if (!Settings.canDrawOverlays(this) || ball != null) return
         val st = SettingsStore(this)
         val sizePx = dp(st.ballSizeDp)
+        val shape = st.ballShape
+        // 竖长方形：宽收窄、高不变（长边从上到下）
+        val widthPx = if (shape == "rect") (sizePx * 0.62f).toInt() else sizePx
 
         val lp = WindowManager.LayoutParams(
-            sizePx, sizePx,
+            widthPx, sizePx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -136,7 +139,6 @@ class BallService : AccessibilityService() {
         lp.y = dp(180)
 
         val imgPath = st.ballImagePath
-        val shape = st.ballShape
         val view: View = if (imgPath.isNotEmpty() && File(imgPath).exists()) {
             ImageView(this).apply {
                 setImageBitmap(decodeScaled(imgPath, sizePx * 2))
@@ -390,6 +392,11 @@ class BallService : AccessibilityService() {
             setColor(color)
         }
         "cut" -> com.speedtrans.app.theme.ShellSkins.CutCornerDrawable(color, dp(8).toFloat(), 0, 0f)
+        "rect" -> GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 0f
+            setColor(color)
+        }
         "triangle" -> triangleDrawable(color)
         else -> GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
     }
@@ -398,6 +405,7 @@ class BallService : AccessibilityService() {
     private fun ballOutline(o: Outline, shape: String, w: Int, h: Int, cornerDp: Int) {
         when (shape) {
             "roundrect" -> o.setRoundRect(0, 0, w, h, dp(cornerDp).toFloat())
+            "rect" -> o.setRect(0, 0, w, h)
             "cut" -> {
                 val c = dp(8).toFloat()
                 val p = Path()

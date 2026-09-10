@@ -172,12 +172,12 @@ class SettingsActivity : AppCompatActivity() {
                 textSize = 10f
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = (5 * d).toInt() }
+                ).apply { topMargin = 0 }   // ❾ 文字上移（贴紧图标；按"偏下"取小位移）
             }
             val dot = View(this).apply {
                 rotation = 45f
                 layoutParams = LinearLayout.LayoutParams((4 * d).toInt(), (4 * d).toInt())
-                    .apply { topMargin = (4 * d).toInt() }
+                    .apply { topMargin = (2 * d).toInt() }   // ❾ 跟随上移
             }
             item.addView(icon)
             item.addView(lab)
@@ -546,10 +546,20 @@ class SettingsActivity : AppCompatActivity() {
         barPresets.forEachIndexed { i, (_, hex) ->
             val sw = row.getChildAt(i + 1)
             val isSel = selectedBarColor == hex
-            sw.background = GradientDrawable().apply {
+            val fill = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor(hex))
-                setStroke(if (isSel) (4 * d).toInt() else 0, 0xFFFFFFFF.toInt())
+            }
+            if (isSel) {
+                // 选中环叠在色块之上（不内缩填充），避免"圆飞速缩小 + 白环"的忙碌感
+                val ring = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(0x00000000)
+                    setStroke((3 * d).toInt(), 0xFFFFFFFF.toInt())
+                }
+                sw.background = android.graphics.drawable.LayerDrawable(arrayOf(fill, ring))
+            } else {
+                sw.background = fill
             }
         }
     }
@@ -769,6 +779,8 @@ class SettingsActivity : AppCompatActivity() {
             paintSwatch(v, hex, hex == selectedColor)
             v.setOnClickListener {
                 selectedColor = hex
+                store.ballColorHex = hex
+                BallService.instance?.refreshBall()
                 for (j in 0 until row.childCount) {
                     paintSwatch(row.getChildAt(j), ballColors[j], j == i)
                 }
@@ -776,23 +788,35 @@ class SettingsActivity : AppCompatActivity() {
             row.addView(v)
         }
 
-        val rgShape = findViewById<RadioGroup>(R.id.rgShape)
-        rgShape.check(
-            when (selectedShape) {
+        // 形状两行两组（窄屏不再把"三角形"挤成竖排）；两组手动互斥
+        val rgShapeRow1 = findViewById<RadioGroup>(R.id.rgShapeRow1)
+        val rgShapeRow2 = findViewById<RadioGroup>(R.id.rgShapeRow2)
+        val shapeIdOf = { s: String ->
+            when (s) {
                 "roundrect" -> R.id.rbRounded
                 "cut" -> R.id.rbCut
                 "triangle" -> R.id.rbTriangle
+                "rect" -> R.id.rbRect
                 else -> R.id.rbCircle
             }
-        )
-        rgShape.setOnCheckedChangeListener { _, id ->
+        }
+        (if (selectedShape == "triangle" || selectedShape == "rect") rgShapeRow2 else rgShapeRow1)
+            .check(shapeIdOf(selectedShape))
+        val onShape = { id: Int ->
             selectedShape = when (id) {
                 R.id.rbRounded -> "roundrect"
                 R.id.rbCut -> "cut"
                 R.id.rbTriangle -> "triangle"
+                R.id.rbRect -> "rect"
                 else -> "circle"
             }
+            (if (rgShapeRow1.checkedRadioButtonId == id) rgShapeRow2 else rgShapeRow1).clearCheck()
+            // 即时预览：写入 + 刷新悬浮球（球浮在设置页之上，能直接看到）
+            store.ballShape = selectedShape
+            BallService.instance?.refreshBall()
         }
+        rgShapeRow1.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
+        rgShapeRow2.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
 
         val rgSize = findViewById<RadioGroup>(R.id.rgSize)
         rgSize.check(
@@ -808,6 +832,8 @@ class SettingsActivity : AppCompatActivity() {
                 R.id.rbBig -> 60
                 else -> 52
             }
+            store.ballSizeDp = selectedSizeDp
+            BallService.instance?.refreshBall()
         }
 
         findViewById<Button>(R.id.btnPickImage).setOnClickListener {
