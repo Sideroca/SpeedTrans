@@ -139,7 +139,7 @@ class CircuitTestView @JvmOverloads constructor(
     private fun sinceSec(): Float = (SystemClock.elapsedRealtime() - stateAt) / 1000f
     private fun nowSec(): Float = SystemClock.elapsedRealtime() / 1000f
     private fun easeInOut(k: Float): Float =
-        if (k < 0.5f) 2f * k * k else 1f - (1f - (2f * k - 2f)) * (1f - (2f * k - 2f)) / 2f
+        if (k < 0.5f) 2f * k * k else 1f - (2f - 2f * k) * (2f - 2f * k) / 2f
     private fun easeOutCubic(k: Float): Float = 1f - (1f - k) * (1f - k) * (1f - k)
 
     override fun onDraw(canvas: Canvas) {
