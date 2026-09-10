@@ -170,7 +170,20 @@ class BallService : AccessibilityService() {
         lp.y = dp(180)
 
         val imgPath = st.ballImagePath
-        val view: View = if (imgPath.isNotEmpty() && File(imgPath).exists()) {
+        val view: View = if (imgPath.startsWith("res:")) {
+            // 内置图片球（如"吐魂"）：从 drawable 资源解码，完整显示（不裁切）
+            val resId = resources.getIdentifier(imgPath.removePrefix("res:"), "drawable", packageName)
+            ImageView(this).apply {
+                if (resId != 0) setImageBitmap(BitmapFactory.decodeResource(resources, resId))
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                clipToOutline = true
+                outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(v: View, o: Outline) {
+                        ballOutline(o, shape, v.width, v.height, st.ballSizeDp / 4)
+                    }
+                }
+            }
+        } else if (imgPath.isNotEmpty() && File(imgPath).exists()) {
             ImageView(this).apply {
                 setImageBitmap(decodeScaled(imgPath, sizePx * 2))
                 // 中心裁剪填满球面：横图竖图都不留空边（业界头像裁剪标准做法）

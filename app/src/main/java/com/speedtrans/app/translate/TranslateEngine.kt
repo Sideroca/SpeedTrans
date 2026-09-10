@@ -103,7 +103,8 @@ class TranslateEngine(private val store: SettingsStore) {
         text: String,
         isContinuation: Boolean = false,
         onDelta: (String) -> Unit,
-        onDone: (Throwable?) -> Unit
+        onDone: (Throwable?) -> Unit,
+        includeMax: Boolean = true
     ): Call {
         val isMtModel = store.model.startsWith("qwen-mt")
         val isDashScope =
@@ -123,7 +124,7 @@ class TranslateEngine(private val store: SettingsStore) {
             put("stream", true)
             // 高级参数（可留空/置 0 关闭）：老模型兼容用 max_tokens，OpenAI 新系用 max_completion_tokens
             val mt = store.maxTokens
-            if (mt > 0) {
+            if (includeMax && mt > 0) {
                 if (store.baseUrl.contains("openai.com", true)) put("max_completion_tokens", mt)
                 else put("max_tokens", mt)
             }
@@ -218,6 +219,12 @@ class TranslateEngine(private val store: SettingsStore) {
                             r.body?.string()?.take(300)
                         } catch (_: Exception) {
                             ""
+                        }
+                        // 容错：max_tokens 超过服务端上限（各家 8k/16k/32k 不等）被 400 拒绝时，
+                        // 自动去掉该参数重试一次，保证"绝不会因为一个可选参数把翻译打死"
+                        if (includeMax && store.maxTokens > 0 && r.code == 400) {
+                            translate(text, isContinuation, onDelta, onDone, includeMax = false)
+                            return
                         }
                         onDone(IOException("HTTP ${r.code} $detail"))
                         return

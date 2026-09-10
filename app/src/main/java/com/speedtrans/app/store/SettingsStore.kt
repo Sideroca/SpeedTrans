@@ -29,7 +29,7 @@ class SettingsStore(context: Context) {
 
     /** 最大输出 tokens；0 = 不发送此参数（交给服务端默认）。默认给大一些：长文翻译不被截断 */
     var maxTokens: Int
-        get() = sp.getInt("max_tokens", 100000)
+        get() = sp.getInt("max_tokens", 8192).let { if (it >= 65536) 8192 else it }   // 老的 100000 默认值自动降回 8192
         set(v) = sp.edit().putInt("max_tokens", v).apply()
 
     /** 采样温度；负数 = 不发送（默认不发送，尊重各家模型默认值，用户想调才调） */

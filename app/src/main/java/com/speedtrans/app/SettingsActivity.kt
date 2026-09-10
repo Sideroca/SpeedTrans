@@ -831,21 +831,30 @@ class SettingsActivity : AppCompatActivity() {
         }
         (if (selectedShape == "triangle" || selectedShape == "rect") rgShapeRow2 else rgShapeRow1)
             .check(shapeIdOf(selectedShape))
+        var shapeMutating = false   // 防止两组互清时的嵌套回调把选择改回去（"点两下才生效"的根因之一）
         val onShape = { id: Int ->
-            selectedShape = when (id) {
-                R.id.rbRounded -> "roundrect"
-                R.id.rbCut -> "cut"
-                R.id.rbTriangle -> "triangle"
-                R.id.rbRect -> "rect"
-                else -> "circle"
+            if (!shapeMutating && id != -1) {
+                shapeMutating = true
+                selectedShape = when (id) {
+                    R.id.rbRounded -> "roundrect"
+                    R.id.rbCut -> "cut"
+                    R.id.rbTriangle -> "triangle"
+                    R.id.rbRect -> "rect"
+                    else -> "circle"
+                }
+                (if (rgShapeRow1.checkedRadioButtonId == id) rgShapeRow2 else rgShapeRow1).clearCheck()
+                // 即时预览：写入 + 刷新悬浮球（球浮在设置页之上，能直接看到）
+                store.ballShape = selectedShape
+                BallService.instance?.refreshBall()
+                shapeMutating = false
             }
-            (if (rgShapeRow1.checkedRadioButtonId == id) rgShapeRow2 else rgShapeRow1).clearCheck()
-            // 即时预览：写入 + 刷新悬浮球（球浮在设置页之上，能直接看到）
-            store.ballShape = selectedShape
-            BallService.instance?.refreshBall()
         }
         rgShapeRow1.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
         rgShapeRow2.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
+        // 双保险：每个单选按钮再挂点击——"再点一次同一个形状"也重新应用+刷新（防 RadioGroup 不回调）
+        for (rid in intArrayOf(R.id.rbCircle, R.id.rbRounded, R.id.rbCut, R.id.rbTriangle, R.id.rbRect)) {
+            findViewById<android.widget.RadioButton>(rid).setOnClickListener { onShape(rid) }
+        }
 
         val rgSize = findViewById<RadioGroup>(R.id.rgSize)
         rgSize.check(
@@ -873,6 +882,12 @@ class SettingsActivity : AppCompatActivity() {
             store.ballImagePath = ""
             BallService.instance?.refreshBall()
             toast("已恢复到默认")
+        }
+        // 内置图片球：吐魂（资源内置，零文件依赖）
+        findViewById<Button>(R.id.btnTuhun).setOnClickListener {
+            store.ballImagePath = "res:ball_tuhun"
+            BallService.instance?.refreshBall()
+            toast("已切换为「吐魂」图片球")
         }
     }
 
