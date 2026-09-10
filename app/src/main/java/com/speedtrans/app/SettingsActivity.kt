@@ -1173,7 +1173,7 @@ private class ContainsAdapter(
                     originals[i].contains(q, true) ||
                             (i < keys.size && keys[i].contains(q, true))
                 }
-                .map { originals[i] }
+                .map { originals[it] }
             return Filter.FilterResults().apply { values = list; count = list.size }
         }
         override fun publishResults(constraint: CharSequence?, results: Filter.FilterResults) {
