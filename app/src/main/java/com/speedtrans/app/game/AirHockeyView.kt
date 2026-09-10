@@ -913,21 +913,37 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawPath(path, line)
     }
 
+    /**
+     * 赛点电影感叠加（原作同名效果；压暗幅度按用户钦定收敛：边缘 65%→15%，
+     * letterbox 条 0.88→0.20，只留"一点压迫感"，不压屏）。
+     */
     private fun drawVignette(canvas: Canvas) {
-        glowPaint.shader = RadialGradient(
-            CX, CY, 150f,
-            Color.argb(0, 0, 0, 0),
-            Color.argb((170 * sloMoAlpha).toInt(), 0, 0, 0),
-            Shader.TileMode.CLAMP
-        )
-        canvas.drawRect(0f, 0f, VW, VH, glowPaint)
-        if (sloMoIntro > 0) {
-            text.color = C_GOLD
-            text.textSize = 34f
+        val a = sloMoAlpha
+        if (a > 0f) {
+            glowPaint.shader = RadialGradient(
+                CX, CY, VH * 0.15f, CX, CY, VH * 0.75f,
+                Color.argb(0, 0, 0, 0),
+                Color.argb((38 * a).toInt(), 0, 0, 0),          // 0.15 × 255 ≈ 38
+                Shader.TileMode.CLAMP
+            )
+            canvas.drawRect(0f, 0f, VW, VH, glowPaint)
+            fill.color = Color.argb((51 * a).toInt(), 0, 0, 0)   // 0.20 × 255 = 51
+            canvas.drawRect(0f, 0f, VW, 24f * a, fill)
+            canvas.drawRect(0f, VH - 24f * a, VW, VH, fill)
+        }
+        if (sloMoLabelTimer > 0) {
+            val fadeIn = min(sloMoLabelTimer / 20f, 1f)
+            val fadeOut = if (sloMoLabelTimer < 30) sloMoLabelTimer / 30f else 1f
+            val pulse = 0.88f + kotlin.math.sin(tick * 0.12f) * 0.12f
             text.textAlign = Paint.Align.CENTER
-            fill.color = C_GOLD; fill.alpha = (sloMoIntro / 80f * 255).toInt()
-            canvas.drawText("SLOW MOTION", CX, 120f, text)
-            fill.alpha = 255
+            text.letterSpacing = 0f
+            text.textSize = 18f
+            text.color = C_GOLD
+            text.setShadowLayer(14f, 0f, 0f, C_GOLD)
+            text.alpha = (255 * min(fadeIn, fadeOut) * pulse * max(a, 0.2f)).coerceIn(0f, 255f).toInt()
+            canvas.drawText("⚡  GAME POINT  ⚡", CX, 52f, text)
+            text.alpha = 255
+            text.setShadowLayer(0f, 0f, 0f, 0)
         }
     }
 }
