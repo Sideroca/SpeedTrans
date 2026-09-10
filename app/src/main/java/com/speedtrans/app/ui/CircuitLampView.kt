@@ -83,8 +83,10 @@ class CircuitLampView @JvmOverloads constructor(
         when (s) {
             State.TESTING -> {
                 flow = 0f
-                flowAnim = ValueAnimator.ofFloat(0f, 44f).apply {
-                    duration = 700
+                // 相位行程取虚线周期（9+8=17）的整数倍 34 → 循环回绕完全无缝；
+                // 原为 44（=2.6 个周期），每 700ms 会肉眼可见地"弹回"一次（本次修复）
+                flowAnim = ValueAnimator.ofFloat(0f, 34f).apply {
+                    duration = 540
                     repeatCount = ValueAnimator.INFINITE
                     interpolator = LinearInterpolator()
                     addUpdateListener { flow = it.animatedValue as Float; invalidate() }
