@@ -101,6 +101,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var sloMoIntro = 0
     private var sloMoLabelTimer = 0
     private var sadFace = 0f
+    private val sound = SoundKit()
 
     private val scoreP = IntArray(1)
     private val scoreC = IntArray(1)
@@ -148,6 +149,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
     fun start() {
         if (running) return
+        sound.init()
         running = true
         lastNanos = 0L
         acc = 0.0
@@ -193,7 +195,11 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         val vy = (e.y - offY) / scale
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                if (state == 0 || state == 3) {
+                // 标题/结束页右上角：点按开关音效
+                val nearSound = vx > VW - 70f && vy < 60f
+                if ((state == 0 || state == 3) && nearSound) {
+                    sound.muted = !sound.muted
+                } else if (state == 0 || state == 3) {
                     startGame()
                 } else {
                     touching = true
@@ -212,6 +218,11 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> touching = false
         }
         return true
+    }
+
+    override fun onDetachedFromWindow() {
+        sound.release()
+        super.onDetachedFromWindow()
     }
 
     private fun clamp(v: Float, a: Float, b: Float) = max(a, min(b, v))
@@ -260,12 +271,14 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
             val msgs = arrayOf("SPEEDING UP!", "FASTER!!", "KICK IT UP!", "NO MERCY!", "LIGHT SPEED!", "HOLD ON!!")
             speedUpMsg = msgs[min(total / 2 - 1, msgs.size - 1).coerceAtLeast(0)]
             speedUpTimer = 130
+            sound.playSpeed()
         }
         val gx = if (who == 0) TABLE_X else VW - TABLE_X
         val gcol = if (who == 0) C_PLAYER else C_CPU
         burst(gx, CY, gcol, 40)
         burst(puck.x, puck.y, C_GOLD, 30)
         shake(8f)
+        sound.playGoal()
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
 
         // 赛点慢动作（原作：任一方到 MAX_SCORE-1 触发，一局只进一次）
@@ -301,8 +314,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
                 if (scoreP[0] >= MAX_SCORE || scoreC[0] >= MAX_SCORE) {
                     state = 3
                     sadFace = if (scoreC[0] >= MAX_SCORE) 1f else 0f
-                    if (scoreC[0] >= MAX_SCORE) { /* 输：苦脸 */ }
-                    if (scoreP[0] >= MAX_SCORE) spawnConfetti(90)
+                    if (scoreP[0] >= MAX_SCORE) { spawnConfetti(90); sound.playWin() } else sound.playLose()
                 } else {
                     resetRound(if (goalWho == 0) 1 else 0)
                     state = 1
@@ -473,6 +485,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
         if (spd > 3f) {
             burst(pk.x, pk.y, if (isPlayer) C_PLAYER else C_CPU, min((spd * 1.5f).toInt(), 40))
+            sound.playHit(spd)
             if (isPlayer) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
         if (spd > 19f) shake(min((spd - 19f) * 0.4f, 3f))
@@ -495,6 +508,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     private fun spark(x: Float, y: Float, color: Int) {
+        sound.playWall()
         for (i in 0 until 6) {
             if (particles.size > 400) break
             particles.add(Particle().apply {
@@ -565,6 +579,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         drawConfetti(canvas)
         drawHud(canvas)
         if (state == 0) drawTitle(canvas)
+        if (state == 0 || state == 3) drawSoundIcon(canvas)
         if (state == 3) drawOver(canvas)
         if (sadFace > 0f) drawSadFace(canvas)
         if (sloMoAlpha > 0f) drawVignette(canvas)
@@ -702,6 +717,13 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawText("STREAK $pStreak   TOP SPEED $pTopSpeed", TABLE_X + 4f, VH - 8f, text)
         text.textAlign = Paint.Align.RIGHT
         canvas.drawText("STREAK $cStreak   TOP SPEED $cTopSpeed", TABLE_X + TABLE_W - 4f, VH - 8f, text)
+    }
+
+    private fun drawSoundIcon(canvas: Canvas) {
+        text.textSize = 22f
+        text.textAlign = Paint.Align.RIGHT
+        text.color = if (sound.muted) Color.parseColor("#5a6678") else C_PLAYER
+        canvas.drawText(if (sound.muted) "🔇" else "🔊", VW - 16f, 32f, text)
     }
 
     private fun drawTitle(canvas: Canvas) {
