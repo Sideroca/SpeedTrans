@@ -200,11 +200,11 @@ class SettingsStore(context: Context) {
         private const val KEY_API = "api_key"
         private const val KEY_MODEL = "model"
 
-        const val DEFAULT_BASE_URL =
-            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+        /** 最终版：不预置地址（全新安装 = 未配置，引导用户自行填写） */
+        const val DEFAULT_BASE_URL = ""
 
-        /** 默认模型：qwen3.7-flash（百炼免费额度）。qwen-mt-* 自动走翻译特化协议 */
-        const val DEFAULT_MODEL = "qwen3.7-flash"
+        /** 最终版：不预置模型 */
+        const val DEFAULT_MODEL = ""
 
         /** 提示词预填文案（用户可全删或自定义；空 = 不发送 system 消息） */
         const val DEFAULT_SYS_PROMPT =
@@ -212,8 +212,7 @@ class SettingsStore(context: Context) {
                     "Output ONLY the Chinese translation. Preserve line breaks. " +
                     "Keep code, URLs and proper nouns unchanged. No notes, no explanations."
 
-        /** 预置 key（装完即用）。⚠️ 开源前必须移除并改为构建注入 */
-        const val DEFAULT_API_KEY =
-            "sk-ws-H.EXMXRPY.Berr.MEUCIGTI4-WF-XMlgG8Cxczsp9u3LATJ4CE8Al2nO93jDTupAiEAzlI3vBB4Fo0nqpvwoUDvFfZxmcuBj83ri-CgFVkHj2Q"
+        /** 最终版：绝不预置任何密钥（用户自行填写，本地保存） */
+        const val DEFAULT_API_KEY = ""
     }
 }

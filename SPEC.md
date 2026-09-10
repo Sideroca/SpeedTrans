@@ -8,10 +8,10 @@
 
 - 用户：小米手机（Android 14，MIUI），追求**极速**（首字 1~2 秒内）
 - 翻译对象：大量英文（LLM 思考内容、Twitter、YouTube 网页等），英→中固定方向
-- 仓库：github.com/Sideroca/SpeedTrans（Private，含预填 API Key，**开源前必须脱敏**）
+- 仓库：github.com/Sideroca/SpeedTrans（Private；**已脱敏**——零预置密钥、已关云备份/换机迁移）
 - 构建：GitHub Actions 云端（本地 aarch64 无法编译），workflow 在 `.github/workflows/build.yml`
 - 签名：`debug.keystore` 已提交仓库（固定签名，所有版本可互相覆盖安装）
-- 当前版本：v4.1.1-beta1（tag 已建，APK 在 Release；versionCode 未 bump，仍 14/"3.7"）
+- 当前版本：v4.1.1-beta6（versionCode 15 / versionName 3.8；含 42 套中国传统色主题、游戏 1:1 移植、密钥清零与发布加固）
 
 ### 三个目标（设计哲学，轻响钦定 2026-09-10）
 
