@@ -921,9 +921,9 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         val a = sloMoAlpha
         if (a > 0f) {
             glowPaint.shader = RadialGradient(
-                CX, CY, VH * 0.15f, CX, CY, VH * 0.75f,
+                CX, CY, VH * 0.75f,
                 Color.argb(0, 0, 0, 0),
-                Color.argb((38 * a).toInt(), 0, 0, 0),          // 0.15 × 255 ≈ 38
+                Color.argb((38 * a).toInt(), 0, 0, 0),          // 0.15 × 255 ≈ 38（用户钦定的轻压暗）
                 Shader.TileMode.CLAMP
             )
             canvas.drawRect(0f, 0f, VW, VH, glowPaint)
