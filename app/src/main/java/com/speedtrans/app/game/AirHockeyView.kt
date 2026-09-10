@@ -815,7 +815,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         text.letterSpacing = 0.15f; text.textSize = 9f; text.color = 0x4DFFFFFF
         canvas.drawText(label, x0 + 12f, y, text)
         text.textAlign = Paint.Align.RIGHT
-        text.letterSpacing = 0f; text.textSize = 12f; text.color = 0xBFFFFFFF
+        text.letterSpacing = 0f; text.textSize = 12f; text.color = 0xBFFFFFFF.toInt()
         canvas.drawText(value, x0 + PANEL - 12f, y, text)
     }
 
@@ -870,7 +870,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawText(if (win) "YOU WIN" else "CPU WINS", 0f, 0f, text)
         canvas.restore()
         text.setShadowLayer(0f, 0f, 0f, 0)
-        text.letterSpacing = 0.7f; text.textSize = 16f; text.color = 0x99FFFFFF
+        text.letterSpacing = 0.7f; text.textSize = 16f; text.color = 0x99FFFFFF.toInt()
         canvas.drawText(if (win) "GAME · SET · MATCH" else "BETTER LUCK NEXT TIME", CX, 272f, text)
         text.letterSpacing = 0f; text.textSize = 30f; text.color = C_GOLD
         text.setShadowLayer(20f, 0f, 0f, C_GOLD)
