@@ -637,8 +637,8 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 44 色库双色行：就地改描边，不打断滚动
-        fun buildColorRow(row: LinearLayout, onPick: (String) -> Unit) {
-            barPresets.forEach { (_, hex) ->
+        fun buildColorRow(row: LinearLayout, extra: List<String> = emptyList(), onPick: (String) -> Unit) {
+            (extra + barPresets.map { it.second }).forEach { hex ->
                 val sw = View(this).apply {
                     tag = hex
                     layoutParams = LinearLayout.LayoutParams((32 * d).toInt(), (32 * d).toInt())
@@ -662,7 +662,8 @@ class SettingsActivity : AppCompatActivity() {
                 row.addView(sw)
             }
         }
-        buildColorRow(bgRow) { studioBg = it; refresh() }
+        // 色板 = 浅空蓝（工坊默认底色，来自参考图）+ 44 中国色库
+        buildColorRow(bgRow, listOf("#8EC9EE")) { studioBg = it; refresh() }
 
         // 默认选中：背景=浅空蓝（复刻豆包图 1）
         restyleChips(styleRow) { (it as Int) == studioStyle }
