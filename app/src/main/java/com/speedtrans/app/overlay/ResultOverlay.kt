@@ -25,6 +25,13 @@ class ResultOverlay(private val context: Context) {
 
     private var root: LinearLayout? = null
     private var topBar: LinearLayout? = null
+
+    // ---- 流式滚动"钉住"状态（修复：偶发与手指抢屏 / 不断下滚） ----
+    private var userTouching = false
+    private var lastTouchUpAt = 0L
+    private var pinY = 0
+    private var selfScroll = false
+    private var streaming = false
     private var catcher: View? = null
     private var tvStatus: TextView? = null
     private var tvOut: TextView? = null
@@ -124,6 +131,30 @@ class ResultOverlay(private val context: Context) {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT
             )
+            // 流式期间"钉住"滚动位置：用户没摸屏幕时，任何自动滚动都会被拉回原位
+            // （修复：偶发与手指抢屏 / 内容不断自动下滚）
+            setOnTouchListener { _, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> userTouching = true
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        userTouching = false
+                        lastTouchUpAt = android.os.SystemClock.elapsedRealtime()
+                    }
+                }
+                false
+            }
+            setOnScrollChangeListener { _, _, _, _, _ ->
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (!streaming) {
+                    pinY = scrollY
+                } else if (userTouching || now - lastTouchUpAt < 350L) {
+                    pinY = scrollY          // 用户自己滑的：跟随
+                } else if (!selfScroll && scrollY != pinY) {
+                    selfScroll = true
+                    scrollTo(0, pinY)       // 非用户滚动：立刻钉回去
+                    selfScroll = false
+                }
+            }
         }
         val out = TextView(ctx).apply {
             setTextColor(pal.panelText)
@@ -205,6 +236,8 @@ class ResultOverlay(private val context: Context) {
     }
 
     fun begin(reset: Boolean, status: String) {
+        streaming = true
+        if (reset) pinY = 0
         ensure()
         if (reset) tvOut?.text = ""
         tvStatus?.text = status
@@ -231,17 +264,15 @@ class ResultOverlay(private val context: Context) {
         val keepSv = sv?.scrollY ?: 0
         val keepTv = tv.scrollY
         tv.append(delta)
-        // 同步锁一次
-        if (sv != null && sv.scrollY != keepSv) sv.scrollTo(0, keepSv)
-        if (tv.scrollY != keepTv) tv.scrollTo(0, keepTv)
-        // 再在"下一帧（重新布局之后）"锁一次——append 引发的布局可能在本帧之后才把视图拉走（偶发强滚的残留路径）
-        tv.post {
+        // 同步锁一次；用户正在拖动时不抢（非用户滚动由 ScrollView 的"钉住"监听兜底）
+        if (!userTouching) {
             if (sv != null && sv.scrollY != keepSv) sv.scrollTo(0, keepSv)
             if (tv.scrollY != keepTv) tv.scrollTo(0, keepTv)
         }
     }
 
     fun finish(err: Throwable?) {
+        streaming = false
         tvStatus?.text = if (err == null) "✓ 完成 · 点球继续"
         else "✗ ${err.message?.take(120) ?: "翻译失败"}"
     }

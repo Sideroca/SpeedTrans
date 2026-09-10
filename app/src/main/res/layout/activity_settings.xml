@@ -235,7 +235,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="✍️ 自定义翻译提示词（留空使用默认；qwen-mt 模型作为领域提示生效）"
+                    android:text="✍️ 自定义提示词（如有填写，以你的内容为准）"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -442,7 +442,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="恢复文字球" />
+                    android:text="恢复到默认" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -476,7 +476,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
-                    android:text="🌐 识别语言（勾选启用，未勾零开销）"
+                    android:text="🌐 识别语言"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -834,13 +834,6 @@
                     android:layout_marginTop="12dp"
                     android:text="创建桌面入口" />
 
-                <Button
-                    android:id="@+id/btnAliasCycle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="🔀 切换桌面图标" />
-
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -995,7 +988,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:padding="14dp"
-                    android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 忽略（一次只跑第一次的反应）\n· 按住拖动 = 移动悬浮球\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n· 译文面板打开时按返回键 = 关闭面板\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启\n\n日常无需打开本应用，点球即用。"
+                    android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 忽略（一次只跑第一次的反应）\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启\n\n日常无需打开本应用，点球即用。"
                     android:textSize="13sp" />
 
                 <LinearLayout
@@ -1017,7 +1010,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash-expires-on-0910\n点一下复制"
+                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和\ndeepseek-v4.1-flash-expires-on-0910\n点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
 

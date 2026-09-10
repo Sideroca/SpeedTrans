@@ -155,7 +155,7 @@ class SettingsStore(context: Context) {
 
     /** 译文面板标题条（撞色条）独立颜色；空 = 跟随主题 Palette */
     var barColorHex: String
-        get() = sp.getString("bar_color", "")!!.trim()
+        get() = sp.getString("bar_color", "#E0F0E8")!!.trim()   // 默认 = 影青（用户勾选的第 4 种），直到用户改动
         set(v) = sp.edit().putString("bar_color", v).apply()
 
     /** 解析撞色条覆盖色；未设置返回 null */

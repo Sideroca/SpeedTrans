@@ -357,7 +357,14 @@ class SettingsActivity : AppCompatActivity() {
         lastProviderId = Providers.match(store.baseUrl)?.id
 
         // 包含式联想（浏览器式）：输入任意片段都能命中，不再要求前缀
-        acProvider.setAdapter(ContainsAdapter(this, Providers.all.map { it.label }))
+        acProvider.setAdapter(
+            ContainsAdapter(
+                this,
+                Providers.all.map { it.label },
+                Providers.all.map { "${it.label} ${it.id} ${it.alias}" }
+            )
+        )
+        acProvider.threshold = 1
         etUrl.setAdapter(ContainsAdapter(this, Providers.all.filter { it.url.isNotEmpty() }.map { it.url }))
         etModel.setAdapter(
             ContainsAdapter(this, Providers.all.flatMap { p -> p.models }.distinct())
@@ -863,7 +870,7 @@ class SettingsActivity : AppCompatActivity() {
             File(filesDir, "ball_image").delete()
             store.ballImagePath = ""
             BallService.instance?.refreshBall()
-            toast("已恢复文字球")
+            toast("已恢复到默认")
         }
     }
 
@@ -1010,7 +1017,6 @@ class SettingsActivity : AppCompatActivity() {
     )
 
     private fun bindLauncherSection() {
-        findViewById<Button>(R.id.btnAliasCycle).setOnClickListener { cycleAlias() }
         findViewById<Button>(R.id.btnPinShortcut).setOnClickListener {
             pickShortcutImage.launch("image/*")
         }
@@ -1132,7 +1138,8 @@ class SettingsActivity : AppCompatActivity() {
 /** 包含式匹配的下拉适配器：输入任意片段即可命中（浏览器式联想），不受 ArrayAdapter 前缀过滤限制 */
 private class ContainsAdapter(
     context: Context,
-    private val originals: List<String>
+    private val originals: List<String>,
+    private val keys: List<String> = originals
 ) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, originals) {
 
     private var shown: List<String> = originals
@@ -1143,7 +1150,12 @@ private class ContainsAdapter(
     override fun getFilter(): Filter = object : Filter() {
         override fun performFiltering(constraint: CharSequence?): Filter.FilterResults {
             val q = (constraint?.toString() ?: "").trim()
-            val list = if (q.isEmpty()) originals else originals.filter { it.contains(q, true) }
+            val list = if (q.isEmpty()) originals else originals.indices
+                .filter { i ->
+                    originals[i].contains(q, true) ||
+                            (i < keys.size && keys[i].contains(q, true))
+                }
+                .map { originals[i] }
             return Filter.FilterResults().apply { values = list; count = list.size }
         }
         override fun publishResults(constraint: CharSequence?, results: Filter.FilterResults) {

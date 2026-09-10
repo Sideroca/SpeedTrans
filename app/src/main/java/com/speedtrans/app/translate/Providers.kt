@@ -17,7 +17,8 @@ object Providers {
         val models: List<String>,             // 型号候选（不限于清单，可自由输入）
         val keys: List<String>,               // 域名识别片段（baseUrl contains，忽略大小写）
         val levels: List<Pair<String, String>>, // (档位名, 值)；空 = 无思考概念/自定义
-        val note: String = ""                 // 副标题提示
+        val note: String = "",                // 副标题提示
+        val alias: String = ""                // 联想别名（拼音首字母/中文/英文，空格分隔）
     )
 
     val all = listOf(
@@ -27,7 +28,8 @@ object Providers {
             listOf("qwen3.8-flash", "qwen3.8-max", "qwen3-vl-plus", "qwen3.7-flash", "qwen-mt-flash", "qwen-mt-plus"),
             listOf("dashscope", "aliyun"),
             listOf("关" to "off", "开" to "on"),
-            "qwen-mt 系为翻译特化模型；qwen3.8-flash 为最新主力"
+            "qwen-mt 系为翻译特化模型；qwen3.8-flash 为最新主力",
+            "qw 千问 通义 阿里云 百炼 dashscope aliyun"
         ),
         Preset(
             "deepseek", "DeepSeek · 深度求索",
@@ -35,7 +37,8 @@ object Providers {
             listOf("deepseek-v4.1-flash-expires-on-0910", "deepseek-flash", "deepseek-v4-flash-vision-exp", "deepseek-v4-pro"),
             listOf("deepseek"),
             listOf("关" to "off", "低" to "low", "高" to "high", "极高" to "max"),
-            "deepseek-flash = V4.1 稳定名；deepseek-v4.1-flash-expires-on-0910 为体验 ID（0910 到期）"
+            "",
+            "ds 深度求索 deepseek"
         ),
         Preset(
             "doubao", "豆包 · 火山方舟",
@@ -43,7 +46,8 @@ object Providers {
             listOf("doubao-seed-2-1-turbo", "doubao-seed-2-1-pro", "doubao-seed-2-1-pro-260628", "doubao-seed-character"),
             listOf("volces.com"),
             listOf("关" to "off", "自动" to "auto", "开" to "on"),
-            "部分账号需使用接入点号 ep-xxx 代替模型名"
+            "部分账号需使用接入点号 ep-xxx 代替模型名",
+            "db 豆包 火山方舟 volces ark"
         ),
         Preset(
             "glm", "GLM · 智谱",
@@ -51,7 +55,8 @@ object Providers {
             listOf("glm-5.3-flash", "glm-5.3", "glm-5.2", "glm-5", "glm-4.5-flash"),
             listOf("bigmodel.cn"),
             listOf("关" to "off", "低" to "low", "高" to "high", "极高" to "max"),
-            "glm-5.3-flash 为多模态速档；glm-5 系强制思考（选「关」自动降为最低强度）"
+            "glm-5.3-flash 为多模态速档；glm-5 系强制思考（选「关」自动降为最低强度）",
+            "zp 智谱 清言 bigmodel zhipu"
         ),
         Preset(
             "kimi", "Kimi · 月之暗面",
@@ -59,7 +64,8 @@ object Providers {
             listOf("kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"),
             listOf("moonshot"),
             listOf("关" to "off", "开" to "on"),
-            "kimi-k2 / moonshot-v1 已于 2026-08-31 下线"
+            "kimi-k2 / moonshot-v1 已于 2026-08-31 下线",
+            "yl 月之暗面 moonshot"
         ),
         Preset(
             "openai", "ChatGPT · OpenAI",
@@ -67,7 +73,8 @@ object Providers {
             listOf("gpt-5.2", "gpt-5.2-chat-latest", "gpt-5.2-pro", "gpt-5", "gpt-5-mini"),
             listOf("openai.com"),
             listOf("低" to "min", "中" to "mid", "高" to "max"),
-            "国内需代理/VPN"
+            "国内需代理/VPN",
+            "gpt chatgpt openai ai"
         ),
         Preset(
             "custom", "自定义", "", emptyList(), emptyList(), emptyList(),
