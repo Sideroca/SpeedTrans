@@ -612,6 +612,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         drawMallet(canvas, cpu, C_CPU)
         drawMallet(canvas, player, C_PLAYER)
         drawGoalFlash(canvas)
+        drawSpeedUpMsg(canvas)
         drawConfetti(canvas)
         if (state == 0) drawReady(canvas)
         if (state == 0 || state == 3) drawSoundIcon(canvas)
@@ -710,6 +711,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         canvas.drawCircle(m.x, m.y, m.r * 0.28f, fill)
     }
 
+    /** 进球闪现（1:1：色纱 + 发光 GOAL! + 小字 YOU SCORE / CPU SCORES） */
     private fun drawGoalFlash(canvas: Canvas) {
         if (goalFlash <= 0f) return
         val col = if (goalWho == 0) C_PLAYER else C_CPU
@@ -717,10 +719,50 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         fill.alpha = (goalFlash * 60).toInt()
         canvas.drawRect(0f, 0f, VW, VH, fill)
         fill.alpha = 255
+        val ease = 1f - (1f - goalMsgScale) * (1f - goalMsgScale) * (1f - goalMsgScale)
+        canvas.save()
+        canvas.translate(CX, CY)
+        canvas.scale(ease, ease)
+        text.textAlign = Paint.Align.CENTER
+        text.letterSpacing = 0f
+        text.textSize = 64f
         text.color = col
-        text.textSize = 64f * (0.6f + 0.4f * goalMsgScale)
-        glowPaint.shader = null
-        canvas.drawText("GOAL!", CX, CY - 40f, text)
+        text.setShadowLayer(40f, 0f, 0f, col)
+        canvas.drawText("GOAL!", 0f, -10f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        text.letterSpacing = 0.45f
+        text.textSize = 13f
+        text.color = col
+        text.alpha = 190
+        canvas.drawText(if (goalWho == 0) "YOU SCORE" else "CPU SCORES", 0f, 22f, text)
+        text.alpha = 255
+        canvas.restore()
+    }
+
+    /** 提速提示（1:1：Slam 入场 + 黑描边 + 金橙渐变 + 辉光） */
+    private fun drawSpeedUpMsg(canvas: Canvas) {
+        if (speedUpTimer <= 0) return
+        val t = speedUpTimer / 130f
+        val scale = if (t > 0.85f) 0.5f + (1f - (t - 0.85f) / 0.15f) * 0.5f else 1f
+        val alpha = if (t < 0.2f) t / 0.2f else 1f
+        canvas.save()
+        canvas.translate(CX, CY - 60f)
+        canvas.scale(scale, scale)
+        text.textAlign = Paint.Align.CENTER
+        text.letterSpacing = 0f
+        text.textSize = 34f
+        text.alpha = (alpha * 255).toInt()
+        text.color = Color.BLACK
+        canvas.drawText(speedUpMsg, 2f, 2f, text)          // 粗黑描边
+        text.shader = LinearGradient(
+            -100f, -30f, 100f, 10f, C_GOLD, 0xFFFF6820.toInt(), Shader.TileMode.CLAMP
+        )
+        text.setShadowLayer(24f, 0f, 0f, C_GOLD)
+        canvas.drawText(speedUpMsg, 0f, 0f, text)
+        text.setShadowLayer(0f, 0f, 0f, 0)
+        text.shader = null
+        text.alpha = 255
+        canvas.restore()
     }
 
     private fun drawConfetti(canvas: Canvas) {

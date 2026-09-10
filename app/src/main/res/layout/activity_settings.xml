@@ -1018,7 +1018,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🐧 开发者联系"
+                        android:text="🐧 开发者联系与支持"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -1026,7 +1026,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和\ndeepseek-v4.1-flash-expires-on-0910\n点一下复制"
+                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash\n点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
 
@@ -1036,7 +1036,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:gravity="center"
-                    android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译"
+                    android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译\n✦ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
                     android:textSize="12sp" />
 
                 <Button
