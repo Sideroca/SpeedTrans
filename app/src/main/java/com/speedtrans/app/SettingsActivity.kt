@@ -100,6 +100,8 @@ class SettingsActivity : AppCompatActivity() {
         bindLauncherSection()
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
+        // 还原成默认图标（闪译）：把三个桌面别名的组件状态恢复为清单默认
+        findViewById<Button>(R.id.btnIconRestore).setOnClickListener { restoreDefaultIcon() }
         // 彩蛋：霓虹空气曲棍球（独立 Activity，不触碰任何翻译链路）
         findViewById<Button>(R.id.btnEgg).setOnClickListener {
             startActivity(android.content.Intent(this, com.speedtrans.app.game.AirHockeyActivity::class.java))
@@ -1020,6 +1022,22 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnPinShortcut).setOnClickListener {
             pickShortcutImage.launch("image/*")
         }
+    }
+
+    /** 还原成默认图标：三个别名全部回到清单默认（红=启用，蓝/绿=关闭） */
+    private fun restoreDefaultIcon() {
+        val pm = packageManager
+        for ((cls, _) in aliasOrder) {
+            try {
+                pm.setComponentEnabledSetting(
+                    ComponentName(packageName, "$packageName$cls"),
+                    PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+                    PackageManager.DONT_KILL_APP
+                )
+            } catch (_: Exception) {
+            }
+        }
+        toast("已还原成默认图标（闪译）")
     }
 
     /** 单按钮循环：闪译(红) → 备忘录(蓝) → 工具箱(绿) → 闪译，互斥启用 */
