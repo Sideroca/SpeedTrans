@@ -172,12 +172,12 @@ class SettingsActivity : AppCompatActivity() {
                 textSize = 10f
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = 0 }   // ❾ 文字上移（贴紧图标；按"偏下"取小位移）
+                ).apply { topMargin = (5 * d).toInt() }
             }
             val dot = View(this).apply {
                 rotation = 45f
                 layoutParams = LinearLayout.LayoutParams((4 * d).toInt(), (4 * d).toInt())
-                    .apply { topMargin = (2 * d).toInt() }   // ❾ 跟随上移
+                    .apply { topMargin = (4 * d).toInt() }
             }
             item.addView(icon)
             item.addView(lab)
