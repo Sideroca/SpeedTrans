@@ -782,10 +782,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun bindWallpaper() {
         findViewById<Button>(R.id.btnWallPagePick).setOnClickListener { pickWallPage.launch("image/*") }
-        findViewById<Button>(R.id.btnWallPageCrop).setOnClickListener { openCrop("page") }
         findViewById<Button>(R.id.btnWallPageClear).setOnClickListener { clearWall("page") }
         findViewById<Button>(R.id.btnWallMainPick).setOnClickListener { pickWallMain.launch("image/*") }
-        findViewById<Button>(R.id.btnWallMainCrop).setOnClickListener { openCrop("main") }
         findViewById<Button>(R.id.btnWallMainClear).setOnClickListener { clearWall("main") }
 
         findViewById<Switch>(R.id.swWallPage).setOnCheckedChangeListener { _, c ->

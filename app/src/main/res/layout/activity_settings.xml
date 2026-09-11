@@ -922,7 +922,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="设置页与主界面各自一张：各选各的图、各调各的取景，互不影响。壁纸零交互，触摸全部落在 UI 上；译文面板不参与。"
+                    android:text="设置页与主界面各自一张：点「选图」后自动进入取景；两处互不影响。壁纸零交互，触摸全部落在 UI 上；译文面板不参与。"
                     android:textSize="12sp" />
 
                 <TextView
@@ -949,18 +949,6 @@
                         android:paddingVertical="8dp"
                         android:textSize="11sp"
                         android:text="选图/更换" />
-
-                    <Button
-                        android:id="@+id/btnWallPageCrop"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="8dp"
-                        android:textSize="11sp"
-                        android:text="取景" />
 
                     <Button
                         android:id="@+id/btnWallPageClear"
@@ -1037,18 +1025,6 @@
                         android:paddingVertical="8dp"
                         android:textSize="11sp"
                         android:text="选图/更换" />
-
-                    <Button
-                        android:id="@+id/btnWallMainCrop"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="8dp"
-                        android:textSize="11sp"
-                        android:text="取景" />
 
                     <Button
                         android:id="@+id/btnWallMainClear"

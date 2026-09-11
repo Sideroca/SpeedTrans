@@ -26,11 +26,19 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 
+      - name: Rename APK（去掉 debug 字样，安装包更简洁）
+        run: |
+          cd app/build/outputs/apk/debug
+          f=$(ls -1 *.apk 2>/dev/null | head -1)
+          if [ -z "$f" ]; then echo "未找到 APK"; exit 1; fi
+          mv "$f" SpeedTrans.apk
+          ls -l SpeedTrans.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SpeedTrans-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: SpeedTrans-apk
+          path: app/build/outputs/apk/debug/SpeedTrans.apk
 
   # 与 APK 构建并行：lint 失败不影响 APK 产物，但会在 run 里标红 + 上传报告
   lint:

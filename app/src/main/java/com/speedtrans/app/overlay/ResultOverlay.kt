@@ -243,6 +243,9 @@ class ResultOverlay(private val context: Context) {
         if (reset) tvOut?.text = ""
         tvStatus?.text = status
         if (reset) scrollOutTop()
+        // 用户再次与球/面板互动（新一轮翻译）：顺手把窗口焦点要回来——返回键可直接生效
+        val b = root
+        b?.post { if (!b.hasWindowFocus()) b.requestFocus() }
     }
 
     fun showStatus(msg: String) {
@@ -287,15 +290,38 @@ class ResultOverlay(private val context: Context) {
 
     fun close() {
         val r = root
-        root = null
-        tvOut = null
-        tvStatus = null
-        topBar = null
         val c = catcher
-        catcher = null
-        c?.let { try { wm?.removeViewImmediate(it) } catch (_: Exception) {} }
-        // 同步立即移除：removeView 是异步排程，主线程忙时会延迟数秒才消失
-        r?.let { try { wm?.removeViewImmediate(it) } catch (_: Exception) {} }
+        removeHard(c)
+        removeHard(r)
+        // 只有确认真的摘掉了才清状态；万一摘除瞬时失败，保留状态让返回键/窗外点还能再关（防"幽灵面板"）
+        if ((r == null || !r.isAttachedToWindow) && (c == null || !c.isAttachedToWindow)) {
+            root = null
+            tvOut = null
+            tvStatus = null
+            topBar = null
+            catcher = null
+        }
+    }
+
+    /** 立即摘窗（removeViewImmediate 为主：removeView 异步排程，主线程忙时会延迟数秒才消失）；失败不静默，补一发 */
+    private fun removeHard(v: View?) {
+        if (v == null) return
+        try {
+            wm?.removeViewImmediate(v)
+            return
+        } catch (_: Exception) {
+        }
+        try {
+            wm?.removeView(v)
+        } catch (_: Exception) {
+        }
+        if (!v.isAttachedToWindow) return
+        v.post {
+            try {
+                wm?.removeViewImmediate(v)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     /** 距面板边缘实时生效（设置页滑条拖动时调用） */
