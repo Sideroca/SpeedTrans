@@ -38,6 +38,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".CropActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
             android:name=".game.AirHockeyActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />

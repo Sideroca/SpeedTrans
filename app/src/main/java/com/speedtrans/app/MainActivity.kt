@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         tvApi = findViewById(R.id.tvApi)
         btnA11y = findViewById(R.id.btnA11y)
 
+        Wallpaper.ensureMigrated(this)
         applyTheme()
         bindQuickTheme()
 
@@ -77,9 +78,9 @@ class MainActivity : AppCompatActivity() {
         val pal = ThemeEngine.current(this)
         val st = SettingsStore(this)
         findViewById<View>(R.id.rootMainHost).setBackgroundColor(pal.bg)
-        Wallpaper.applyTo(
+        Wallpaper.applySlot(
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
-            st.wallpaperPath, st.wallpaperDim, pal.bg, st.wallpaperOnMain
+            st.wpCrop("main"), st.wpDim("main", 50), st.wpEnabled("main"), pal.bg
         )
         ThemeEngine.applyTo(
             findViewById(R.id.rootMain), pal,
@@ -171,6 +172,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applyTheme()   // 回到首页即刷新：设置里改完的壁纸/主题立即生效（不用重启、不用点色球）
         val st = SettingsStore(this)
 
         val overlayOk = Settings.canDrawOverlays(this)

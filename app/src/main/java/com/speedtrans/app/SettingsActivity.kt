@@ -71,11 +71,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private val pickShortcutImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) pinShortcut(uri)
+        if (uri != null) importIconImage(uri)
+    }
+
+    private val iconCropReturn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        if (r.resultCode == android.app.Activity.RESULT_OK) doPinShortcut()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Wallpaper.ensureMigrated(this)
         setContentView(R.layout.activity_settings)
         store = SettingsStore(this)
 
@@ -230,6 +235,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshWallUi()
         if (currentSkin?.beam == true) findViewById<BeamView>(R.id.fxBeam).start()
     }
 
@@ -723,63 +729,130 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------- 页面壁纸 ----------
 
-    private val pickWallpaper = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            val target = File(filesDir, "page_wallpaper")
-            if (Wallpaper.importFrom(this, uri, target)) {
-                store.wallpaperPath = target.absolutePath
-                applyWallpaper()
-                toast("壁纸已更新")
-            } else {
-                toast("图片导入失败")
-            }
+    private var suppressWallUi = false
+
+    private val pickWallPage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) importWallImage(uri, "page")
+    }
+
+    private val pickWallMain = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) importWallImage(uri, "main")
+    }
+
+    private val cropReturn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        refreshWallUi()
+    }
+
+    /** 导入新图到某个壁纸槽位（page=设置页 / main=主界面）：存原图 + 默认中心适配，随即进入取景 */
+    private fun importWallImage(uri: Uri, slot: String) {
+        val target = Wallpaper.origFile(this, slot)
+        if (!Wallpaper.importFrom(this, uri, target)) {
+            toast("图片导入失败")
+            return
         }
+        store.setWpOrig(slot, target.absolutePath)
+        store.setWpFrame(slot, 0f, 0f, 1f)
+        val dm = resources.displayMetrics
+        val c = Wallpaper.cropFile(this, slot)
+        if (Wallpaper.bake(this, target.absolutePath, 0f, 0f, 1f, c, dm.widthPixels, dm.heightPixels)) {
+            store.setWpCrop(slot, c.absolutePath)
+        }
+        store.setWpEnabled(slot, true)
+        refreshWallUi()
+        openCrop(slot)
+    }
+
+    private fun openCrop(slot: String) {
+        if (store.wpOrig(slot).isEmpty() || !Wallpaper.origFile(this, slot).exists()) {
+            toast("先点「选图/更换」挑一张图片")
+            return
+        }
+        cropReturn.launch(Intent(this, CropActivity::class.java).putExtra(CropActivity.EXTRA_SLOT, slot))
+    }
+
+    private fun clearWall(slot: String) {
+        Wallpaper.origFile(this, slot).delete()
+        Wallpaper.cropFile(this, slot).delete()
+        store.setWpOrig(slot, "")
+        store.setWpCrop(slot, "")
+        store.setWpEnabled(slot, false)
+        refreshWallUi()
+        toast("已清除")
     }
 
     private fun bindWallpaper() {
-        findViewById<Button>(R.id.btnPickWallpaper).setOnClickListener { pickWallpaper.launch("image/*") }
-        findViewById<Button>(R.id.btnClearWallpaper).setOnClickListener {
-            File(filesDir, "page_wallpaper").delete()
-            store.wallpaperPath = ""
+        findViewById<Button>(R.id.btnWallPagePick).setOnClickListener { pickWallPage.launch("image/*") }
+        findViewById<Button>(R.id.btnWallPageCrop).setOnClickListener { openCrop("page") }
+        findViewById<Button>(R.id.btnWallPageClear).setOnClickListener { clearWall("page") }
+        findViewById<Button>(R.id.btnWallMainPick).setOnClickListener { pickWallMain.launch("image/*") }
+        findViewById<Button>(R.id.btnWallMainCrop).setOnClickListener { openCrop("main") }
+        findViewById<Button>(R.id.btnWallMainClear).setOnClickListener { clearWall("main") }
+
+        findViewById<Switch>(R.id.swWallPage).setOnCheckedChangeListener { _, c ->
+            if (suppressWallUi) return@setOnCheckedChangeListener
+            if (c && store.wpCrop("page").isEmpty()) {
+                toast("先选一张图再启用")
+                findViewById<Switch>(R.id.swWallPage).isChecked = false
+                return@setOnCheckedChangeListener
+            }
+            store.setWpEnabled("page", c)
             applyWallpaper()
-            toast("已清除壁纸")
         }
-        findViewById<Switch>(R.id.swWallSettings).apply {
-            isChecked = store.wallpaperOnSettings
-            setOnCheckedChangeListener { _, c ->
-                store.wallpaperOnSettings = c
-                applyWallpaper()
+        findViewById<Switch>(R.id.swWallMain).setOnCheckedChangeListener { _, c ->
+            if (suppressWallUi) return@setOnCheckedChangeListener
+            if (c && store.wpCrop("main").isEmpty()) {
+                toast("先选一张图再启用")
+                findViewById<Switch>(R.id.swWallMain).isChecked = false
+                return@setOnCheckedChangeListener
             }
+            store.setWpEnabled("main", c)
         }
-        findViewById<Switch>(R.id.swWallMain).apply {
-            isChecked = store.wallpaperOnMain
-            setOnCheckedChangeListener { _, c ->
-                store.wallpaperOnMain = c
-                applyWallpaper()
-            }
-        }
-        val sb = findViewById<SeekBar>(R.id.sbWallDim)
-        val tv = findViewById<TextView>(R.id.tvWallDimVal)
-        sb.progress = store.wallpaperDim
-        tv.text = "${store.wallpaperDim}%"
-        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+        findViewById<SeekBar>(R.id.sbWallPageDim).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                tv.text = "$p%"
-                if (fromUser) {
-                    store.wallpaperDim = p
+                findViewById<TextView>(R.id.tvWallPageDimVal).text = "$p%"
+                if (fromUser && !suppressWallUi) {
+                    store.setWpDim("page", p)
                     applyWallpaper()
                 }
             }
+
             override fun onStartTrackingTouch(s: SeekBar?) {}
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
+        findViewById<SeekBar>(R.id.sbWallMainDim).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                findViewById<TextView>(R.id.tvWallMainDimVal).text = "$p%"
+                if (fromUser && !suppressWallUi) {
+                    store.setWpDim("main", p)
+                }
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        refreshWallUi()
+    }
+
+    /** 同步壁纸区控件到存储值，并应用「设置页」壁纸（从取景页返回时也会走这里） */
+    private fun refreshWallUi() {
+        suppressWallUi = true
+        findViewById<Switch>(R.id.swWallPage).isChecked = store.wpEnabled("page")
+        findViewById<Switch>(R.id.swWallMain).isChecked = store.wpEnabled("main")
+        findViewById<SeekBar>(R.id.sbWallPageDim).progress = store.wpDim("page", 50)
+        findViewById<TextView>(R.id.tvWallPageDimVal).text = "${store.wpDim("page", 50)}%"
+        findViewById<SeekBar>(R.id.sbWallMainDim).progress = store.wpDim("main", 50)
+        findViewById<TextView>(R.id.tvWallMainDimVal).text = "${store.wpDim("main", 50)}%"
+        suppressWallUi = false
+        applyWallpaper()
     }
 
     private fun applyWallpaper() {
         val skin = currentSkin ?: ShellSkins.current(this)
-        Wallpaper.applyTo(
+        Wallpaper.applySlot(
             this, R.id.ivWallpaper, R.id.wpScrim,
-            store.wallpaperPath, store.wallpaperDim, skin.bg, store.wallpaperOnSettings
+            store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
     }
 
@@ -1078,7 +1151,28 @@ class SettingsActivity : AppCompatActivity() {
         toast("桌面图标已切换为「${next.second}」· 刷新需数秒到数分钟")
     }
 
-    private fun pinShortcut(uri: Uri) {
+    /** ①选图 → ②进方形取景 → ③回来自动创建桌面入口（B 版式：浅空蓝底 + 照片） */
+    private fun importIconImage(uri: Uri) {
+        val target = Wallpaper.iconOrigFile(this)
+        if (!Wallpaper.importFrom(this, uri, target)) {
+            toast("图片导入失败")
+            return
+        }
+        // 极小图给个轻提示（不拦截）
+        try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(target.absolutePath, bounds)
+            if (bounds.outWidth in 1..199 || bounds.outHeight in 1..199) {
+                toast("图片较小，图标可能偏糊——建议换一张更大的")
+            }
+        } catch (_: Exception) {
+        }
+        iconCropReturn.launch(
+            Intent(this, CropActivity::class.java).putExtra(CropActivity.EXTRA_SLOT, "icon")
+        )
+    }
+
+    private fun doPinShortcut() {
         runCatching {
             val name = findViewById<EditText>(R.id.etShortcutName).text.toString().ifBlank { "闪译" }
             val sm = getSystemService(android.content.Context.SHORTCUT_SERVICE) as android.content.pm.ShortcutManager
@@ -1086,8 +1180,13 @@ class SettingsActivity : AppCompatActivity() {
                 toast("当前桌面不支持固定快捷方式")
                 return
             }
-            val bmp = decodeScaled(uri, 192)
-            val info = android.content.pm.ShortcutInfo.Builder(this, "entry_${name}")
+            val f = Wallpaper.iconCropFile(this)
+            if (!f.exists()) {
+                toast("图标生成失败，请重试")
+                return
+            }
+            val bmp = Wallpaper.decode(f.absolutePath, 512, 1024) ?: return
+            val info = android.content.pm.ShortcutInfo.Builder(this, "entry_${name}_${System.currentTimeMillis()}")
                 .setShortLabel(name)
                 .setLongLabel(name)
                 .setIcon(android.graphics.drawable.Icon.createWithBitmap(bmp))
@@ -1100,19 +1199,6 @@ class SettingsActivity : AppCompatActivity() {
             toast("请在系统弹窗中确认添加到桌面。若未出现弹窗：\n系统设置 → 应用管理 → 闪译 → 权限管理 → 「桌面快捷方式」→ 允许，再试一次")
         }.onFailure {
             toast("创建失败：${it.message ?: "未知错误"}")
-        }
-    }
-
-    private fun decodeScaled(uri: Uri, target: Int): Bitmap {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        contentResolver.openInputStream(uri)!!.use {
-            BitmapFactory.decodeStream(it, null, bounds)
-        }
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= target) sample *= 2
-        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-        return contentResolver.openInputStream(uri)!!.use {
-            BitmapFactory.decodeStream(it, null, opts)!!
         }
     }
 

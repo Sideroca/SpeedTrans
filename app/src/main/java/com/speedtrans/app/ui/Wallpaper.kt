@@ -4,16 +4,22 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import java.io.File
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
- * 页面壁纸：垫底层的纯装饰图片。
- * 零交互——无监听、不抢焦点、不进无障碍树（importantForAccessibility=no），
- * 触摸全部落在上层的真实 UI；换皮肤/换主题不影响（壁纸层在皮肤色之上、氛围层之下）。
+ * 页面壁纸 v2：两处独立（page = 设置页 / main = 主界面）。
+ * - 每槽：原图（orig）→ 取景（归一化参数 nx/ny/nz）→ 烘焙「屏幕上要显示的那一块」（crop）→ 装饰层直接放它。
+ * - 取景参数与分辨率无关：nx/ny = 图相对取景框中心的偏移 ÷ 框宽/高；nz = 相对最小适配比例的缩放（1~4）。
+ * - 零交互装饰层原则不变：无监听、不抢焦点、不进无障碍树（布局里已处理）。
  */
 object Wallpaper {
 
@@ -27,42 +33,195 @@ object Wallpaper {
         false
     }
 
-    /** 按长边两级采样解码，防竖版大图 OOM（横图行为与旧版一致） */
-    fun decode(path: String, reqLongEdge: Int): Bitmap? = try {
+    /** 槽位文件：原图 / 已取景图 */
+    fun origFile(context: Context, slot: String): File = File(context.filesDir, "wp_${slot}_orig")
+    fun cropFile(context: Context, slot: String): File = File(context.filesDir, "wp_${slot}_crop")
+
+    /** 桌面快捷方式图标用的临时文件：原图 / 成品（选图 → 取景 → 生成） */
+    fun iconOrigFile(context: Context): File = File(context.filesDir, "wp_icon_orig")
+    fun iconCropFile(context: Context): File = File(context.filesDir, "wp_icon_crop")
+
+    /**
+     * 采样解码：目标长边 + 硬上限（防大图 OOM）+ 按 EXIF 自动摆正（横拍竖存不歪）。
+     */
+    fun decode(path: String, reqLongEdge: Int, hardCap: Int = 3000): Bitmap? = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, bounds)
+        val longEdge = max(bounds.outWidth, bounds.outHeight)
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= reqLongEdge) sample *= 2
-        BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+        while (longEdge / (sample * 2) >= reqLongEdge) sample *= 2
+        while (longEdge / sample > hardCap) sample *= 2
+        val bmp = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+        if (bmp == null) null else applyExifOrientation(bmp, path)
     } catch (_: Exception) {
         null
     }
 
+    /** EXIF 方向修正（异常时原样返回） */
+    @Suppress("DEPRECATION")
+    private fun applyExifOrientation(bmp: Bitmap, path: String): Bitmap {
+        return try {
+            val ori = android.media.ExifInterface(path).getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_NORMAL
+            )
+            val m = android.graphics.Matrix()
+            when (ori) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+                else -> return bmp
+            }
+            val r = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+            if (r !== bmp) bmp.recycle()
+            r
+        } catch (_: Exception) {
+            bmp
+        }
+    }
+
     /**
-     * 应用壁纸：image 垫底图 + scrim 半透明底色遮罩（保证文字可读）。
-     * @param dim 遮罩浓度 0~80（底色不透明度百分比）
-     * @return 壁纸是否处于显示状态
+     * 按取景参数烘焙「屏幕显示图」。outW×outH 的宽高比应与取景框一致（框里看到什么 = 这里烘焙什么）。
      */
-    fun applyTo(
+    fun bake(
+        context: Context, origPath: String, nx: Float, ny: Float, nz: Float,
+        out: File, outW: Int, outH: Int
+    ): Boolean {
+        return try {
+            val src = decode(origPath, max(outW, outH), 3000) ?: return false
+            val iw = src.width.toFloat()
+            val ih = src.height.toFloat()
+            val minS = max(outW / iw, outH / ih)
+            val s = minS * nz.coerceIn(1f, 4f)
+            val mx = max(0f, (iw * s - outW) / 2f)
+            val my = max(0f, (ih * s - outH) / 2f)
+            val x = (nx * outW).coerceIn(-mx, mx)
+            val y = (ny * outH).coerceIn(-my, my)
+            // 取景框（居中）在图像坐标里对应的区域
+            val halfW = outW / 2f / s
+            val halfH = outH / 2f / s
+            val ccx = iw / 2f - x / s
+            val ccy = ih / 2f - y / s
+            val l = (ccx - halfW).coerceIn(0f, iw)
+            val t = (ccy - halfH).coerceIn(0f, ih)
+            val r = (ccx + halfW).coerceIn(0f, iw)
+            val b = (ccy + halfH).coerceIn(0f, ih)
+            if (r - l < 2f || b - t < 2f) {
+                src.recycle()
+                return false
+            }
+            val outBmp = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+            val c = Canvas(outBmp)
+            c.drawColor(Color.BLACK)
+            c.drawBitmap(
+                src,
+                Rect(l.roundToInt(), t.roundToInt(), r.roundToInt(), b.roundToInt()),
+                Rect(0, 0, outW, outH),
+                Paint(Paint.FILTER_BITMAP_FLAG)
+            )
+            val ok = try {
+                out.outputStream().use { os ->
+                    if (src.hasAlpha()) outBmp.compress(Bitmap.CompressFormat.PNG, 100, os)
+                    else outBmp.compress(Bitmap.CompressFormat.JPEG, 92, os)
+                }
+            } catch (_: Exception) {
+                false
+            }
+            outBmp.recycle()
+            src.recycle()
+            ok
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 生成桌面快捷方式图标（B 版式：浅空蓝底 + 照片 78%，512×512）。
+     * 参数含义与壁纸一致（此模式下取景框为正方形）。
+     */
+    fun bakeIcon(origPath: String, nx: Float, ny: Float, nz: Float, out: File): Boolean {
+        return try {
+            val size = 512
+            val inset = (size * 0.11f).roundToInt()
+            val ps = size - inset * 2
+            val src = decode(origPath, size, 1024) ?: return false
+            val iw = src.width.toFloat()
+            val ih = src.height.toFloat()
+            val minS = max(ps / iw, ps / ih)
+            val s = minS * nz.coerceIn(1f, 4f)
+            val mx = max(0f, (iw * s - ps) / 2f)
+            val my = max(0f, (ih * s - ps) / 2f)
+            val x = (nx * ps).coerceIn(-mx, mx)
+            val y = (ny * ps).coerceIn(-my, my)
+            val half = ps / 2f / s
+            val ccx = iw / 2f - x / s
+            val ccy = ih / 2f - y / s
+            val l = (ccx - half).coerceIn(0f, iw)
+            val t = (ccy - half).coerceIn(0f, ih)
+            val r = (ccx + half).coerceIn(0f, iw)
+            val b = (ccy + half).coerceIn(0f, ih)
+            if (r - l < 2f || b - t < 2f) {
+                src.recycle()
+                return false
+            }
+            val outBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val c = Canvas(outBmp)
+            c.drawColor(0xFF8EC9EE.toInt())
+            c.drawBitmap(
+                src,
+                Rect(l.roundToInt(), t.roundToInt(), r.roundToInt(), b.roundToInt()),
+                Rect(inset, inset, inset + ps, inset + ps),
+                Paint(Paint.FILTER_BITMAP_FLAG)
+            )
+            val ok = try {
+                out.outputStream().use { os -> outBmp.compress(Bitmap.CompressFormat.PNG, 100, os) }
+            } catch (_: Exception) {
+                false
+            }
+            outBmp.recycle()
+            src.recycle()
+            ok
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 把某个槽位的壁纸应用到 Activity 的装饰层（imageId 图 / scrimId 遮罩）。
+     * 同一文件不重复解码（ImageView.tag 记录 path@lastModified）。
+     */
+    fun applySlot(
         activity: Activity, imageId: Int, scrimId: Int,
-        path: String, dim: Int, baseColor: Int, enabled: Boolean
+        cropPath: String, dim: Int, enabled: Boolean, baseColor: Int
     ): Boolean {
         val iv = activity.findViewById<ImageView>(imageId)
         val scrim = activity.findViewById<View>(scrimId)
-        if (!enabled || path.isEmpty()) {
+        if (!enabled) {
             iv.visibility = View.GONE
             scrim.visibility = View.GONE
+            return false
+        }
+        if (cropPath.isEmpty() || !File(cropPath).exists()) {
             iv.setImageDrawable(null)
-            return false
-        }
-        val dm = activity.resources.displayMetrics
-        val bmp = decode(path, maxOf(dm.widthPixels, dm.heightPixels))
-        if (bmp == null) {
+            iv.tag = null
             iv.visibility = View.GONE
             scrim.visibility = View.GONE
             return false
         }
-        iv.setImageBitmap(bmp)
+        val key = cropPath + "@" + File(cropPath).lastModified()
+        if (iv.tag != key || iv.drawable == null) {
+            val dm = activity.resources.displayMetrics
+            val bmp = decode(cropPath, max(dm.widthPixels, dm.heightPixels), 3000)
+            if (bmp == null) {
+                iv.setImageDrawable(null)
+                iv.tag = null
+                iv.visibility = View.GONE
+                scrim.visibility = View.GONE
+                return false
+            }
+            iv.setImageBitmap(bmp)
+            iv.tag = key
+        }
         iv.visibility = View.VISIBLE
         val a = ((dim.coerceIn(0, 80) / 100f) * 255).toInt()
         scrim.setBackgroundColor(
@@ -70,5 +229,41 @@ object Wallpaper {
         )
         scrim.visibility = if (a == 0) View.GONE else View.VISIBLE
         return true
+    }
+
+    /**
+     * 旧版单张壁纸 → 两槽位迁移（幂等）。
+     * 旧图复制给两处作起点（默认中心适配），旧开关/浓度分别继承；之后各自独立。
+     */
+    fun ensureMigrated(context: Context) {
+        val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        if (sp.getBoolean("wp2_migrated", false)) return
+        val edit = sp.edit()
+        val oldPath = sp.getString("wallpaper_path", "") ?: ""
+        val oldDim = sp.getInt("wallpaper_dim", 50).coerceIn(0, 80)
+        edit.putBoolean("wp_page_en", sp.getBoolean("wallpaper_settings", true))
+        edit.putBoolean("wp_main_en", sp.getBoolean("wallpaper_main", true))
+        edit.putInt("wp_page_dim", oldDim)
+        edit.putInt("wp_main_dim", oldDim)
+        if (oldPath.isNotEmpty()) {
+            try {
+                val srcOld = File(oldPath)
+                if (srcOld.exists()) {
+                    val dm = context.resources.displayMetrics
+                    for (slot in listOf("page", "main")) {
+                        val o = origFile(context, slot)
+                        srcOld.copyTo(o, overwrite = true)
+                        edit.putString("wp_${slot}_orig", o.absolutePath)
+                        val c = cropFile(context, slot)
+                        if (bake(context, o.absolutePath, 0f, 0f, 1f, c, dm.widthPixels, dm.heightPixels)) {
+                            edit.putString("wp_${slot}_crop", c.absolutePath)
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        edit.putBoolean("wp2_migrated", true)
+        edit.apply()
     }
 }

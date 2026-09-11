@@ -177,12 +177,38 @@ class SettingsStore(context: Context) {
         sp.edit().putString("pk_$id", key).apply()
     }
 
-    /** 壁纸图片路径（应用私有目录；空 = 未设置） */
+    // ---------- 页面壁纸 v2：两处独立（page = 设置页 / main = 主界面） ----------
+    // 每槽：orig=原图、crop=已取景图（显示用）、en=启用、dim=遮罩浓度、nx/ny/nz=取景参数（归一化，与分辨率无关）
+
+    fun wpOrig(slot: String): String = sp.getString("wp_${slot}_orig", "")!!.trim()
+    fun setWpOrig(slot: String, v: String) = sp.edit().putString("wp_${slot}_orig", v.trim()).apply()
+
+    fun wpCrop(slot: String): String = sp.getString("wp_${slot}_crop", "")!!.trim()
+    fun setWpCrop(slot: String, v: String) = sp.edit().putString("wp_${slot}_crop", v.trim()).apply()
+
+    fun wpEnabled(slot: String, def: Boolean = true): Boolean = sp.getBoolean("wp_${slot}_en", def)
+    fun setWpEnabled(slot: String, v: Boolean) = sp.edit().putBoolean("wp_${slot}_en", v).apply()
+
+    fun wpDim(slot: String, def: Int = 50): Int = sp.getInt("wp_${slot}_dim", def)
+    fun setWpDim(slot: String, v: Int) = sp.edit().putInt("wp_${slot}_dim", v.coerceIn(0, 80)).apply()
+
+    fun wpFrame(slot: String): FloatArray = floatArrayOf(
+        sp.getFloat("wp_${slot}_nx", 0f),
+        sp.getFloat("wp_${slot}_ny", 0f),
+        sp.getFloat("wp_${slot}_nz", 1f)
+    )
+
+    fun setWpFrame(slot: String, nx: Float, ny: Float, nz: Float) = sp.edit()
+        .putFloat("wp_${slot}_nx", nx)
+        .putFloat("wp_${slot}_ny", ny)
+        .putFloat("wp_${slot}_nz", nz)
+        .apply()
+
+    // 旧版单张壁纸字段（仅迁移逻辑读取；新代码勿用）
     var wallpaperPath: String
         get() = sp.getString("wallpaper_path", "")!!
         set(v) = sp.edit().putString("wallpaper_path", v).apply()
 
-    /** 壁纸遮罩浓度 0~80：半透明底色盖在壁纸上，越高文字越清楚、壁纸越淡 */
     var wallpaperDim: Int
         get() = sp.getInt("wallpaper_dim", 50)
         set(v) = sp.edit().putInt("wallpaper_dim", v.coerceIn(0, 80)).apply()

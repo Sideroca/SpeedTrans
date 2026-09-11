@@ -45,6 +45,6 @@ Release 直链流程：建 tag → POST release → 上传 APK 资产（脚本�
 ⚠️ versionCode/versionName 尚未随功能 bump（仍 3.7/14），发版前需统一。
 
 ## 红线仓库
-- 仓库保持 Private：`SettingsStore.DEFAULT_API_KEY` 预填 + git 历史含 Key，开源前必须脱敏
+- 仓库保持 Private：git 历史含旧密钥记录（工作区已清理）；开源前必须做历史脱敏（新起干净仓库或 filter）
 - `debug.keystore` 勿删（删 = 永远无法覆盖安装）
 - `accessibility_service_config.xml` 的 `flagRequestFilterKeyEvents` 勿删（返回键关面板失效）

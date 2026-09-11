@@ -57,7 +57,7 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 ## 四、模型与 API（已实测有效）
 
 - DashScope OpenAI 兼容：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`
-- Key：sk-ws-H.EXMXRPY.Berr.MEUCIGTI4-WF-XMlgG8Cxczsp9u3LATJ4CE8Al2nO93jDTupAiEAzlI3vBB4Fo0nqpvwoUDvFfZxmcuBj83ri-CgFVkHj2Q（用户所有，预填于 SettingsStore.DEFAULT_API_KEY）
+- Key：**不预置、不入库**——请在服务商控制台自行创建并填入 App 设置页（仅存本机）；仓库与文档不再保存任何真实密钥
 - 模型：qwen3.7-flash（用户付费档，比 3.6 便宜 80%）/ qwen-mt-flash（翻译特化，无思考）
 - 翻译模型官方文档：chinesecoloratlas.com 不相关；模型文档在 help.aliyun.com/zh/model-studio/machine-translation
 

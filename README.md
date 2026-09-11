@@ -78,7 +78,7 @@ Android 13+ 通过微信 / QQ 等会话式安装器安装的 APK，无障碍开�
 2. 等 3~5 分钟 → 该次运行 → Artifacts → 下载 `SpeedTrans-debug-apk`
 3. 解压得 arm64 APK，安装
 
-> 仓库务必保持 Private：代码预填了 API Key（装完即用）。开源前先清空 `SettingsStore.DEFAULT_API_KEY` 并清理 git 历史。
+> 仓库务必保持 Private：git 历史含旧密钥记录；开源前须做历史脱敏（新起干净仓库或 filter）。代码已零预置密钥。
 
 ## 🧭 架构速览
 
