@@ -835,20 +835,29 @@
                         android:orientation="horizontal" />
                 </HorizontalScrollView>
 
-                <Button
-                    android:id="@+id/btnPinStudio"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="创建桌面入口" />
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnIconRestore"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center"
-                    android:text="还原成默认图标" />
+                    <Button
+                        android:id="@+id/btnPinStudio"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="58"
+                        android:singleLine="true"
+                        android:text="创建桌面入口" />
+
+                    <Button
+                        android:id="@+id/btnIconRestore"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="42"
+                        android:singleLine="true"
+                        android:text="还原成默认图标" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"

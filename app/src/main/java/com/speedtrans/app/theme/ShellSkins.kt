@@ -195,6 +195,18 @@ object ShellSkins {
                 } else if (root.id == R.id.btnSave) {
                     root.background = CutCornerDrawable(Color.TRANSPARENT, skin.cornerDp * d, skin.accentStrong, d)
                     root.setTextColor(skin.accentStrong)
+                } else if (root.id == R.id.btnIconRestore) {
+                    // 次级按钮（还原成默认图标）：页面底浅染主色 + 完整软描边
+                    // 配方：底 = blend(页面底, accent, 深22%/浅16%)；描边 = blend(底, accent, 深34%/浅26%)
+                    //       字 = accent 加深30%（面色偏深时反转为提亮25%）
+                    val dark = Color.luminance(skin.bg) < 0.4f
+                    val fill = blend(skin.bg, skin.accent, if (dark) 0.22f else 0.16f)
+                    val stroke = blend(fill, skin.accent, if (dark) 0.34f else 0.26f)
+                    root.background = CutCornerDrawable(fill, skin.cornerDp * d * 0.75f, stroke, 1.2f * d)
+                    root.setTextColor(
+                        if (Color.luminance(fill) > 0.5f) blend(skin.accent, 0xFF000000.toInt(), 0.30f)
+                        else blend(skin.accent, 0xFFFFFFFF.toInt(), 0.25f)
+                    )
                 } else {
                     root.background = CutCornerDrawable(skin.accent, skin.cornerDp * d * 0.75f, skin.accent, d)
                     root.setTextColor(if (Color.luminance(skin.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
