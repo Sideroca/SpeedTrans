@@ -2,8 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rootMainHost"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
 
     <!-- 页面壁纸：纯装饰底层，零交互 -->
     <ImageView
@@ -26,116 +25,612 @@
         android:layout_height="match_parent">
 
         <LinearLayout
+            android:id="@+id/homeCol"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:paddingLeft="16dp"
+            android:paddingTop="6dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="16dp">
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚡ 闪译 SpeedTrans"
-            android:textSize="24sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvSubtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="点一下悬浮球 → 立即流式翻译屏幕文字（英→中）"
-            android:textSize="14sp" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:scrollbars="none">
-
+            <!-- ======== 头部：标题 + 副标题 + 头像/换头像螺母 ======== -->
             <LinearLayout
-                android:id="@+id/quickThemeRow"
-                android:layout_width="wrap_content"
+                android:id="@+id/headRow"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+                android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:padding="14dp"
-            android:textSize="14sp" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvA11y"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:padding="14dp"
-            android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvApi"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:padding="14dp"
-            android:textSize="14sp" />
+                        <ImageView
+                            android:id="@+id/ivBolt"
+                            android:layout_width="24dp"
+                            android:layout_height="28dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_bolt" />
 
-        <Button
-            android:id="@+id/btnOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="① 去开启悬浮窗权限" />
+                        <TextView
+                            android:id="@+id/tvTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="闪译 SpeedTrans"
+                            android:textSize="21sp" />
+                    </LinearLayout>
 
-        <Button
-            android:id="@+id/btnA11y"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="② 去开启无障碍服务" />
+                    <TextView
+                        android:id="@+id/tvSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:text="点一下悬浮球 → 立即流式翻译屏幕文字（英→中）"
+                        android:textSize="11.5sp" />
+                </LinearLayout>
 
-        <Button
-            android:id="@+id/btnTut"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="📷 小米权限图解（3 步，点开看图）" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/btnApi"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="③ 自定义选项" />
+                    <ImageView
+                        android:id="@+id/ivAvatar"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="16dp"
+                        android:contentDescription="头像（长按恢复默认）" />
 
-        <Button
-            android:id="@+id/btnHistory"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="🕘 最近翻译" />
+                    <ImageView
+                        android:id="@+id/btnAvatarEdit"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="-13dp"
+                        android:layout_marginEnd="-14dp"
+                        android:contentDescription="更换头像"
+                        android:padding="14dp"
+                        android:src="@drawable/ic_home_nut" />
+                </LinearLayout>
+            </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvUsage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:padding="14dp"
-            android:text="使用方法：\n· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译\n· 翻译中再点球 = 忽略（一次只跑第一次的反应）\n· 内容没变时点球 = 秒回，不发请求\n· 持续增长的内容（如模型思考）：自动增量翻译\n\n小米/MIUI 防杀后台（一次性设置，做了就不用再管）：\n1. 最近任务长按本应用卡片 → 锁定\n2. 应用详情 → 省电策略 → 无限制\n3. 应用详情 → 自启动 → 开启（关键一步；打开后后台划掉、通知清掉也照常可用）\n\n小米/MIUI 权限被挡（开关点了没反应）：\n设置 → 辅助功能 → 权限管控 → 已下载的应用 → 找到「闪译悬浮球」→ 打开权限\n（图解：点上方「📷 小米权限图解」按钮，3 张步骤图）\n\n改 App 图标/名字：③ 配置页最上方「🖼 App 图标与桌面入口」\n\n日常无需打开本应用，点球即用。"
-            android:textSize="13sp" />
+            <!-- ======== 卡片1：主题色 ======== -->
+            <LinearLayout
+                android:id="@+id/cardTheme"
+                style="@style/HomeCard">
 
-        <TextView
-            android:id="@+id/tvSign"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译\ndeepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
-            android:textSize="12sp" />
-    </LinearLayout>
+                <LinearLayout style="@style/HomeCardHead">
+
+                    <FrameLayout
+                        android:id="@+id/chip_theme"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_theme"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_palette" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvThemeTitle"
+                            style="@style/HomeCardTitle"
+                            android:text="主题色" />
+
+                        <TextView
+                            android:id="@+id/tvThemeSub"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="选择你喜欢的主题颜色"
+                            android:textSize="10.5sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/chevTheme"
+                        style="@style/HomeChev"
+                        android:contentDescription="打开主题设置"
+                        android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                </LinearLayout>
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="11dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/quickThemeRow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+            </LinearLayout>
+
+            <!-- ======== 卡片2：运行状态 ======== -->
+            <LinearLayout
+                android:id="@+id/cardStatus"
+                style="@style/HomeCard">
+
+                <LinearLayout style="@style/HomeCardHead">
+
+                    <FrameLayout
+                        android:id="@+id/chip_status"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_status"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_pulse" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvStatusTitle"
+                        style="@style/HomeCardTitle"
+                        android:layout_marginStart="10dp"
+                        android:text="运行状态" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/tvStatusAll"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="所有服务正常运行"
+                        android:textSize="10.5sp" />
+
+                    <View
+                        android:id="@+id/ivStatusDot"
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_marginStart="5dp" />
+                </LinearLayout>
+
+                <!-- 行1：悬浮窗权限（点击 = 去开启悬浮窗） -->
+                <LinearLayout
+                    android:id="@+id/rowOverlay"
+                    style="@style/HomeRow">
+
+                    <FrameLayout
+                        android:id="@+id/chip_ovl"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_ovl"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_bolt" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvOvlTitle"
+                            style="@style/HomeRowTitle"
+                            android:text="悬浮窗权限" />
+
+                        <TextView
+                            android:id="@+id/tvOvlSub"
+                            style="@style/HomeRowSub"
+                            android:text="允许在屏幕上显示悬浮球" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvOvlChip"
+                        style="@style/HomeChip"
+                        android:text="已开启" />
+
+                    <ImageView
+                        style="@style/HomeChev"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/divStatus1"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="45dp" />
+
+                <!-- 行2：无障碍服务（点击 = 无障碍设置） -->
+                <LinearLayout
+                    android:id="@+id/rowA11y"
+                    style="@style/HomeRow">
+
+                    <FrameLayout
+                        android:id="@+id/chip_a11"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_a11"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_person" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvA11Title"
+                            style="@style/HomeRowTitle"
+                            android:text="无障碍服务" />
+
+                        <TextView
+                            android:id="@+id/tvA11Sub"
+                            style="@style/HomeRowSub"
+                            android:text="用于识别屏幕内容和操作" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvA11Chip"
+                        style="@style/HomeChip"
+                        android:text="运行中" />
+
+                    <ImageView
+                        style="@style/HomeChev"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/divStatus2"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="45dp" />
+
+                <!-- 行3：翻译接口（点击 = 接口设置） -->
+                <LinearLayout
+                    android:id="@+id/rowApi"
+                    style="@style/HomeRow">
+
+                    <FrameLayout
+                        android:id="@+id/chip_api"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_api"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_blocks" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvApiTitle"
+                            style="@style/HomeRowTitle"
+                            android:text="翻译接口" />
+
+                        <TextView
+                            android:id="@+id/tvApiSub"
+                            style="@style/HomeRowSub"
+                            android:text="尚未配置，点击去设置" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvApiChip"
+                        style="@style/HomeChip"
+                        android:text="未配置" />
+
+                    <ImageView
+                        style="@style/HomeChev"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ======== 卡片3：设置与工具 ======== -->
+            <LinearLayout
+                android:id="@+id/cardTools"
+                style="@style/HomeCard">
+
+                <LinearLayout style="@style/HomeCardHead">
+
+                    <FrameLayout
+                        android:id="@+id/chip_tools"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_tools"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_nut" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvToolsTitle"
+                        style="@style/HomeCardTitle"
+                        android:layout_marginStart="10dp"
+                        android:text="设置与工具" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvToolsLabelA"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="9dp"
+                    android:text="权限相关"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:id="@+id/groupA"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp">
+
+                    <LinearLayout
+                        android:id="@+id/rowTut"
+                        style="@style/HomeRow">
+
+                        <FrameLayout
+                            android:id="@+id/chip_tut"
+                            style="@style/HomeChipIcon">
+
+                            <ImageView
+                                android:id="@+id/ic_tut"
+                                style="@style/HomeChipGlyph"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_home_camera" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvTutTitle"
+                                style="@style/HomeRowTitle"
+                                android:text="小米权限图解" />
+
+                            <TextView
+                                android:id="@+id/tvTutSub"
+                                style="@style/HomeRowSub"
+                                android:text="3 步完成设置，点击查看图解" />
+                        </LinearLayout>
+
+                        <ImageView
+                            style="@style/HomeChev"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvToolsLabelB"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="9dp"
+                    android:text="其他设置"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:id="@+id/groupB"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp">
+
+                    <LinearLayout
+                        android:id="@+id/rowApiSettings"
+                        style="@style/HomeRow">
+
+                        <FrameLayout
+                            android:id="@+id/chip_aset"
+                            style="@style/HomeChipIcon">
+
+                            <ImageView
+                                android:id="@+id/ic_aset"
+                                style="@style/HomeChipGlyph"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_home_sliders" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvAsetTitle"
+                                style="@style/HomeRowTitle"
+                                android:text="自定义选项" />
+
+                            <TextView
+                                android:id="@+id/tvAsetSub"
+                                style="@style/HomeRowSub"
+                                android:text="翻译行为、界面显示等个性化设置" />
+                        </LinearLayout>
+
+                        <ImageView
+                            style="@style/HomeChev"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divTools1"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="45dp" />
+
+                    <LinearLayout
+                        android:id="@+id/rowHistory"
+                        style="@style/HomeRow">
+
+                        <FrameLayout
+                            android:id="@+id/chip_hist"
+                            style="@style/HomeChipIcon">
+
+                            <ImageView
+                                android:id="@+id/ic_hist"
+                                style="@style/HomeChipGlyph"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_home_clock" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvHistTitle"
+                                style="@style/HomeRowTitle"
+                                android:text="最近翻译" />
+
+                            <TextView
+                                android:id="@+id/tvHistSub"
+                                style="@style/HomeRowSub"
+                                android:text="查看历史记录，快速复用" />
+                        </LinearLayout>
+
+                        <ImageView
+                            style="@style/HomeChev"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_chev"
+                        android:tag="chev" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ======== 卡片4：使用方法 ======== -->
+            <LinearLayout
+                android:id="@+id/cardUsage"
+                style="@style/HomeCard">
+
+                <LinearLayout style="@style/HomeCardHead">
+
+                    <FrameLayout
+                        android:id="@+id/chip_use"
+                        style="@style/HomeChipIcon">
+
+                        <ImageView
+                            android:id="@+id/ic_use"
+                            style="@style/HomeChipGlyph"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_home_book" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tvUseTitle"
+                        style="@style/HomeCardTitle"
+                        android:layout_marginStart="10dp"
+                        android:text="使用方法" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvUsage"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_weight="1"
+                        android:lineSpacingExtra="3dp"
+                        android:text="· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译&#10;· 翻译中再点击 = 忽略（一次只跑第一次的反应）&#10;· 内容没变时点击 = 秒回，不发请求&#10;· 持续增长的内容（如模型思考）= 自动增量翻译"
+                        android:textSize="11.5sp" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:layout_marginStart="8dp"
+                        android:gravity="end"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvDoodle1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="让阅读"
+                            android:textSize="10sp"
+                            android:textStyle="italic" />
+
+                        <TextView
+                            android:id="@+id/tvDoodle2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="没有语言的界限"
+                            android:textSize="10sp"
+                            android:textStyle="italic" />
+
+                        <TextView
+                            android:id="@+id/tvGhost"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:text="👻"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 签名（保留） -->
+            <TextView
+                android:id="@+id/tvSign"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译&#10;deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
+                android:textSize="10.5sp" />
+        </LinearLayout>
     </ScrollView>
 </FrameLayout>

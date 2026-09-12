@@ -82,6 +82,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Wallpaper.ensureMigrated(this)
         setContentView(R.layout.activity_settings)
+        setupEdgeToEdge()
         store = SettingsStore(this)
 
         // 火把光标：接口页 + 桌面入口名称的输入框
@@ -130,6 +131,12 @@ class SettingsActivity : AppCompatActivity() {
         val skin = ShellSkins.current(this)
         currentSkin = skin
         findViewById<View>(R.id.rootSettings).setBackgroundColor(skin.bg)
+        // 系统栏图标明暗随皮肤底色走（浅底黑图标 / 深底白图标）
+        val lightBars = Color.luminance(skin.bg) > 0.5f
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = lightBars
+            isAppearanceLightNavigationBars = lightBars
+        }
         findViewById<ScanlineView>(R.id.fxScanlines).visibility =
             if (skin.scanline) View.VISIBLE else View.GONE
         findViewById<BeamView>(R.id.fxBeam).visibility =
@@ -830,6 +837,18 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
 
+        findViewById<SeekBar>(R.id.sbCardAlpha).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                findViewById<TextView>(R.id.tvCardAlphaVal).text = "${p + 30}%"
+                if (fromUser && !suppressWallUi) {
+                    store.cardAlphaPct = p + 30
+                }
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
         refreshWallUi()
     }
 
@@ -842,6 +861,8 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvWallPageDimVal).text = "${store.wpDim("page", 50)}%"
         findViewById<SeekBar>(R.id.sbWallMainDim).progress = store.wpDim("main", 50)
         findViewById<TextView>(R.id.tvWallMainDimVal).text = "${store.wpDim("main", 50)}%"
+        findViewById<SeekBar>(R.id.sbCardAlpha).progress = store.cardAlphaPct - 30
+        findViewById<TextView>(R.id.tvCardAlphaVal).text = "${store.cardAlphaPct}%"
         suppressWallUi = false
         applyWallpaper()
     }
@@ -852,6 +873,30 @@ class SettingsActivity : AppCompatActivity() {
             this, R.id.ivWallpaper, R.id.wpScrim,
             store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
+    }
+
+    /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域）；滚动区用 inset 让位、底部坞整体上移 */
+    @Suppress("DEPRECATION")
+    private fun setupEdgeToEdge() {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        val d = resources.displayMetrics.density
+        val scrollBaseBottom = (260 * d + 0.5f).toInt()
+        val dockBaseMargin = (40 * d + 0.5f).toInt()
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.settingsScroll)) { v, insets ->
+            val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, b.top, 0, scrollBaseBottom + b.bottom)
+            insets
+        }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomDock)) { v, insets ->
+            val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            (v.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { lp ->
+                lp.bottomMargin = dockBaseMargin + b.bottom
+                v.layoutParams = lp
+            }
+            insets
+        }
     }
 
     // ---------- 提示词 ----------

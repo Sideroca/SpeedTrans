@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 新版首页通用样式（颜色/背景由代码按主题设置） -->
+
+    <style name="HomeCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">9dp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingLeft">15dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingRight">15dp</item>
+        <item name="android:paddingBottom">8dp</item>
+    </style>
+
+    <style name="HomeCardHead">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
+    <style name="HomeCardTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="HomeChipIcon">
+        <item name="android:layout_width">35dp</item>
+        <item name="android:layout_height">35dp</item>
+    </style>
+
+    <style name="HomeChipGlyph">
+        <item name="android:layout_width">19dp</item>
+        <item name="android:layout_height">19dp</item>
+        <item name="android:layout_gravity">center</item>
+    </style>
+
+    <style name="HomeRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
+
+    <style name="HomeRowTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">11.5sp</item>
+    </style>
+
+    <style name="HomeRowSub">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:textSize">10.5sp</item>
+    </style>
+
+    <style name="HomeChev">
+        <item name="android:layout_width">12dp</item>
+        <item name="android:layout_height">12dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+    </style>
+
+    <style name="HomeChip">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:paddingLeft">9dp</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingRight">9dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:textSize">10.5sp</item>
+    </style>
+</resources>

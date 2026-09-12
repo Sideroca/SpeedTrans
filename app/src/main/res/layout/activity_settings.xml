@@ -3,7 +3,6 @@
     android:id="@+id/rootSettings"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
     android:background="#0A0D12">
 
     <!-- 页面壁纸：纯装饰底层，零交互 -->
@@ -34,6 +33,7 @@
         android:layout_height="match_parent" />
 
     <ScrollView
+        android:id="@+id/settingsScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
@@ -1073,6 +1073,37 @@
                         android:layout_height="wrap_content"
                         android:gravity="end"
                         android:text="50%"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="卡片浓度（首页）"
+                        android:textSize="13sp" />
+
+                    <SeekBar
+                        android:id="@+id/sbCardAlpha"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="70"
+                        android:progress="52" />
+
+                    <TextView
+                        android:id="@+id/tvCardAlphaVal"
+                        android:layout_width="44dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="end"
+                        android:text="82%"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                 </LinearLayout>

@@ -1,19 +1,26 @@
 package com.speedtrans.app
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Outline
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import android.widget.Button
+import android.view.ViewGroup
+import android.view.ViewOutlineProvider
+import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.speedtrans.app.service.KeepAliveService
@@ -26,109 +33,326 @@ private var themeScrollX = 0
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var tvOverlay: TextView
-    private lateinit var tvA11y: TextView
-    private lateinit var tvApi: TextView
-    private lateinit var btnA11y: Button
+    private lateinit var store: SettingsStore
 
-    // 旧的别名自愈逻辑已抽到 ui/LauncherAliases.kt（服务连接时也会执行）
+    /** 图标底色板（浅色主题用；深色主题自动换算为透明底+提亮色） */
+    private val tintPairs: Map<String, Pair<Int, Int>> = mapOf(
+        "theme" to (0xFFE5E4FC.toInt() to 0xFF5B6FEF.toInt()),
+        "status" to (0xFFDDF3EE.toInt() to 0xFF35B69F.toInt()),
+        "ovl" to (0xFFFFF0E2.toInt() to 0xFFF19A55.toInt()),
+        "a11" to (0xFFE0EEFF.toInt() to 0xFF2188E8.toInt()),
+        "api" to (0xFFE4E5FC.toInt() to 0xFF5D6DF2.toInt()),
+        "tut" to (0xFFE7E3FF.toInt() to 0xFF6654E8.toInt()),
+        "aset" to (0xFFDDF2F4.toInt() to 0xFF32B5BE.toInt()),
+        "hist" to (0xFFFBE4E3.toInt() to 0xFFEA6B68.toInt()),
+        "use" to (0xFFE4EFF6.toInt() to 0xFF426F92.toInt()),
+        "tools" to (0xFFE9EEF4.toInt() to 0xFF405B78.toInt())
+    )
 
+    private val pickAvatar = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            if (Wallpaper.saveAvatar(this, uri)) {
+                refreshAvatar()
+                Toast.makeText(this, "头像已更新（长按头像可恢复默认球）", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "头像导入失败，换一张试试", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        tvOverlay = findViewById(R.id.tvOverlay)
-        tvA11y = findViewById(R.id.tvA11y)
-        tvApi = findViewById(R.id.tvApi)
-        btnA11y = findViewById(R.id.btnA11y)
+        setupEdgeToEdge()
+        store = SettingsStore(this)
 
         Wallpaper.ensureMigrated(this)
-        applyTheme()
-        bindQuickTheme()
 
-        findViewById<Button>(R.id.btnOverlay).setOnClickListener {
+        // 头像：圆形裁剪显示 + 螺母换头像 + 长按恢复默认
+        val ivAvatar = findViewById<ImageView>(R.id.ivAvatar)
+        ivAvatar.clipToOutline = true
+        ivAvatar.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setOval(0, 0, view.width, view.height)
+            }
+        }
+        findViewById<View>(R.id.btnAvatarEdit).setOnClickListener { pickAvatar.launch("image/*") }
+        ivAvatar.setOnLongClickListener {
+            Wallpaper.avatarFile(this).delete()
+            Wallpaper.avatarSrcFile(this).delete()
+            refreshAvatar()
+            Toast.makeText(this, "已恢复默认头像", Toast.LENGTH_SHORT).show()
+            true
+        }
+
+        // 运行状态三行：点按 = 跳转（等效旧按钮）
+        findViewById<View>(R.id.rowOverlay).setOnClickListener {
             startActivity(
-                Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             )
         }
-        btnA11y.setOnClickListener {
+        findViewById<View>(R.id.rowA11y).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
-        findViewById<Button>(R.id.btnTut).setOnClickListener { showPermissionTutorial() }
-
-        findViewById<Button>(R.id.btnApi).setOnClickListener {
-            com.speedtrans.app.ui.LauncherAliases.repair(this)
-        startActivity(Intent(this, SettingsActivity::class.java))
+        findViewById<View>(R.id.rowApi).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        findViewById<Button>(R.id.btnHistory).setOnClickListener {
+        // 设置与工具
+        findViewById<View>(R.id.rowTut).setOnClickListener { showPermissionTutorial() }
+        findViewById<View>(R.id.rowApiSettings).setOnClickListener {
+            com.speedtrans.app.ui.LauncherAliases.repair(this)
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        findViewById<View>(R.id.rowHistory).setOnClickListener {
             startActivity(Intent(this, HistoryActivity::class.java))
         }
+        findViewById<View>(R.id.chevTheme).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        bindQuickTheme()
 
         // 前台保活：划掉最近任务不影响悬浮球
         ContextCompat.startForegroundService(this, Intent(this, KeepAliveService::class.java))
         requestNotificationPermission()
     }
 
+    // ---------------- 主题应用（新版首页） ----------------
+
     private fun applyTheme() {
         val pal = ThemeEngine.current(this)
-        val st = SettingsStore(this)
+        val d = resources.displayMetrics.density
+        val alpha = store.cardAlphaPct
+        val light = Color.luminance(pal.bg) > 0.5f
+
         findViewById<View>(R.id.rootMainHost).setBackgroundColor(pal.bg)
         Wallpaper.applySlot(
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
-            st.wpCrop("main"), st.wpDim("main", 50), st.wpEnabled("main"), pal.bg
+            store.wpCrop("main"), store.wpDim("main", 50), store.wpEnabled("main"), pal.bg
         )
-        ThemeEngine.applyTo(
-            findViewById(R.id.rootMain), pal,
-            cardIds = setOf(R.id.tvOverlay, R.id.tvA11y, R.id.tvApi, R.id.tvUsage),
-            subIds = setOf(R.id.tvSubtitle, R.id.tvSign)
+
+        // 卡片与内层（浓度可控）
+        val cardColor = withAlpha(pal.card, alpha)
+        val innerColor = withAlpha(pal.card, (alpha * 62 / 100).coerceAtLeast(20))
+        for (id in intArrayOf(R.id.cardTheme, R.id.cardStatus, R.id.cardTools, R.id.cardUsage)) {
+            findViewById<View>(id).background = ThemeEngine.cardDrawable(cardColor, 13f, d)
+        }
+        for (id in intArrayOf(R.id.groupA, R.id.groupB)) {
+            findViewById<View>(id).background = ThemeEngine.cardDrawable(innerColor, 11f, d)
+        }
+
+        // 图标底块
+        fun iconChip(bgId: Int, icId: Int, key: String) {
+            val pair = tintPairs[key] ?: return
+            val bg: Int
+            val fg: Int
+            if (light) {
+                bg = pair.first
+                fg = pair.second
+            } else {
+                fg = blend(pair.second, 0xFFFFFFFF.toInt(), 0.25f)
+                bg = withAlpha(fg, 22)
+            }
+            findViewById<View>(bgId).background = ThemeEngine.cardDrawable(bg, 11f, d)
+            findViewById<ImageView>(icId).setColorFilter(fg)
+        }
+        iconChip(R.id.chip_theme, R.id.ic_theme, "theme")
+        iconChip(R.id.chip_status, R.id.ic_status, "status")
+        iconChip(R.id.chip_ovl, R.id.ic_ovl, "ovl")
+        iconChip(R.id.chip_a11, R.id.ic_a11, "a11")
+        iconChip(R.id.chip_api, R.id.ic_api, "api")
+        iconChip(R.id.chip_tut, R.id.ic_tut, "tut")
+        iconChip(R.id.chip_aset, R.id.ic_aset, "aset")
+        iconChip(R.id.chip_hist, R.id.ic_hist, "hist")
+        iconChip(R.id.chip_use, R.id.ic_use, "use")
+        iconChip(R.id.chip_tools, R.id.ic_tools, "tools")
+
+        // 文本
+        val titles = intArrayOf(
+            R.id.tvTitle, R.id.tvThemeTitle, R.id.tvStatusTitle, R.id.tvToolsTitle,
+            R.id.tvUseTitle, R.id.tvOvlTitle, R.id.tvA11Title, R.id.tvApiTitle,
+            R.id.tvTutTitle, R.id.tvAsetTitle, R.id.tvHistTitle
         )
+        titles.forEach { findViewById<TextView>(it).setTextColor(pal.text) }
+        val subs = intArrayOf(
+            R.id.tvSubtitle, R.id.tvThemeSub, R.id.tvOvlSub, R.id.tvA11Sub, R.id.tvApiSub,
+            R.id.tvTutSub, R.id.tvAsetSub, R.id.tvHistSub, R.id.tvToolsLabelA, R.id.tvToolsLabelB,
+            R.id.tvUsage, R.id.tvDoodle1, R.id.tvDoodle2, R.id.tvSign
+        )
+        subs.forEach { findViewById<TextView>(it).setTextColor(pal.subText) }
+
+        // 箭头 / 分隔线 / 螺栓 / 螺母
+        val chevC = withAlpha(pal.subText, 78)
+        findViewById<ImageView>(R.id.chevTheme).setColorFilter(chevC)
+        tintTagged(findViewById(R.id.homeCol), "chev", chevC)
+        val divColor = Color.argb(46, 112, 150, 180)
+        for (id in intArrayOf(R.id.divStatus1, R.id.divStatus2, R.id.divTools1)) {
+            findViewById<View>(id).setBackgroundColor(divColor)
+        }
+        findViewById<ImageView>(R.id.ivBolt).setColorFilter(0xFFF4A66F.toInt())
+        val nutColor = if (light) blend(pal.subText, pal.text, 0.35f) else blend(0xFFFFFFFF.toInt(), pal.subText, 0.2f)
+        findViewById<ImageView>(R.id.btnAvatarEdit).setColorFilter(nutColor)
+
+        // 系统栏图标明暗随主题底色走
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = light
+            isAppearanceLightNavigationBars = light
+        }
     }
 
-    /** 主界面快捷主题条：点色球即换装（当前主题带描边高亮），撞色条背景 */
+    /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域），滚动内容用 inset 让位 */
+    @Suppress("DEPRECATION")
+    private fun setupEdgeToEdge() {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootMain)) { v, insets ->
+            val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, b.top, 0, b.bottom)
+            insets
+        }
+    }
+
+    // ---------------- 头像 ----------------
+
+    private fun refreshAvatar() {
+        val iv = findViewById<ImageView>(R.id.ivAvatar)
+        val f = Wallpaper.avatarFile(this)
+        val bmp = if (f.exists()) Wallpaper.decode(f.absolutePath, 256, 512) else null
+        iv.setImageBitmap(bmp ?: Wallpaper.defaultAvatar((56 * resources.displayMetrics.density).toInt()))
+    }
+
+    // ---------------- 快捷主题球 ----------------
+
     private fun bindQuickTheme() {
         val row = findViewById<LinearLayout>(R.id.quickThemeRow)
+        row.removeAllViews()
         val pal = ThemeEngine.current(this)
         val cur = pal.id
         val d = resources.displayMetrics.density
-        // 撞色条背景：用户独立选色 = 水浸渐变；未选则跟随主题平色
-        val barOverride = SettingsStore(this).barColorOverride()
-        val barBg = barOverride ?: pal.barBg
-        row.background = if (barOverride != null)
-            ThemeEngine.barGradient(barBg, 14f * d)
-        else
-            ThemeEngine.cardDrawable(barBg, 14f, d)
-        row.setPadding((10 * d).toInt(), (6 * d).toInt(), (10 * d).toInt(), (6 * d).toInt())
-        val size = (30 * d).toInt()
-        val margin = (8 * d).toInt()
+        val size = (40 * d).toInt()
+        val margin = (6 * d).toInt()
         ThemeEngine.palettes.forEach { p ->
-            val v = View(this)
+            val sel = p.id == cur
+            val v = TextView(this)
             v.layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = margin }
-            v.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(p.accent)
-                setStroke(
-                    if (p.id == cur) (4 * d).toInt() else 0,
-                    if (Color.luminance(barBg) > 0.5f) 0xFF777777.toInt() else 0xFFFFFFFF.toInt()
-                )
-            }
+            v.gravity = android.view.Gravity.CENTER
+            v.textSize = 13f
+            v.setTextColor(Color.WHITE)
+            v.text = if (sel) "✓" else ""
+            v.background = ballDrawable(p.accent, sel, d)
             v.setOnClickListener {
                 // 记住色球条滚动位置（recreate 后恢复，点右边的球不再跳回最左）
-                themeScrollX = (row.parent as? android.widget.HorizontalScrollView)?.scrollX ?: 0
+                themeScrollX = (row.parent as? HorizontalScrollView)?.scrollX ?: 0
                 ThemeEngine.save(this, p.id)
                 recreate()
             }
             row.addView(v)
         }
-        val hsv = row.parent as? android.widget.HorizontalScrollView
+        val hsv = row.parent as? HorizontalScrollView
         hsv?.post { hsv.scrollTo(themeScrollX, 0) }
     }
 
-    /** 小米权限设置图解：3 张步骤截图（辅助功能 → 已下载的应用 → 闪译悬浮球） */
+    /** 色球：未选 = 直径 28 的纯色圆；选中 = 白隔 + 亮色外环 + 对勾位（视觉约 40） */
+    private fun ballDrawable(accent: Int, selected: Boolean, d: Float): Drawable {
+        if (!selected) {
+            val g = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accent)
+            }
+            val ld = LayerDrawable(arrayOf<Drawable>(g))
+            val inset = (6 * d).toInt()
+            ld.setLayerInset(0, inset, inset, inset, inset)
+            return ld
+        }
+        val ring = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setStroke((2 * d).toInt().coerceAtLeast(1), blend(accent, 0xFFFFFFFF.toInt(), 0.45f))
+        }
+        val white = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+        }
+        val ball = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(accent)
+        }
+        val ld = LayerDrawable(arrayOf<Drawable>(ring, white, ball))
+        val r1 = (2 * d).toInt()
+        val r2 = (5.5f * d).toInt()
+        ld.setLayerInset(1, r1, r1, r1, r1)
+        ld.setLayerInset(2, r2, r2, r2, r2)
+        return ld
+    }
+
+    // ---------------- 状态刷新 ----------------
+
+    override fun onResume() {
+        super.onResume()
+        applyTheme()
+        refreshAvatar()
+
+        val overlayOk = Settings.canDrawOverlays(this)
+        setChip(findViewById(R.id.tvOvlChip), if (overlayOk) "已开启" else "未开启", overlayOk)
+
+        val a11yOk = isAccessibilityEnabled()
+        setChip(findViewById(R.id.tvA11Chip), if (a11yOk) "运行中" else "未开启", a11yOk)
+
+        val hasKey = !store.apiKey.isNullOrBlank()
+        setChip(findViewById(R.id.tvApiChip), if (hasKey) "已连接" else "未配置", hasKey)
+        findViewById<TextView>(R.id.tvApiSub).text =
+            if (hasKey) "模型：${store.model}" else "尚未配置，点击去设置"
+
+        val allOk = overlayOk && a11yOk && hasKey
+        val tvAll = findViewById<TextView>(R.id.tvStatusAll)
+        val dotColor = if (allOk) 0xFF3AB49B.toInt() else 0xFFD98F45.toInt()
+        tvAll.text = if (allOk) "所有服务正常运行" else "部分服务未就绪"
+        tvAll.setTextColor(dotColor)
+        findViewById<View>(R.id.ivStatusDot).background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(dotColor)
+        }
+    }
+
+    private fun setChip(tv: TextView, text: String, ok: Boolean) {
+        tv.text = text
+        val d = resources.displayMetrics.density
+        if (ok) {
+            tv.setTextColor(0xFF2BA98F.toInt())
+            tv.background = ThemeEngine.cardDrawable(Color.argb(31, 58, 180, 155), 999f, d)
+        } else {
+            tv.setTextColor(0xFFC0433A.toInt())
+            tv.background = ThemeEngine.cardDrawable(Color.argb(26, 198, 40, 40), 999f, d)
+        }
+    }
+
+    // ---------------- 小工具 ----------------
+
+    private fun withAlpha(color: Int, pct: Int): Int {
+        val a = pct.coerceIn(0, 100) * 255 / 100
+        return Color.argb(a, Color.red(color), Color.green(color), Color.blue(color))
+    }
+
+    private fun blend(a: Int, b: Int, t: Float): Int {
+        val tt = t.coerceIn(0f, 1f)
+        return Color.argb(
+            (Color.alpha(a) * (1 - tt) + Color.alpha(b) * tt).toInt(),
+            (Color.red(a) * (1 - tt) + Color.red(b) * tt).toInt(),
+            (Color.green(a) * (1 - tt) + Color.green(b) * tt).toInt(),
+            (Color.blue(a) * (1 - tt) + Color.blue(b) * tt).toInt()
+        )
+    }
+
+    private fun tintTagged(root: View, tag: String, color: Int) {
+        if (root is ViewGroup) {
+            for (i in 0 until root.childCount) tintTagged(root.getChildAt(i), tag, color)
+        }
+        if (root.tag == tag && root is ImageView) root.setColorFilter(color)
+    }
+
+    // ---------------- 小米权限图解（含防杀后台说明） ----------------
+
     private fun showPermissionTutorial() {
         val d = android.app.Dialog(this)
         val den = resources.displayMetrics.density
@@ -156,6 +380,15 @@ class MainActivity : AppCompatActivity() {
                 )
             })
         }
+        col.addView(android.widget.TextView(this).apply {
+            text = "小米/MIUI 防杀后台（一次性设置）：\n" +
+                    "1. 最近任务长按本应用卡片 → 锁定\n" +
+                    "2. 应用详情 → 省电策略 → 无限制\n" +
+                    "3. 应用详情 → 自启动 → 开启\n\n" +
+                    "日常无需打开本应用，点球即用。"
+            textSize = 12.5f
+            setPadding(0, (14 * den).toInt(), 0, 0)
+        })
         col.addView(android.widget.Button(this).apply {
             text = "关闭"
             setOnClickListener { d.dismiss() }
@@ -168,33 +401,6 @@ class MainActivity : AppCompatActivity() {
         d.show()
         val dm = resources.displayMetrics
         d.window?.setLayout((dm.widthPixels * 0.92f).toInt(), (dm.heightPixels * 0.88f).toInt())
-    }
-
-    override fun onResume() {
-        super.onResume()
-        applyTheme()   // 回到首页即刷新：设置里改完的壁纸/主题立即生效（不用重启、不用点色球）
-        val st = SettingsStore(this)
-
-        val overlayOk = Settings.canDrawOverlays(this)
-        tvOverlay.text = if (overlayOk) "✅ 悬浮窗权限已开启"
-        else "❌ 悬浮窗权限未开启（悬浮球显示的前提）"
-        tvOverlay.setTextColor(if (overlayOk) 0xFF2E7D32.toInt() else 0xFFC62828.toInt())
-
-        val a11yOk = isAccessibilityEnabled()
-        if (a11yOk) {
-            tvA11y.text = "✅ 无障碍服务运行中（悬浮球应常驻屏幕左侧）"
-            tvA11y.setTextColor(0xFF2E7D32.toInt())
-            btnA11y.text = "② 无障碍设置（正常时无需进入）"
-        } else {
-            tvA11y.text = "❌ 无障碍未开启（一次性设置，MIUI 会弹「危险」确认，放心允许）"
-            tvA11y.setTextColor(0xFFC62828.toInt())
-            btnA11y.text = "🚑 去开启无障碍（10 秒）"
-        }
-
-        val hasKey = !st.apiKey.isNullOrBlank()
-        tvApi.text = if (hasKey) "✅ 翻译接口已配置（模型：${st.model}）"
-        else "❌ 尚未配置翻译接口"
-        tvApi.setTextColor(if (hasKey) 0xFF2E7D32.toInt() else 0xFFC62828.toInt())
     }
 
     private fun requestNotificationPermission() {

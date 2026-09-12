@@ -231,6 +231,59 @@ object Wallpaper {
         return true
     }
 
+    // ---------- 首页头像 ----------
+
+    /** 头像成品文件（PNG） */
+    fun avatarFile(context: Context): File = File(context.filesDir, "avatar_crop")
+
+    /** 头像源图（导入的原始图，留作重裁用） */
+    fun avatarSrcFile(context: Context): File = File(context.filesDir, "avatar_src")
+
+    /** 导入头像：中心裁方 → 256×256 PNG 存盘 */
+    fun saveAvatar(context: Context, uri: Uri): Boolean {
+        return try {
+            val src = avatarSrcFile(context)
+            if (!importFrom(context, uri, src)) return false
+            val bmp = decode(src.absolutePath, 256, 512) ?: return false
+            val side = if (bmp.width < bmp.height) bmp.width else bmp.height
+            val x = (bmp.width - side) / 2
+            val y = (bmp.height - side) / 2
+            val sq = Bitmap.createBitmap(bmp, x, y, side, side)
+            val out = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+            val c = Canvas(out)
+            c.drawBitmap(sq, Rect(0, 0, side, side), Rect(0, 0, 256, 256), Paint(Paint.FILTER_BITMAP_FLAG))
+            val ok = try {
+                avatarFile(context).outputStream().use { os -> out.compress(Bitmap.CompressFormat.PNG, 100, os) }
+            } catch (_: Exception) {
+                false
+            }
+            out.recycle()
+            if (sq !== bmp) sq.recycle()
+            bmp.recycle()
+            ok
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /** 默认头像：浅空蓝底 + 白环 + 白点（与品牌球一致） */
+    fun defaultAvatar(sizePx: Int): Bitmap {
+        val size = sizePx.coerceAtLeast(48)
+        val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(b)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val f = size / 2f
+        p.color = 0xFF8EC9EE.toInt()
+        c.drawCircle(f, f, f, p)
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = size * 0.075f
+        p.color = Color.WHITE
+        c.drawCircle(f, f, size * 0.30f, p)
+        p.style = Paint.Style.FILL
+        c.drawCircle(size * 0.70f, size * 0.27f, size * 0.10f, p)
+        return b
+    }
+
     /**
      * 旧版单张壁纸 → 两槽位迁移（幂等）。
      * 旧图复制给两处作起点（默认中心适配），旧开关/浓度分别继承；之后各自独立。
