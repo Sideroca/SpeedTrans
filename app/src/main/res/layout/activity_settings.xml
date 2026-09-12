@@ -403,7 +403,7 @@
 
                 <RadioGroup
                     android:id="@+id/rgShapeRow2"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:orientation="horizontal">
@@ -987,9 +987,10 @@
                     android:padding="14dp">
 
                     <TextView
+                        android:id="@+id/tvContactBody"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash\n点一下复制"
+                        android:text="QQ：2093523014（邮箱同号）\n任何一个聪明的 ai 助手 ∠( ᐛ 」∠)_，尤其是 glm-5.3-flash 和 deepseek-v4.1-flash\n\n如果这个软件帮助了你，请打赏开发者\nhttps://ifdian.net/a/qq2093523014\n你的支持将帮助我们拿出更好、更美观的实用软件。\n软件代码全开源，以下是代码仓库地址 https://github.com/Sideroca?tab=repositories\n\n点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
 

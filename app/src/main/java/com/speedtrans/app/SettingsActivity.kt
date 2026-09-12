@@ -680,8 +680,10 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<LinearLayout>(R.id.cardContact).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("qq", "2093523014"))
-            toast("QQ 已复制：2093523014（邮箱同号）")
+            val body = findViewById<TextView>(R.id.tvContactBody).text.toString()
+                .replace("\n点一下复制", "")
+            cm.setPrimaryClip(ClipData.newPlainText("flash", body))
+            toast("已复制（含 QQ、打赏与仓库地址）")
         }
 
         findViewById<Button>(R.id.btnPinStudio).setOnClickListener {
@@ -1047,6 +1049,9 @@ class SettingsActivity : AppCompatActivity() {
     private fun showProps() {
         val pal = ThemeEngine.current(this)
         val den = resources.displayMetrics.density
+        val contentW = (resources.displayMetrics.widthPixels * 0.92f).toInt() - (40 * den).toInt()
+        val wpBtnW = ((contentW - (10 * den).toInt()) * 0.85f / 2f).toInt()
+        val wpBtnH = (42 * den).toInt()
         val dialog = android.app.Dialog(this)
         propDialog?.dismiss()
         propDialog = dialog
@@ -1092,16 +1097,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // ---- 设置页壁纸 ----
         col.addView(sectionLabel("设置页壁纸（5 个标签页共用）", 16))
-        val btnRowPage = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val btnRowPage = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val btnPickPage = Button(this).apply {
             text = "选择"
             isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
         }
         val btnClearPage = Button(this).apply {
             text = "清除"
             isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
                 .apply { marginStart = (10 * den).toInt() }
         }
         stylePrimary(btnPickPage, pal, den)
@@ -1158,16 +1163,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // ---- 主界面壁纸 ----
         col.addView(sectionLabel("主界面壁纸", 18))
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val btnPick = Button(this).apply {
             text = "选择"
             isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
         }
         val btnClear = Button(this).apply {
             text = "清除"
             isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
                 .apply { marginStart = (10 * den).toInt() }
         }
         stylePrimary(btnPick, pal, den)
@@ -1225,7 +1230,7 @@ class SettingsActivity : AppCompatActivity() {
         // ---- 首页显示 ----
         col.addView(sectionLabel("首页显示", 22))
         col.addView(
-            sliderRow("卡片浓度（首页）", 70, store.cardAlphaPct - 30, pal, den) { p ->
+            sliderRow("卡片浓度", 70, store.cardAlphaPct - 30, pal, den) { p ->
                 store.cardAlphaPct = p + 30
             }
         )
@@ -1318,7 +1323,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun fmtFor(name: String, p: Int): String = when (name) {
-        "卡片浓度（首页）" -> "${p + 30}%"
+        "卡片浓度" -> "${p + 30}%"
         "首页字号" -> "${p + 80}%"
         else -> "$p%"
     }
