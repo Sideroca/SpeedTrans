@@ -1266,7 +1266,7 @@ class SettingsActivity : AppCompatActivity() {
 
         col.background = ThemeEngine.cardDrawable(pal.card, 18f, den, blend(pal.bg, pal.accent, 0.12f))
         dialog.setContentView(android.widget.ScrollView(this).apply { addView(col) })
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         dialog.show()
         val dm = resources.displayMetrics
         // 定高面板（按真机实测：高≈屏高55%、宽≈屏宽92%）：多出来的内容藏在屏幕外，内部可滚动查看
