@@ -303,6 +303,19 @@
                         android:paddingBottom="7dp"
                         android:text="🏮 中国传统色"
                         android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/chipProps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:background="@drawable/card_bg"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:paddingTop="7dp"
+                        android:paddingBottom="7dp"
+                        android:text="属性设置"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -380,6 +393,14 @@
                         android:text="切角八边形" />
                 </RadioGroup>
 
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
                 <RadioGroup
                     android:id="@+id/rgShapeRow2"
                     android:layout_width="match_parent"
@@ -400,6 +421,41 @@
                         android:layout_marginStart="16dp"
                         android:text="长方形（竖）" />
                 </RadioGroup>
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical">
+
+                        <FrameLayout
+                            android:id="@+id/btnTuhun"
+                            android:layout_width="46dp"
+                            android:layout_height="46dp">
+
+                            <ImageView
+                                android:id="@+id/ivTuhunBall"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="吐魂球"
+                                android:src="@drawable/ball_tuhun" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/tvTuhunTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="吐魂"
+                            android:textSize="10.5sp" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <RadioGroup
                     android:id="@+id/rgSize"
@@ -450,49 +506,6 @@
                         android:layout_weight="1"
                         android:singleLine="true"
                         android:text="恢复到默认" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <FrameLayout
-                        android:id="@+id/btnTuhun"
-                        android:layout_width="64dp"
-                        android:layout_height="64dp">
-
-                        <ImageView
-                            android:id="@+id/ivTuhunBall"
-                            android:layout_width="54dp"
-                            android:layout_height="54dp"
-                            android:layout_gravity="center"
-                            android:contentDescription="吐魂球"
-                            android:src="@drawable/ball_tuhun" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tvTuhunTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="吐魂球"
-                            android:textSize="14sp" />
-
-                        <TextView
-                            android:id="@+id/tvTuhunSub"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="点圆球 = 使用内置吐魂图片球"
-                            android:textSize="12sp" />
-                    </LinearLayout>
                 </LinearLayout>
 
                 <TextView
@@ -939,119 +952,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="🎨 设置页皮肤"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="导航骨架固定，换的是配色、形状与氛围。「跟随主界面主题」= 22 套配色穿控制台骨架。"
-                    android:textSize="12sp" />
-
-                <LinearLayout
-                    android:id="@+id/skinRow"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:orientation="horizontal" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:text="🖼 页面壁纸"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="设置页与主界面各自一张：点「选图」后自动进入取景；两处互不影响。壁纸零交互，触摸全部落在 UI 上；译文面板不参与。"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="① 设置页壁纸（5 个标签页共用）"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnWallPagePick"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="8dp"
-                        android:textSize="11sp"
-                        android:text="选图/更换" />
-
-                    <Button
-                        android:id="@+id/btnWallPageClear"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="8dp"
-                        android:textSize="11sp"
-                        android:text="清除" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/swWallPage"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="启用（应用到设置页）" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="遮罩浓度"
-                        android:textSize="13sp" />
-
-                    <SeekBar
-                        android:id="@+id/sbWallPageDim"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="80"
-                        android:progress="50" />
-
-                    <TextView
-                        android:id="@+id/tvWallPageDimVal"
-                        android:layout_width="44dp"
-                        android:layout_height="wrap_content"
-                        android:gravity="end"
-                        android:text="50%"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
 
                 <TextView
                     android:layout_width="wrap_content"

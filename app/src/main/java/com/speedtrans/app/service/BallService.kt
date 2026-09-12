@@ -197,6 +197,8 @@ class BallService : AccessibilityService() {
             ImageView(this).apply {
                 if (resId != 0) setImageBitmap(BitmapFactory.decodeResource(resources, resId))
                 scaleType = ImageView.ScaleType.FIT_CENTER
+                // 白底垫片：随形状轮廓裁剪——圆形时被图形完全盖住；长方形/三角形等形状下轮廓可见
+                setBackgroundColor(0xFFFFFFFF.toInt())
                 clipToOutline = true
                 outlineProvider = object : android.view.ViewOutlineProvider() {
                     override fun getOutline(v: View, o: Outline) {

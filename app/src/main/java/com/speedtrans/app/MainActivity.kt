@@ -265,7 +265,10 @@ class MainActivity : AppCompatActivity() {
 
     /** 打开「主题色」专页（首页外观：主题球 + 主界面壁纸 + 首页显示） */
     private fun openThemePage() {
-        startActivity(Intent(this, ThemeActivity::class.java))
+        startActivity(
+            Intent(this, SettingsActivity::class.java)
+                .putExtra(SettingsActivity.EXTRA_TAB, "theme")
+        )
     }
 
     // ---------------- 头像 ----------------
