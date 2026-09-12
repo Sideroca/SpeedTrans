@@ -19,6 +19,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.theme.Palette
 import com.speedtrans.app.theme.ShellSkins
 import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.ui.Wallpaper
@@ -122,7 +123,7 @@ class ThemeActivity : AppCompatActivity() {
     }
 
     /** 全宽主题行：左三段色条（整套搭配预览）+ 右主题名，整行可点，原地换装 */
-    private fun themeRow(p: ThemeEngine.Palette, selected: Boolean): View {
+    private fun themeRow(p: Palette, selected: Boolean): View {
         val d = resources.displayMetrics.density
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -334,7 +335,7 @@ class ThemeActivity : AppCompatActivity() {
     }
 
     private fun sliderRow(
-        name: String, max: Int, start: Int, pal: ThemeEngine.Palette, den: Float, onSet: (Int) -> Unit
+        name: String, max: Int, start: Int, pal: Palette, den: Float, onSet: (Int) -> Unit
     ): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -431,14 +432,14 @@ class ThemeActivity : AppCompatActivity() {
         )
     }
 
-    private fun stylePrimary(b: Button, pal: ThemeEngine.Palette, d: Float) {
+    private fun stylePrimary(b: Button, pal: Palette, d: Float) {
         b.background = ThemeEngine.cardDrawable(pal.accent, 12f, d)
         b.setTextColor(
             if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         )
     }
 
-    private fun styleSecondary(b: Button, pal: ThemeEngine.Palette, d: Float) {
+    private fun styleSecondary(b: Button, pal: Palette, d: Float) {
         val dark = Color.luminance(pal.bg) < 0.4f
         val fill = blend(pal.bg, pal.accent, if (dark) 0.22f else 0.16f)
         val stroke = blend(fill, pal.accent, if (dark) 0.34f else 0.26f)
@@ -449,7 +450,7 @@ class ThemeActivity : AppCompatActivity() {
         )
     }
 
-    private fun styleSkinChip(chip: TextView, selected: Boolean, pal: ThemeEngine.Palette, d: Float) {
+    private fun styleSkinChip(chip: TextView, selected: Boolean, pal: Palette, d: Float) {
         if (selected) {
             chip.background = ThemeEngine.cardDrawable(pal.accent, 999f, d)
             chip.setTextColor(
