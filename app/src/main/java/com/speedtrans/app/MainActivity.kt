@@ -133,9 +133,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.rowHistory).setOnClickListener {
             startActivity(Intent(this, HistoryActivity::class.java))
         }
-        findViewById<View>(R.id.chevTheme).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+        findViewById<View>(R.id.chevTheme).setOnClickListener { openThemePage() }
+        findViewById<View>(R.id.headTheme).setOnClickListener { openThemePage() }
 
         bindQuickTheme()
 
@@ -166,7 +165,7 @@ class MainActivity : AppCompatActivity() {
         for (id in intArrayOf(R.id.cardTheme, R.id.cardStatus, R.id.cardTools, R.id.cardUsage)) {
             findViewById<View>(id).background = ThemeEngine.cardDrawable(cardColor, 13f, d)
         }
-        for (id in intArrayOf(R.id.groupA, R.id.groupB)) {
+        for (id in intArrayOf(R.id.groupA, R.id.groupB, R.id.statusPanel)) {
             findViewById<View>(id).background = ThemeEngine.cardDrawable(innerColor, 11f, d)
         }
 
@@ -262,6 +261,11 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(0, b.top, 0, b.bottom)
             insets
         }
+    }
+
+    /** 打开「主题色」专页（首页外观：主题球 + 主界面壁纸 + 首页显示） */
+    private fun openThemePage() {
+        startActivity(Intent(this, ThemeActivity::class.java))
     }
 
     // ---------------- 头像 ----------------

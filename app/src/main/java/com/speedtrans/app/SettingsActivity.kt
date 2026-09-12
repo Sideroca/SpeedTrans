@@ -755,10 +755,6 @@ class SettingsActivity : AppCompatActivity() {
         if (uri != null) importWallImage(uri, "page")
     }
 
-    private val pickWallMain = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) importWallImage(uri, "main")
-    }
-
     private val cropReturn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         refreshWallUi()
     }
@@ -803,8 +799,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun bindWallpaper() {
         findViewById<Button>(R.id.btnWallPagePick).setOnClickListener { pickWallPage.launch("image/*") }
         findViewById<Button>(R.id.btnWallPageClear).setOnClickListener { clearWall("page") }
-        findViewById<Button>(R.id.btnWallMainPick).setOnClickListener { pickWallMain.launch("image/*") }
-        findViewById<Button>(R.id.btnWallMainClear).setOnClickListener { clearWall("main") }
 
         findViewById<Switch>(R.id.swWallPage).setOnCheckedChangeListener { _, c ->
             if (suppressWallUi) return@setOnCheckedChangeListener
@@ -816,16 +810,6 @@ class SettingsActivity : AppCompatActivity() {
             store.setWpEnabled("page", c)
             applyWallpaper()
         }
-        findViewById<Switch>(R.id.swWallMain).setOnCheckedChangeListener { _, c ->
-            if (suppressWallUi) return@setOnCheckedChangeListener
-            if (c && store.wpCrop("main").isEmpty()) {
-                toast("先选一张图再启用")
-                findViewById<Switch>(R.id.swWallMain).isChecked = false
-                return@setOnCheckedChangeListener
-            }
-            store.setWpEnabled("main", c)
-        }
-
         findViewById<SeekBar>(R.id.sbWallPageDim).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
                 findViewById<TextView>(R.id.tvWallPageDimVal).text = "$p%"
@@ -838,66 +822,6 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(s: SeekBar?) {}
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
-        findViewById<SeekBar>(R.id.sbWallMainDim).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.tvWallMainDimVal).text = "$p%"
-                if (fromUser && !suppressWallUi) {
-                    store.setWpDim("main", p)
-                }
-            }
-
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
-
-        findViewById<SeekBar>(R.id.sbCardAlpha).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.tvCardAlphaVal).text = "${p + 30}%"
-                if (fromUser && !suppressWallUi) {
-                    store.cardAlphaPct = p + 30
-                }
-            }
-
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
-
-        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
-                if (fromUser && !suppressWallUi) {
-                    store.homeFontPct = p + 80
-                }
-            }
-
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
-
-        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
-                if (fromUser && !suppressWallUi) {
-                    store.homeFontPct = p + 80
-                }
-            }
-
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
-
-        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
-                if (fromUser && !suppressWallUi) {
-                    store.homeFontPct = p + 80
-                }
-            }
-
-            override fun onStartTrackingTouch(s: SeekBar?) {}
-            override fun onStopTrackingTouch(s: SeekBar?) {}
-        })
-
         refreshWallUi()
     }
 
@@ -905,19 +829,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun refreshWallUi() {
         suppressWallUi = true
         findViewById<Switch>(R.id.swWallPage).isChecked = store.wpEnabled("page")
-        findViewById<Switch>(R.id.swWallMain).isChecked = store.wpEnabled("main")
         findViewById<SeekBar>(R.id.sbWallPageDim).progress = store.wpDim("page", 50)
         findViewById<TextView>(R.id.tvWallPageDimVal).text = "${store.wpDim("page", 50)}%"
-        findViewById<SeekBar>(R.id.sbWallMainDim).progress = store.wpDim("main", 50)
-        findViewById<TextView>(R.id.tvWallMainDimVal).text = "${store.wpDim("main", 50)}%"
-        findViewById<SeekBar>(R.id.sbCardAlpha).progress = store.cardAlphaPct - 30
-        findViewById<TextView>(R.id.tvCardAlphaVal).text = "${store.cardAlphaPct}%"
-        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
-        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
-        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
-        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
-        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
-        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
         suppressWallUi = false
         applyWallpaper()
     }

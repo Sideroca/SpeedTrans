@@ -109,7 +109,9 @@
                 android:id="@+id/cardTheme"
                 style="@style/HomeCard">
 
-                <LinearLayout style="@style/HomeCardHead">
+                <LinearLayout
+                    android:id="@+id/headTheme"
+                    style="@style/HomeCardHead">
 
                     <FrameLayout
                         android:id="@+id/chip_theme"
@@ -207,6 +209,15 @@
                         android:layout_height="8dp"
                         android:layout_marginStart="5dp" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/statusPanel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp">
 
                 <!-- 行1：悬浮窗权限（点击 = 去开启悬浮窗） -->
                 <LinearLayout
@@ -356,6 +367,7 @@
                         android:importantForAccessibility="no"
                         android:src="@drawable/ic_home_chev"
                         android:tag="chev" />
+                </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 

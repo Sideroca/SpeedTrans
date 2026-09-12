@@ -111,5 +111,8 @@
             android:name=".HistoryActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ThemeActivity"
+            android:exported="false" />
     </application>
 </manifest>
