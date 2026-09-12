@@ -224,12 +224,12 @@ class ThemeActivity : AppCompatActivity() {
         val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val btnPick = Button(this).apply {
             text = "选择"
-            singleLine = true
+            isSingleLine = true
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         val btnClear = Button(this).apply {
             text = "清除"
-            singleLine = true
+            isSingleLine = true
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { marginStart = (10 * den).toInt() }
         }
