@@ -211,6 +211,11 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("card_alpha", 82).coerceIn(30, 100)
         set(v) = sp.edit().putInt("card_alpha", v.coerceIn(30, 100)).apply()
 
+    /** 首页字号缩放（80~140，默认 100；作用到首页文字，大标题除外；与系统字体缩放叠加） */
+    var homeFontPct: Int
+        get() = sp.getInt("home_font_pct", 100).coerceIn(80, 140)
+        set(v) = sp.edit().putInt("home_font_pct", v.coerceIn(80, 140)).apply()
+
     // 旧版单张壁纸字段（仅迁移逻辑读取；新代码勿用）
     var wallpaperPath: String
         get() = sp.getString("wallpaper_path", "")!!

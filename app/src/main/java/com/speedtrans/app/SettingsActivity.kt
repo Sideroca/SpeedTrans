@@ -150,8 +150,13 @@ class SettingsActivity : AppCompatActivity() {
         ShellSkins.applyShell(
             findViewById(R.id.rootSettings), skin,
             cardIds = setOf(R.id.tvUsage),
-            subIds = setOf(R.id.tvProviderNote)
+            subIds = setOf(R.id.tvProviderNote, R.id.tvTuhunSub)
         )
+        findViewById<View>(R.id.btnTuhun).background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(skin.panelBg)
+            setStroke((1 * resources.displayMetrics.density).toInt(), skin.stroke)
+        }
         findViewById<View>(R.id.cardContact).background =
             ShellSkins.cut(skin, resources.displayMetrics.density)
         ShellSkins.bindFocusGlow(
@@ -392,9 +397,12 @@ class SettingsActivity : AppCompatActivity() {
                 ?: return@setOnItemClickListener
             val p = Providers.all.firstOrNull { it.label == label }
                 ?: return@setOnItemClickListener
-            // 记住旧服务商的钥匙，再换上新服务商的钥匙
+            // 记住旧服务商的钥匙；换服务商后清空钥匙框（旧家钥匙不随行；新家若存过钥匙，右侧有「点此填入」提示）
             Providers.match(etUrl.text.toString())?.id?.let { old ->
-                if (old != p.id) store.setProviderKey(old, etKey.text.toString())
+                if (old != p.id) {
+                    store.setProviderKey(old, etKey.text.toString())
+                    etKey.setText("")
+                }
             }
             if (p.url.isNotEmpty()) etUrl.setText(p.url)
             if (p.models.isNotEmpty()) etModel.setText(p.models.first())
@@ -427,7 +435,12 @@ class SettingsActivity : AppCompatActivity() {
         })
 
         val initP = Providers.match(store.baseUrl)
-        acProvider.setText(initP?.label ?: "自定义", false)
+        val showProvider = when {
+            initP != null -> initP.label
+            store.baseUrl.isNotEmpty() || store.apiKey.isNotEmpty() -> "自定义"
+            else -> ""
+        }
+        acProvider.setText(showProvider, false)
         tvNote.text = initP?.note ?: ""
         etUrl.setText(store.baseUrl)
         etKey.setText(store.apiKey)
@@ -849,6 +862,42 @@ class SettingsActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
 
+        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
+                if (fromUser && !suppressWallUi) {
+                    store.homeFontPct = p + 80
+                }
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
+                if (fromUser && !suppressWallUi) {
+                    store.homeFontPct = p + 80
+                }
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        findViewById<SeekBar>(R.id.sbHomeFont).setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
+                findViewById<TextView>(R.id.tvHomeFontVal).text = "${p + 80}%"
+                if (fromUser && !suppressWallUi) {
+                    store.homeFontPct = p + 80
+                }
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
         refreshWallUi()
     }
 
@@ -863,6 +912,12 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvWallMainDimVal).text = "${store.wpDim("main", 50)}%"
         findViewById<SeekBar>(R.id.sbCardAlpha).progress = store.cardAlphaPct - 30
         findViewById<TextView>(R.id.tvCardAlphaVal).text = "${store.cardAlphaPct}%"
+        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
+        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
+        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
+        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
+        findViewById<SeekBar>(R.id.sbHomeFont).progress = store.homeFontPct - 80
+        findViewById<TextView>(R.id.tvHomeFontVal).text = "${store.homeFontPct}%"
         suppressWallUi = false
         applyWallpaper()
     }
@@ -1004,7 +1059,7 @@ class SettingsActivity : AppCompatActivity() {
             toast("已恢复到默认")
         }
         // 内置图片球：吐魂（资源内置，零文件依赖）
-        findViewById<Button>(R.id.btnTuhun).setOnClickListener {
+        findViewById<View>(R.id.btnTuhun).setOnClickListener {
             store.ballImagePath = "res:ball_tuhun"
             BallService.instance?.refreshBall()
             toast("已切换为「吐魂」图片球")

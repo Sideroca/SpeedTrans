@@ -182,6 +182,14 @@ class ResultOverlay(private val context: Context) {
         lp.gravity = Gravity.BOTTOM or Gravity.START
         lp.x = 0
         lp.y = 0
+        // 横屏：允许铺进左侧挖孔区域，面板才能贴到屏幕最左边
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            lp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else if (android.os.Build.VERSION.SDK_INT >= 28) {
+            lp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
 
         box.isFocusable = true
         box.isFocusableInTouchMode = true
@@ -225,6 +233,14 @@ class ResultOverlay(private val context: Context) {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             android.graphics.PixelFormat.TRANSLUCENT
         )
+        // 捕捉层同样覆盖挖孔区：横屏左边缘的空白带也能正常接住触摸
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            clp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else if (android.os.Build.VERSION.SDK_INT >= 28) {
+            clp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         wm?.addView(catchView, clp)
         catcher = catchView
 

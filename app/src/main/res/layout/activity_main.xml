@@ -55,8 +55,8 @@
 
                         <ImageView
                             android:id="@+id/ivBolt"
-                            android:layout_width="24dp"
-                            android:layout_height="28dp"
+                            android:layout_width="27dp"
+                            android:layout_height="27dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_home_bolt" />
 
@@ -572,54 +572,14 @@
                         android:text="使用方法" />
                 </LinearLayout>
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvUsage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/tvUsage"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:layout_weight="1"
-                        android:lineSpacingExtra="3dp"
-                        android:text="· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译&#10;· 翻译中再点击 = 忽略（一次只跑第一次的反应）&#10;· 内容没变时点击 = 秒回，不发请求&#10;· 持续增长的内容（如模型思考）= 自动增量翻译"
-                        android:textSize="11.5sp" />
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:layout_marginStart="8dp"
-                        android:gravity="end"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tvDoodle1"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="让阅读"
-                            android:textSize="10sp"
-                            android:textStyle="italic" />
-
-                        <TextView
-                            android:id="@+id/tvDoodle2"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="没有语言的界限"
-                            android:textSize="10sp"
-                            android:textStyle="italic" />
-
-                        <TextView
-                            android:id="@+id/tvGhost"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="end"
-                            android:text="👻"
-                            android:textSize="15sp" />
-                    </LinearLayout>
-                </LinearLayout>
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译&#10;· 翻译中再点击 = 忽略（一次只跑第一次的反应）&#10;· 内容没变时点击 = 秒回，不发请求&#10;· 持续增长的内容（如模型思考）= 自动增量翻译"
+                    android:textSize="11.5sp" />
             </LinearLayout>
 
             <!-- 签名（保留） -->

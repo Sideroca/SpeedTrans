@@ -400,6 +400,17 @@ object ThemeEngine {
         return palettes.firstOrNull { it.id == id } ?: palettes[0]
     }
 
+    /** 跟随主题的页面底色：在 bg 上轻染 accent（让不同主题的页面氛围一眼可辨） */
+    fun backdrop(pal: Palette): Int {
+        val t = if (pal.isDark) 0.15f else 0.10f
+        val b = pal.bg
+        val f = pal.accent
+        val r = ((b shr 16 and 0xFF) * (1 - t) + (f shr 16 and 0xFF) * t).toInt()
+        val g = ((b shr 8 and 0xFF) * (1 - t) + (f shr 8 and 0xFF) * t).toInt()
+        val bl = ((b and 0xFF) * (1 - t) + (f and 0xFF) * t).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+    }
+
     fun save(context: Context, id: String) {
         context.getSharedPreferences("settings", Context.MODE_PRIVATE)
             .edit().putString(KEY, id).apply()

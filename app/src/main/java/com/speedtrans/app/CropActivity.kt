@@ -32,6 +32,7 @@ class CropActivity : AppCompatActivity() {
         slot = when (intent.getStringExtra(EXTRA_SLOT)) {
             "main" -> "main"
             "icon" -> "icon"
+            "avatar" -> "avatar"
             else -> "page"
         }
         store = SettingsStore(this)
@@ -40,9 +41,14 @@ class CropActivity : AppCompatActivity() {
         val sb = findViewById<SeekBar>(R.id.sbZoom)
         val tvz = findViewById<TextView>(R.id.tvZoomVal)
         val isIcon = slot == "icon"
+        val isAvatar = slot == "avatar"
 
-        val orig = if (isIcon) Wallpaper.iconOrigFile(this) else Wallpaper.origFile(this, slot)
-        if (!orig.exists() || (!isIcon && store.wpOrig(slot).isEmpty())) {
+        val orig = when (slot) {
+            "icon" -> Wallpaper.iconOrigFile(this)
+            "avatar" -> Wallpaper.avatarSrcFile(this)
+            else -> Wallpaper.origFile(this, slot)
+        }
+        if (!orig.exists() || (!isIcon && !isAvatar && store.wpOrig(slot).isEmpty())) {
             Toast.makeText(this, "请先为这一处选择一张图片", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -50,6 +56,10 @@ class CropActivity : AppCompatActivity() {
         if (isIcon) {
             crop.fixedFrameWH = 1f
             findViewById<TextView>(R.id.tvCropHint).text = "拖动 / 双指缩放 · 选照片的哪一块（成品为浅空蓝底 + 照片）"
+        }
+        if (isAvatar) {
+            crop.fixedFrameWH = 1f
+            findViewById<TextView>(R.id.tvCropHint).text = "拖动 / 双指缩放 · 选照片的哪一块（圆形显示）"
         }
         val bmp = Wallpaper.decode(
             orig.absolutePath,
@@ -62,7 +72,7 @@ class CropActivity : AppCompatActivity() {
             return
         }
         crop.setBitmap(bmp)
-        if (!isIcon) {
+        if (!isIcon && !isAvatar) {
             val f = store.wpFrame(slot)
             crop.setState(f[0], f[1], f[2])
         }
@@ -111,6 +121,18 @@ class CropActivity : AppCompatActivity() {
             if (ok) {
                 setResult(android.app.Activity.RESULT_OK)
                 Toast.makeText(this, "取景完成，去创建桌面入口吧", Toast.LENGTH_SHORT).show()
+                finish()
+            } else {
+                Toast.makeText(this, "生成失败，请重试", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        if (slot == "avatar") {
+            val out = Wallpaper.avatarFile(this)
+            val ok = Wallpaper.bakeAvatar(this, nm[0], nm[1], nm[2], out)
+            if (ok) {
+                setResult(android.app.Activity.RESULT_OK)
+                Toast.makeText(this, "头像取景完成", Toast.LENGTH_SHORT).show()
                 finish()
             } else {
                 Toast.makeText(this, "生成失败，请重试", Toast.LENGTH_SHORT).show()

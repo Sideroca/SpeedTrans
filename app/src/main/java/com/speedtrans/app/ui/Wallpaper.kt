@@ -239,6 +239,10 @@ object Wallpaper {
     /** 头像源图（导入的原始图，留作重裁用） */
     fun avatarSrcFile(context: Context): File = File(context.filesDir, "avatar_src")
 
+    /** 头像取景烤图：按方形取景参数输出 256×256（圆形显示由 UI 裁剪） */
+    fun bakeAvatar(context: Context, nx: Float, ny: Float, nz: Float, out: File): Boolean =
+        bake(context, avatarSrcFile(context).absolutePath, nx, ny, nz, out, 256, 256)
+
     /** 导入头像：中心裁方 → 256×256 PNG 存盘 */
     fun saveAvatar(context: Context, uri: Uri): Boolean {
         return try {

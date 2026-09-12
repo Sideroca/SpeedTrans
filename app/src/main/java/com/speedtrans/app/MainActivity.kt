@@ -51,14 +51,25 @@ class MainActivity : AppCompatActivity() {
 
     private val pickAvatar = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            if (Wallpaper.saveAvatar(this, uri)) {
-                refreshAvatar()
-                Toast.makeText(this, "头像已更新（长按头像可恢复默认球）", Toast.LENGTH_SHORT).show()
+            val imported = Wallpaper.importFrom(this, uri, Wallpaper.avatarSrcFile(this))
+            if (!imported) {
+                Toast.makeText(this, "图片导入失败，换一张试试", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "头像导入失败，换一张试试", Toast.LENGTH_SHORT).show()
+                avatarCropReturn.launch(
+                    Intent(this, CropActivity::class.java).putExtra(CropActivity.EXTRA_SLOT, "avatar")
+                )
             }
         }
     }
+
+    /** 头像取景返回：成功后刷新圆形头像 */
+    private val avatarCropReturn =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+            if (r.resultCode == android.app.Activity.RESULT_OK) {
+                refreshAvatar()
+                Toast.makeText(this, "头像已更新（长按头像可恢复默认球）", Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +78,21 @@ class MainActivity : AppCompatActivity() {
         store = SettingsStore(this)
 
         Wallpaper.ensureMigrated(this)
+
+        // 闪电随标题字号自适应：按“与闪译等高略高”的比例换算（系统大字号下也不掉队）
+        run {
+            val tvTitle = findViewById<TextView>(R.id.tvTitle)
+            val ivBolt = findViewById<ImageView>(R.id.ivBolt)
+            val dm = resources.displayMetrics
+            val side = (tvTitle.paint.textSize * 1.28f).toInt()
+                .coerceIn((24 * dm.density).toInt(), (48 * dm.density).toInt())
+            val lp = ivBolt.layoutParams
+            if (lp.width != side || lp.height != side) {
+                lp.width = side
+                lp.height = side
+                ivBolt.layoutParams = lp
+            }
+        }
 
         // 头像：圆形裁剪显示 + 螺母换头像 + 长按恢复默认
         val ivAvatar = findViewById<ImageView>(R.id.ivAvatar)
@@ -126,7 +152,9 @@ class MainActivity : AppCompatActivity() {
         val alpha = store.cardAlphaPct
         val light = Color.luminance(pal.bg) > 0.5f
 
-        findViewById<View>(R.id.rootMainHost).setBackgroundColor(pal.bg)
+        applyHomeFont()
+
+        findViewById<View>(R.id.rootMainHost).setBackgroundColor(ThemeEngine.backdrop(pal))
         Wallpaper.applySlot(
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
             store.wpCrop("main"), store.wpDim("main", 50), store.wpEnabled("main"), pal.bg
@@ -178,7 +206,7 @@ class MainActivity : AppCompatActivity() {
         val subs = intArrayOf(
             R.id.tvSubtitle, R.id.tvThemeSub, R.id.tvOvlSub, R.id.tvA11Sub, R.id.tvApiSub,
             R.id.tvTutSub, R.id.tvAsetSub, R.id.tvHistSub, R.id.tvToolsLabelA, R.id.tvToolsLabelB,
-            R.id.tvUsage, R.id.tvDoodle1, R.id.tvDoodle2, R.id.tvSign
+            R.id.tvUsage, R.id.tvSign
         )
         subs.forEach { findViewById<TextView>(it).setTextColor(pal.subText) }
 
@@ -198,6 +226,28 @@ class MainActivity : AppCompatActivity() {
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = light
             isAppearanceLightNavigationBars = light
+        }
+    }
+
+    /** 首页字号缩放：80~140% 作用到首页全部文字（大标题"闪译"豁免；闪电跟随标题、也不受影响） */
+    private fun applyHomeFont() {
+        val scale = store.homeFontPct / 100f
+        val bases = arrayOf(
+            R.id.tvSubtitle to 11.5f,
+            R.id.tvThemeTitle to 15f, R.id.tvThemeSub to 10.5f,
+            R.id.tvStatusTitle to 15f, R.id.tvStatusAll to 10.5f,
+            R.id.tvOvlTitle to 12.5f, R.id.tvOvlSub to 10.5f, R.id.tvOvlChip to 10.5f,
+            R.id.tvA11Title to 12.5f, R.id.tvA11Sub to 10.5f, R.id.tvA11Chip to 10.5f,
+            R.id.tvApiTitle to 12.5f, R.id.tvApiSub to 10.5f, R.id.tvApiChip to 10.5f,
+            R.id.tvToolsTitle to 15f, R.id.tvToolsLabelA to 11f, R.id.tvToolsLabelB to 11f,
+            R.id.tvTutTitle to 12.5f, R.id.tvTutSub to 10.5f,
+            R.id.tvAsetTitle to 12.5f, R.id.tvAsetSub to 10.5f,
+            R.id.tvHistTitle to 12.5f, R.id.tvHistSub to 10.5f,
+            R.id.tvUseTitle to 15f, R.id.tvUsage to 11.5f, R.id.tvSign to 10.5f
+        )
+        for ((id, base) in bases) {
+            findViewById<android.widget.TextView>(id)
+                .setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, base * scale)
         }
     }
 

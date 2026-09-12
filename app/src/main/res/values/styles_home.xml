@@ -16,6 +16,7 @@
     <style name="HomeCardHead">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">4dp</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:orientation">horizontal</item>
     </style>
@@ -23,7 +24,7 @@
     <style name="HomeCardTitle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">15sp</item>
     </style>
 
     <style name="HomeChipIcon">
@@ -49,7 +50,7 @@
     <style name="HomeRowTitle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textSize">11.5sp</item>
+        <item name="android:textSize">12.5sp</item>
     </style>
 
     <style name="HomeRowSub">

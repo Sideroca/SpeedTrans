@@ -72,7 +72,7 @@ object ShellSkins {
         else blend(pal.bg, if (d) 0xFFFFFFFF.toInt() else 0xFF000000.toInt(), 0.12f)
         return ShellSkin(
             "follow_theme", "跟随主界面主题",
-            bg = pal.bg,
+            bg = ThemeEngine.backdrop(pal),
             panelBg = pal.card,
             stroke = strokeFallback,
             accent = pal.accent,
@@ -195,7 +195,7 @@ object ShellSkins {
                 } else if (root.id == R.id.btnSave) {
                     root.background = CutCornerDrawable(Color.TRANSPARENT, skin.cornerDp * d, skin.accentStrong, d)
                     root.setTextColor(skin.accentStrong)
-                } else if (root.id == R.id.btnIconRestore) {
+                } else if (root.id == R.id.btnIconRestore || root.id == R.id.btnClearImage) {
                     // 次级按钮（还原成默认图标）：页面底浅染主色 + 完整软描边
                     // 配方：底 = blend(页面底, accent, 深22%/浅16%)；描边 = blend(底, accent, 深34%/浅26%)
                     //       字 = accent 加深30%（面色偏深时反转为提亮25%）
