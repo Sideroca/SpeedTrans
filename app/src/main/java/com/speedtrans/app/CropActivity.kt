@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.speedtrans.app.store.SettingsStore
@@ -60,6 +61,26 @@ class CropActivity : AppCompatActivity() {
         if (isAvatar) {
             crop.fixedFrameWH = 1f
             findViewById<TextView>(R.id.tvCropHint).text = "拖动 / 双指缩放 · 选照片的哪一块（圆形显示）"
+        }
+        if (slot == "main") {
+            // 首页映射：框内叠加首页样式剪影 + 遮罩浓度暗度（静止锚；透明度 0~100% 可调）
+            findViewById<TextView>(R.id.tvCropHint).text =
+                "拖动 / 双指缩放 · 把想显示的部分放进框里（框内为首页样式预览）"
+            crop.setMapping(true, 0.6f, store.wpDim("main", 50))
+            findViewById<View>(R.id.mapRow).visibility = View.VISIBLE
+            val sbMap = findViewById<SeekBar>(R.id.sbMap)
+            val tvMap = findViewById<TextView>(R.id.tvMapVal)
+            sbMap.progress = 60
+            tvMap.text = "60%"
+            sbMap.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    crop.setMapping(true, p / 100f, store.wpDim("main", 50))
+                    tvMap.text = "$p%"
+                }
+
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
         }
         val bmp = Wallpaper.decode(
             orig.absolutePath,

@@ -125,7 +125,6 @@ class SettingsActivity : AppCompatActivity() {
         const val EXTRA_TAB = "tab"
     }
 
-    private var propDialog: android.app.Dialog? = null
 
     private val cuffItems = mutableListOf<CuffItem>()
 
@@ -261,6 +260,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshWallUi()
+        if (themeCatProps) selectThemeCategory()
         if (currentSkin?.beam == true) findViewById<BeamView>(R.id.fxBeam).start()
     }
 
@@ -272,13 +272,20 @@ class SettingsActivity : AppCompatActivity() {
     // ---------- 主题选择：分类 + 整套配色预览卡 ----------
 
     private fun bindThemePicker() {
-        findViewById<TextView>(R.id.chipModern).setOnClickListener { themeCatModern = true; selectThemeCategory() }
-        findViewById<TextView>(R.id.chipChinese).setOnClickListener { themeCatModern = false; selectThemeCategory() }
-        findViewById<TextView>(R.id.chipProps).setOnClickListener { showProps() }
+        findViewById<TextView>(R.id.chipModern).setOnClickListener {
+            themeCatProps = false; themeCatModern = true; selectThemeCategory()
+        }
+        findViewById<TextView>(R.id.chipChinese).setOnClickListener {
+            themeCatProps = false; themeCatModern = false; selectThemeCategory()
+        }
+        findViewById<TextView>(R.id.chipProps).setOnClickListener {
+            themeCatProps = true; selectThemeCategory()
+        }
         selectThemeCategory()
     }
 
     private var themeCatModern = true
+    private var themeCatProps = false
 
     /** 主题分类选择器（主题变更后原地重画，不 recreate 不跳页） */
     private fun selectThemeCategory() {
@@ -298,12 +305,186 @@ class SettingsActivity : AppCompatActivity() {
             } else pal.text)
             chip.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
-        style(chipModern, themeCatModern)
-        style(chipChinese, !themeCatModern)
-        style(findViewById(R.id.chipProps), false)
+        style(chipModern, themeCatModern && !themeCatProps)
+        style(chipChinese, !themeCatModern && !themeCatProps)
+        style(findViewById(R.id.chipProps), themeCatProps)
 
-        cardRow.removeAllViews()
-        list.forEach { p -> cardRow.addView(themeRow(p, p.id == pal.id)) }
+        val propsRow = findViewById<LinearLayout>(R.id.themePropsRow)
+        if (themeCatProps) {
+            cardRow.visibility = View.GONE
+            propsRow.visibility = View.VISIBLE
+            buildPropsPage()
+        } else {
+            propsRow.visibility = View.GONE
+            cardRow.visibility = View.VISIBLE
+            cardRow.removeAllViews()
+            list.forEach { p -> cardRow.addView(themeRow(p, p.id == pal.id)) }
+        }
+    }
+
+    /** 整页版「属性设置」：首页壁纸 → 卡片浓度 → 首页字号 → 设置页壁纸 → 设置页皮肤 */
+    private fun buildPropsPage() {
+        val pal = ThemeEngine.current(this)
+        val den = resources.displayMetrics.density
+        val box = findViewById<LinearLayout>(R.id.themePropsRow)
+        box.removeAllViews()
+        box.background = ThemeEngine.cardDrawable(pal.card, 18f, den, blend(pal.bg, pal.accent, 0.12f))
+        box.setPadding((16 * den).toInt(), (12 * den).toInt(), (16 * den).toInt(), (16 * den).toInt())
+
+        val contentW = (resources.displayMetrics.widthPixels * 0.92f).toInt() - (40 * den).toInt()
+        val wpBtnW = ((contentW - (10 * den).toInt()) * 0.85f / 2f).toInt()
+        val wpBtnH = (42 * den).toInt()
+
+        fun gap(dp: Int) {
+            box.addView(android.widget.Space(this).apply {
+                layoutParams = LinearLayout.LayoutParams(1, (dp * den).toInt())
+            })
+        }
+        fun sectionLabel(t: String) = TextView(this).apply {
+            text = t
+            textSize = 15f
+            setTextColor(pal.text)
+            setPadding(0, 0, 0, (10 * den).toInt())
+        }
+        fun hint(t: String) = TextView(this).apply {
+            text = t
+            textSize = 12f
+            setTextColor(pal.subText)
+            setPadding(0, 0, 0, (12 * den).toInt())
+        }
+        fun buttonPair(pick: Button, clear: Button): LinearLayout {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            stylePrimary(pick, pal, den)
+            styleSecondary(clear, pal, den)
+            row.addView(pick)
+            row.addView(clear)
+            return row
+        }
+        fun switchRow(label: String, sw: Switch): LinearLayout {
+            val r = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, (8 * den).toInt(), 0, (4 * den).toInt())
+            }
+            r.addView(TextView(this).apply {
+                text = label
+                textSize = 13f
+                setTextColor(pal.text)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            r.addView(sw)
+            return r
+        }
+
+        // ---------- ① 首页壁纸 ----------
+        box.addView(sectionLabel("首页壁纸"))
+        val pickMain = Button(this).apply {
+            text = "选择"; isSingleLine = true
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
+        }
+        val clearMain = Button(this).apply {
+            text = "清除"; isSingleLine = true
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH).apply { marginStart = (10 * den).toInt() }
+        }
+        box.addView(buttonPair(pickMain, clearMain))
+        val swMain = Switch(this).apply {
+            setTextColor(pal.text)
+            buttonTintList = android.content.res.ColorStateList.valueOf(pal.accent)
+            isChecked = store.wpEnabled("main")
+        }
+        var guardMain = false
+        swMain.setOnCheckedChangeListener { _, c ->
+            if (guardMain) return@setOnCheckedChangeListener
+            if (c && store.wpCrop("main").isEmpty()) {
+                toast("先选一张图再启用")
+                guardMain = true; swMain.isChecked = false; guardMain = false
+                return@setOnCheckedChangeListener
+            }
+            store.setWpEnabled("main", c)
+        }
+        box.addView(switchRow("启用（应用到首页）", swMain))
+        box.addView(sliderRow("遮罩浓度", 80, store.wpDim("main", 50), pal, den) { p -> store.setWpDim("main", p) })
+        pickMain.setOnClickListener { pickWallMain.launch("image/*") }
+        clearMain.setOnClickListener {
+            clearWall("main")
+            guardMain = true; swMain.isChecked = false; guardMain = false
+        }
+
+        // ---------- ② 卡片浓度 ----------
+        gap(19)
+        box.addView(sliderRow("卡片浓度", 70, store.cardAlphaPct - 30, pal, den) { p -> store.cardAlphaPct = p + 30 })
+
+        // ---------- ③ 首页字号 ----------
+        gap(15)
+        box.addView(sliderRow("首页字号", 60, store.homeFontPct - 80, pal, den) { p -> store.homeFontPct = p + 80 })
+
+        // ---------- ④ 设置页壁纸 ----------
+        gap(19)
+        box.addView(sectionLabel("设置页壁纸（5 个标签页共用）"))
+        val pickPage = Button(this).apply {
+            text = "选择"; isSingleLine = true
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
+        }
+        val clearPage = Button(this).apply {
+            text = "清除"; isSingleLine = true
+            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH).apply { marginStart = (10 * den).toInt() }
+        }
+        box.addView(buttonPair(pickPage, clearPage))
+        val swPage = Switch(this).apply {
+            setTextColor(pal.text)
+            buttonTintList = android.content.res.ColorStateList.valueOf(pal.accent)
+            isChecked = store.wpEnabled("page")
+        }
+        var guardPage = false
+        swPage.setOnCheckedChangeListener { _, c ->
+            if (guardPage) return@setOnCheckedChangeListener
+            if (c && store.wpCrop("page").isEmpty()) {
+                toast("先选一张图再启用")
+                guardPage = true; swPage.isChecked = false; guardPage = false
+                return@setOnCheckedChangeListener
+            }
+            store.setWpEnabled("page", c)
+            applyWallpaper()
+        }
+        box.addView(switchRow("启用（应用到设置页）", swPage))
+        box.addView(sliderRow("遮罩浓度", 80, store.wpDim("page", 50), pal, den) { p ->
+            store.setWpDim("page", p)
+            applyWallpaper()
+        })
+        pickPage.setOnClickListener { pickWallPage.launch("image/*") }
+        clearPage.setOnClickListener {
+            clearWall("page")
+            guardPage = true; swPage.isChecked = false; guardPage = false
+        }
+
+        // ---------- ⑤ 设置页皮肤 ----------
+        gap(19)
+        box.addView(sectionLabel("设置页皮肤"))
+        box.addView(hint("导航骨架固定，换的是配色与氛围；「跟随主界面主题」= 当前主题套进设置页。"))
+        val chipRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (2 * den).toInt(), 0, (4 * den).toInt())
+        }
+        val chips = listOf(TextView(this) to "ds_holo", TextView(this) to "follow_theme")
+        chips.forEachIndexed { idx, (chip, id) ->
+            chip.text = if (id == "ds_holo") "炫酷黑" else "跟随主界面主题"
+            chip.textSize = 13f
+            chip.setPadding((18 * den).toInt(), (9 * den).toInt(), (18 * den).toInt(), (9 * den).toInt())
+            chip.layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { if (idx > 0) marginStart = (10 * den).toInt() }
+            chip.setOnClickListener {
+                ShellSkins.save(this, id)
+                applySkin()
+                toast("已切换（设置页生效）")
+                val nowId = ShellSkins.current(this).id
+                chips.forEach { (c, cid) -> styleSkinChip(c, nowId == cid, pal, den) }
+            }
+            styleSkinChip(chip, ShellSkins.current(this).id == id, pal, den)
+            chipRow.addView(chip)
+        }
+        box.addView(chipRow)
     }
 
     /** 全宽主题行：左三段色条（整套搭配预览）+ 右主题名，整行可点 */
@@ -1045,241 +1226,6 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     // ---------- 属性设置面板 ----------
-
-    private fun showProps() {
-        val pal = ThemeEngine.current(this)
-        val den = resources.displayMetrics.density
-        val contentW = (resources.displayMetrics.widthPixels * 0.92f).toInt() - (40 * den).toInt()
-        val wpBtnW = ((contentW - (10 * den).toInt()) * 0.85f / 2f).toInt()
-        val wpBtnH = (42 * den).toInt()
-        val dialog = android.app.Dialog(this)
-        propDialog?.dismiss()
-        propDialog = dialog
-
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((20 * den).toInt(), (18 * den).toInt(), (20 * den).toInt(), (20 * den).toInt())
-        }
-
-        fun sectionLabel(t: String, topDp: Int) = TextView(this).apply {
-            text = t
-            textSize = 15f
-            setTextColor(pal.text)
-            setPadding(0, (topDp * den).toInt(), 0, (10 * den).toInt())
-        }
-
-        fun hint(t: String) = TextView(this).apply {
-            text = t
-            textSize = 12f
-            setTextColor(pal.subText)
-            setPadding(0, 0, 0, (12 * den).toInt())
-        }
-
-        // 标题行
-        val titleRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        titleRow.addView(TextView(this).apply {
-            text = "属性设置"
-            textSize = 19f
-            setTextColor(pal.text)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        titleRow.addView(TextView(this).apply {
-            text = "✕"
-            textSize = 17f
-            setTextColor(pal.subText)
-            setPadding((12 * den).toInt(), (6 * den).toInt(), (4 * den).toInt(), (6 * den).toInt())
-            setOnClickListener { dialog.dismiss() }
-        })
-        col.addView(titleRow)
-
-        // ---- 设置页壁纸 ----
-        col.addView(sectionLabel("设置页壁纸（5 个标签页共用）", 16))
-        val btnRowPage = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        val btnPickPage = Button(this).apply {
-            text = "选择"
-            isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
-        }
-        val btnClearPage = Button(this).apply {
-            text = "清除"
-            isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
-                .apply { marginStart = (10 * den).toInt() }
-        }
-        stylePrimary(btnPickPage, pal, den)
-        styleSecondary(btnClearPage, pal, den)
-        btnRowPage.addView(btnPickPage)
-        btnRowPage.addView(btnClearPage)
-        col.addView(btnRowPage)
-
-        val swPage = Switch(this).apply {
-            setTextColor(pal.text)
-            buttonTintList = android.content.res.ColorStateList.valueOf(pal.accent)
-            isChecked = store.wpEnabled("page")
-        }
-        var swPageGuard = false
-        swPage.setOnCheckedChangeListener { _, c ->
-            if (swPageGuard) return@setOnCheckedChangeListener
-            if (c && store.wpCrop("page").isEmpty()) {
-                toast("先选一张图再启用")
-                swPageGuard = true
-                swPage.isChecked = false
-                swPageGuard = false
-                return@setOnCheckedChangeListener
-            }
-            store.setWpEnabled("page", c)
-            applyWallpaper()
-        }
-        val swRowPage = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, (8 * den).toInt(), 0, 0)
-        }
-        swRowPage.addView(TextView(this).apply {
-            text = "启用（应用到设置页）"
-            textSize = 13f
-            setTextColor(pal.text)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        swRowPage.addView(swPage)
-        col.addView(swRowPage)
-        col.addView(sliderRow("遮罩浓度", 80, store.wpDim("page", 50), pal, den) { p ->
-            store.setWpDim("page", p)
-            applyWallpaper()
-        })
-        btnPickPage.setOnClickListener {
-            dialog.dismiss()
-            pickWallPage.launch("image/*")
-        }
-        btnClearPage.setOnClickListener {
-            clearWall("page")
-            swPageGuard = true
-            swPage.isChecked = false
-            swPageGuard = false
-        }
-
-        // ---- 主界面壁纸 ----
-        col.addView(sectionLabel("主界面壁纸", 18))
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        val btnPick = Button(this).apply {
-            text = "选择"
-            isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
-        }
-        val btnClear = Button(this).apply {
-            text = "清除"
-            isSingleLine = true
-            layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH)
-                .apply { marginStart = (10 * den).toInt() }
-        }
-        stylePrimary(btnPick, pal, den)
-        styleSecondary(btnClear, pal, den)
-        btnRow.addView(btnPick)
-        btnRow.addView(btnClear)
-        col.addView(btnRow)
-
-        val sw = Switch(this).apply {
-            setTextColor(pal.text)
-            buttonTintList = android.content.res.ColorStateList.valueOf(pal.accent)
-            isChecked = store.wpEnabled("main")
-        }
-        var swGuard = false
-        sw.setOnCheckedChangeListener { _, c ->
-            if (swGuard) return@setOnCheckedChangeListener
-            if (c && store.wpCrop("main").isEmpty()) {
-                toast("先选一张图再启用")
-                swGuard = true
-                sw.isChecked = false
-                swGuard = false
-                return@setOnCheckedChangeListener
-            }
-            store.setWpEnabled("main", c)
-        }
-        val swRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, (8 * den).toInt(), 0, 0)
-        }
-        swRow.addView(TextView(this).apply {
-            text = "启用（应用到主界面）"
-            textSize = 13f
-            setTextColor(pal.text)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        swRow.addView(sw)
-        col.addView(swRow)
-
-        col.addView(
-            sliderRow("遮罩浓度", 80, store.wpDim("main", 50), pal, den) { p -> store.setWpDim("main", p) }
-        )
-
-        btnPick.setOnClickListener {
-            dialog.dismiss()
-            pickWallMain.launch("image/*")
-        }
-        btnClear.setOnClickListener {
-            clearWall("main")
-            swGuard = true
-            sw.isChecked = false
-            swGuard = false
-        }
-
-        // ---- 首页显示 ----
-        col.addView(sectionLabel("首页显示", 22))
-        col.addView(
-            sliderRow("卡片浓度", 70, store.cardAlphaPct - 30, pal, den) { p ->
-                store.cardAlphaPct = p + 30
-            }
-        )
-        col.addView(
-            sliderRow("首页字号", 60, store.homeFontPct - 80, pal, den) { p -> store.homeFontPct = p + 80 }
-        )
-
-        // ---- 设置页皮肤 ----
-        col.addView(sectionLabel("设置页皮肤", 22))
-        col.addView(hint("导航骨架固定，换的是配色与氛围；「跟随主界面主题」= 当前主题套进设置页。"))
-        val chipRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, (2 * den).toInt(), 0, (4 * den).toInt())
-        }
-        val chips = listOf(
-            TextView(this) to "ds_holo",
-            TextView(this) to "follow_theme"
-        )
-        chips.forEachIndexed { idx, (chip, id) ->
-            chip.text = if (id == "ds_holo") "炫酷黑" else "跟随主界面主题"
-            chip.textSize = 13f
-            chip.setPadding((18 * den).toInt(), (9 * den).toInt(), (18 * den).toInt(), (9 * den).toInt())
-            chip.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { if (idx > 0) marginStart = (10 * den).toInt() }
-            chip.setOnClickListener {
-                ShellSkins.save(this, id)
-                applySkin()
-                toast("已切换（设置页生效）")
-                val nowId = ShellSkins.current(this).id
-                chips.forEach { (c, cid) -> styleSkinChip(c, nowId == cid, pal, den) }
-            }
-            styleSkinChip(chip, ShellSkins.current(this).id == id, pal, den)
-            chipRow.addView(chip)
-        }
-        col.addView(chipRow)
-
-        col.background = ThemeEngine.cardDrawable(pal.card, 18f, den, blend(pal.bg, pal.accent, 0.12f))
-        dialog.setContentView(android.widget.ScrollView(this).apply { addView(col) })
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        dialog.show()
-        val dm = resources.displayMetrics
-        // 定高面板（按真机实测：高≈屏高55%、宽≈屏宽92%）：多出来的内容藏在屏幕外，内部可滚动查看
-        dialog.window?.setLayout(
-            (dm.widthPixels * 0.92f).toInt(),
-            (dm.heightPixels * 0.55f).toInt()
-        )
-    }
 
     private fun sliderRow(
         name: String, max: Int, start: Int, pal: Palette, den: Float, onSet: (Int) -> Unit

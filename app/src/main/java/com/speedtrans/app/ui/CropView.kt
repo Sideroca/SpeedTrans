@@ -57,12 +57,28 @@ class CropView @JvmOverloads constructor(
     }
     private val fullPath = Path()
     private val holePath = Path()
+    private val scrimPaint = Paint().apply { color = 0xFF000000.toInt() }
+    private val ghostFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val ghostStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val ghostText = Paint(Paint.ANTI_ALIAS_FLAG)
 
     /** 缩放百分比（相对最小适配）变化回调，供滑条同步 */
     var onZoomChanged: ((Int) -> Unit)? = null
 
     /** 固定取景框宽高比（0 = 跟随视图比例 → 壁纸模式；1 = 正方形 → 图标模式）。需在首次布局前设置 */
     var fixedFrameWH = 0f
+
+    /** 首页映射：框内叠加"首页样式"半透明剪影（仅首页壁纸）。mapAlpha 0..1；scrimPct 0..100 模拟遮罩浓度 */
+    var mapEnabled = false
+    var mapAlpha = 0.6f
+    var scrimPct = 0
+
+    fun setMapping(enabled: Boolean, alpha: Float, scrim: Int) {
+        mapEnabled = enabled
+        mapAlpha = alpha.coerceIn(0f, 1f)
+        scrimPct = scrim.coerceIn(0, 100)
+        invalidate()
+    }
 
     fun setBitmap(b: Bitmap) {
         bmp = b
@@ -184,6 +200,20 @@ class CropView @JvmOverloads constructor(
         matrix.postTranslate(width / 2f + x - s * iw / 2f, height / 2f + y - s * ih / 2f)
         canvas.drawBitmap(b, matrix, imgPaint)
 
+        // 首页映射剪影：框内叠加（静止锚，不随图片拖动/缩放；先铺"遮罩浓度"暗度，再叠剪影）
+        if (mapEnabled && mapAlpha > 0.01f) {
+            val save = canvas.save()
+            holePath.reset()
+            holePath.addRoundRect(frame, frameRadius, frameRadius, Path.Direction.CW)
+            canvas.clipPath(holePath)
+            if (scrimPct > 0) {
+                scrimPaint.alpha = (scrimPct * 2.04f).toInt().coerceIn(0, 235)
+                canvas.drawRect(frame, scrimPaint)
+            }
+            drawHomeGhost(canvas, mapAlpha)
+            canvas.restoreToCount(save)
+        }
+
         // 框外压暗：整屏减去圆角取景框
         fullPath.reset()
         fullPath.addRect(0f, 0f, width.toFloat(), height.toFloat(), Path.Direction.CW)
@@ -194,6 +224,54 @@ class CropView @JvmOverloads constructor(
 
         // 框线
         canvas.drawRoundRect(frame, frameRadius, frameRadius, borderPaint)
+    }
+
+    /** 画"首页样式"半透明剪影：标题 + 四张卡（真机比例）+ 签名 */
+    private fun drawHomeGhost(canvas: Canvas, k: Float) {
+        val f = frame
+        val u = f.width()
+        val top = f.top
+        val h = f.height()
+        fun a(base: Int) = (base * k).toInt().coerceIn(0, 255)
+        ghostText.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        ghostText.textSize = u * 0.062f
+        ghostText.color = android.graphics.Color.argb(a(235), 255, 255, 255)
+        canvas.drawText("闪译 SpeedTrans", f.left + u * 0.06f, top + h * 0.073f, ghostText)
+        ghostText.typeface = android.graphics.Typeface.DEFAULT
+        ghostText.textSize = u * 0.030f
+        ghostText.color = android.graphics.Color.argb(a(150), 255, 255, 255)
+        canvas.drawText("点一下悬浮球 → 立即流式翻译屏幕文字（英→中）", f.left + u * 0.06f, top + h * 0.097f, ghostText)
+        ghostStroke.strokeWidth = u * 0.013f
+        ghostStroke.color = android.graphics.Color.argb(a(200), 255, 255, 255)
+        canvas.drawCircle(f.left + u * 0.845f, top + h * 0.075f, u * 0.055f, ghostStroke)
+        canvas.drawCircle(f.left + u * 0.90f, top + h * 0.032f, u * 0.012f, ghostStroke)
+        val cardX = f.left + u * 0.055f
+        val cardW = u * 0.89f
+        val r = u * 0.035f
+        val cards = listOf(
+            0.115f to 0.132f,
+            0.263f to 0.195f,
+            0.472f to 0.300f,
+            0.786f to 0.118f
+        )
+        cards.forEach { (tp, hp) ->
+            val cy = top + h * tp
+            val ch = h * hp
+            ghostFill.color = android.graphics.Color.argb(a(95), 255, 255, 255)
+            canvas.drawRoundRect(cardX, cy, cardX + cardW, cy + ch, r, r, ghostFill)
+            ghostStroke.color = android.graphics.Color.argb(a(70), 255, 255, 255)
+            canvas.drawRoundRect(cardX, cy, cardX + cardW, cy + ch, r, r, ghostStroke)
+        }
+        ghostText.color = android.graphics.Color.argb(a(200), 30, 34, 40)
+        ghostText.textSize = u * 0.040f
+        listOf("主题色" to 0.115f, "运行状态" to 0.263f, "设置与工具" to 0.472f, "使用方法" to 0.786f).forEach { (n, tp) ->
+            canvas.drawText(n, cardX + u * 0.05f, top + h * tp + u * 0.075f, ghostText)
+        }
+        ghostText.textSize = u * 0.028f
+        ghostText.textAlign = Paint.Align.CENTER
+        ghostText.color = android.graphics.Color.argb(a(140), 255, 255, 255)
+        canvas.drawText("✦ glm5.3flash · 为极速而生的闪译", f.centerX(), top + h * 0.945f, ghostText)
+        ghostText.textAlign = Paint.Align.LEFT
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {

@@ -136,7 +136,7 @@ class TranslateEngine(private val store: SettingsStore) {
         val userContent = if (isContinuation && !isMtModel) "【续段】$text" else text
         val systemPrompt = store.customPrompt.ifBlank { SettingsStore.DEFAULT_SYS_PROMPT } +
                 if (isContinuation && !isMtModel)
-                    "\n(Note: the user message is a continuation segment of previously submitted content. ALL the same rules apply to this segment as well.)"
+                    "\n（注意：本条是此前内容的延续片段，所有规则对本段同样生效，输出仍然是简体中文。）"
                 else ""
 
         val body = JSONObject().apply {

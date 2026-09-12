@@ -61,6 +61,40 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/mapRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="映射"
+                android:textColor="#8F98A8"
+                android:textSize="12sp" />
+
+            <SeekBar
+                android:id="@+id/sbMap"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="60" />
+
+            <TextView
+                android:id="@+id/tvMapVal"
+                android:layout_width="44dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="60%"
+                android:textColor="#8F98A8"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"

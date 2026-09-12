@@ -143,22 +143,22 @@ class BallService : AccessibilityService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /** 本帧刚吞掉的返回键时间戳：随后的 UP 也一并吞掉，避免漏给下层应用 */
-    private var backConsumedAt = 0L
+    /** 是否刚吞掉过一枚返回键 DOWN：只吞紧随其后的那一个 UP（成对吞，不误伤后续手势） */
+    private var backDownConsumed = false
 
-    /** 全局返回键过滤：译文面板打开时，按返回 = 关闭面板（DOWN 关闭；配对的 UP 一并吞掉） */
+    /** 全局返回键过滤：译文面板打开时，按返回 = 关闭面板（DOWN 关闭；仅吞配对的 UP） */
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 val ov = TranslateCoordinator.overlay(this)
                 if (ov?.visible == true) {
                     mainHandler.post { TranslateCoordinator.closeOverlay() }
-                    backConsumedAt = android.os.SystemClock.elapsedRealtime()
+                    backDownConsumed = true
                     return true
                 }
-            } else if (event.action == KeyEvent.ACTION_UP &&
-                android.os.SystemClock.elapsedRealtime() - backConsumedAt < 500L
-            ) {
+                backDownConsumed = false   // 新手势：明确不吞它的 UP（修"计时器误吞后续 UP → 返回键失灵"）
+            } else if (event.action == KeyEvent.ACTION_UP && backDownConsumed) {
+                backDownConsumed = false
                 return true
             }
         }

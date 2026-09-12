@@ -37,7 +37,7 @@ class ResultOverlay(private val context: Context) {
     private var tvOut: TextView? = null
     private var wm: WindowManager? = null
 
-    val visible: Boolean get() = root != null
+    val visible: Boolean get() = root?.isAttachedToWindow == true
 
     private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density + 0.5f).toInt()
 

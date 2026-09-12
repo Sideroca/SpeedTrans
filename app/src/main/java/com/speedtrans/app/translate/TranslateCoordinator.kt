@@ -188,8 +188,11 @@ object TranslateCoordinator {
                             else full
                             HistoryStore.append(context.applicationContext, "翻译", text, histText)
                             ov.finish(null)
+                            val outLen = ov.currentText().length
                             if (firstMs > 0L) {
-                                ov.showStatus("✓ 完成 · 首字 ${"%.1f".format(firstMs / 1000f)}s · 点球继续")
+                                val tip = if (text.length >= 300 && outLen < text.length * 0.12)
+                                    " · ⚠️ 输出偏短（点球可重试）" else ""
+                                ov.showStatus("✓ 完成 · 首字 ${"%.1f".format(firstMs / 1000f)}s · 点球继续$tip")
                             }
                         } else {
                             ov.finish(err)

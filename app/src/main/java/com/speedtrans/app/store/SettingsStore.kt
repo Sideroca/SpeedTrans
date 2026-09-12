@@ -40,7 +40,12 @@ class SettingsStore(context: Context) {
     /** 自定义翻译提示词（留空用默认） */
     var customPrompt: String
         // 未保存过时预填默认文案（可见可删可改）；用户保存空 = 真正为空，不发 system
-        get() = sp.getString("custom_prompt", "")!!.trim()   // 空 = 用内置（不再把内置词预填进输入框）
+        get() {
+            val v = sp.getString("custom_prompt", "")!!.trim()
+            // 历史迁移：老版预填的英文默认词视同"未自定义" → 自动切到新版中文默认词
+            if (v.startsWith("You are a fast translation engine")) return ""
+            return v
+        }   // 空 = 用内置（不再把内置词预填进输入框）
         set(v) = sp.edit().putString("custom_prompt", v.trim()).apply()
 
     // ---------- 悬浮球外观 ----------
@@ -246,9 +251,10 @@ class SettingsStore(context: Context) {
 
         /** 提示词预填文案（用户可全删或自定义；空 = 不发送 system 消息） */
         const val DEFAULT_SYS_PROMPT =
-            "You are a fast translation engine. Translate the user's text into Simplified Chinese. " +
-                    "Output ONLY the Chinese translation. Preserve line breaks. " +
-                    "Keep code, URLs and proper nouns unchanged. No notes, no explanations."
+            "你是一个极速翻译引擎。把用户发来的文字翻译成简体中文。" +
+                    "只输出译文本身：不要解释、不要注释、不要复述原文，保持原有换行。" +
+                    "代码、链接、人名等专有名词保持原样不翻译。" +
+                    "无论原文是什么语言，输出必须是简体中文。"
 
         /** 最终版：绝不预置任何密钥（用户自行填写，本地保存） */
         const val DEFAULT_API_KEY = ""
