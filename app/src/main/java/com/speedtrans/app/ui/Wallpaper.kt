@@ -136,14 +136,15 @@ object Wallpaper {
     }
 
     /**
-     * 生成桌面快捷方式图标（B 版式：浅空蓝底 + 照片 78%，512×512）。
+     * 生成桌面快捷方式图标（满铺版：照片直接铺满 512×512，无边框）。
      * 参数含义与壁纸一致（此模式下取景框为正方形）。
      */
     fun bakeIcon(origPath: String, nx: Float, ny: Float, nz: Float, out: File): Boolean {
         return try {
             val size = 512
-            val inset = (size * 0.11f).roundToInt()
-            val ps = size - inset * 2
+            // 满铺版：照片直接铺满整张图标（不再留浅空蓝边框）——任意尺寸的源图都走同一套 cover 裁切
+            val inset = 0
+            val ps = size
             val src = decode(origPath, size, 1024) ?: return false
             val iw = src.width.toFloat()
             val ih = src.height.toFloat()
@@ -166,7 +167,6 @@ object Wallpaper {
             }
             val outBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val c = Canvas(outBmp)
-            c.drawColor(0xFF8EC9EE.toInt())
             c.drawBitmap(
                 src,
                 Rect(l.roundToInt(), t.roundToInt(), r.roundToInt(), b.roundToInt()),

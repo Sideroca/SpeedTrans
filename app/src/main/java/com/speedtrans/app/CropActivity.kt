@@ -55,7 +55,7 @@ class CropActivity : AppCompatActivity() {
         }
         if (isIcon) {
             crop.fixedFrameWH = 1f
-            findViewById<TextView>(R.id.tvCropHint).text = "拖动 / 双指缩放 · 选照片的哪一块（成品为浅空蓝底 + 照片）"
+            findViewById<TextView>(R.id.tvCropHint).text = "拖动 / 双指缩放 · 选照片的哪一块（照片满铺成图标）"
         }
         if (isAvatar) {
             crop.fixedFrameWH = 1f

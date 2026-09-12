@@ -380,9 +380,9 @@ class BallService : AccessibilityService() {
                     mainHandler.post { ov.showStatus("⚠️ 截屏转换失败") }
                     return
                 }
-                // 缩放到宽 ≤1080：识别速度提升数倍，常规文字精度足够
-                val bmp = if (scaled && raw.width > 1080) {
-                    val r = 1080f / raw.width
+                // 缩放到宽 ≤900：像素量约 -30%，识别更快；识别为空时自动原尺寸重试兜底
+                val bmp = if (scaled && raw.width > 900) {
+                    val r = 900f / raw.width
                     Bitmap.createScaledBitmap(raw, 1080, (raw.height * r).toInt(), true)
                 } else raw
                 val tPrep = android.os.SystemClock.elapsedRealtime() - t0
@@ -391,7 +391,7 @@ class BallService : AccessibilityService() {
                 // force（仅识图模式）= 抛弃文本层、全屏 100% 内容；自动回退 = 剔除文本层坐标
                 // 状态栏/导航栏永远排除（系统栏不是翻译对象）
                 // 排除清单统一换算到位图坐标系——修复高分辨率机型缩放后文本层排除失效的存量 bug
-                val r = if (scaled && raw.width > 1080) 1080f / raw.width else 1f
+                val r = if (scaled && raw.width > 900) 900f / raw.width else 1f
                 fun toBmp(rc: android.graphics.Rect) = if (r == 1f) rc else android.graphics.Rect(
                     (rc.left * r).toInt(), (rc.top * r).toInt(), (rc.right * r).toInt(), (rc.bottom * r).toInt()
                 )

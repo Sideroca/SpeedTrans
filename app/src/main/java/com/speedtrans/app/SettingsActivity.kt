@@ -1445,7 +1445,7 @@ class SettingsActivity : AppCompatActivity() {
         toast("桌面图标已切换为「${next.second}」· 刷新需数秒到数分钟")
     }
 
-    /** ①选图 → ②进方形取景 → ③回来自动创建桌面入口（B 版式：浅空蓝底 + 照片） */
+    /** ①选图 → ②进方形取景 → ③回来自动创建桌面入口（照片满铺版） */
     private fun importIconImage(uri: Uri) {
         val target = Wallpaper.iconOrigFile(this)
         if (!Wallpaper.importFrom(this, uri, target)) {
