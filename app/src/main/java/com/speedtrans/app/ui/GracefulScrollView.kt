@@ -19,6 +19,11 @@ class GracefulScrollView @JvmOverloads constructor(
     private var downX = 0f
     private var downY = 0f
 
+    override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+        // 驳回子视图（EditText 等）的"禁止拦截"请求——否则纵向滑动手势会被输入框整个吞掉（"划不动"根因）
+        super.requestDisallowInterceptTouchEvent(false)
+    }
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {

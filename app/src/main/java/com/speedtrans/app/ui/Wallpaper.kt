@@ -57,6 +57,36 @@ object Wallpaper {
         null
     }
 
+    /** 取图片"底缘"平均色（导航栏取色用；解码失败返回 fallback） */
+    fun bottomColor(path: String, fallback: Int): Int = try {
+        val bmp = decode(path, 200, 400) ?: return fallback
+        val w = bmp.width
+        val h = bmp.height
+        val y0 = (h * 0.96f).toInt().coerceIn(0, h - 1)
+        var r = 0L
+        var g = 0L
+        var b = 0L
+        var n = 0
+        var y = y0
+        while (y < h) {
+            var x = 0
+            val stepX = max(1, w / 48)
+            while (x < w) {
+                val c = bmp.getPixel(x, y)
+                r += android.graphics.Color.red(c)
+                g += android.graphics.Color.green(c)
+                b += android.graphics.Color.blue(c)
+                n++
+                x += stepX
+            }
+            y += max(1, h / 24)
+        }
+        if (n == 0) fallback
+        else android.graphics.Color.rgb((r / n).toInt(), (g / n).toInt(), (b / n).toInt())
+    } catch (_: Exception) {
+        fallback
+    }
+
     /** EXIF 方向修正（异常时原样返回） */
     @Suppress("DEPRECATION")
     private fun applyExifOrientation(bmp: Bitmap, path: String): Bitmap {

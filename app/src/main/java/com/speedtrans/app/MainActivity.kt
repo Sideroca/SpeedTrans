@@ -150,16 +150,18 @@ class MainActivity : AppCompatActivity() {
         val d = resources.displayMetrics.density
         val alpha = store.cardAlphaPct
         val light = Color.luminance(pal.bg) > 0.5f
-        // 导航栏取色跟随主题底：部分 ROM 忽略"透明"强制白条——染成主题底色，肉眼即"覆盖"
-        window.navigationBarColor = ThemeEngine.backdrop(pal)
 
         applyHomeFont()
 
         findViewById<View>(R.id.rootMainHost).setBackgroundColor(ThemeEngine.backdrop(pal))
-        Wallpaper.applySlot(
+        val wpMainShown = Wallpaper.applySlot(
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
             store.wpCrop("main"), store.wpDim("main", 50), store.wpEnabled("main"), pal.bg
         )
+        // 导航栏取色：有壁纸 → 壁纸底缘同色（无缝）；无壁纸 → 主题底
+        window.navigationBarColor =
+            if (wpMainShown) Wallpaper.bottomColor(store.wpCrop("main"), ThemeEngine.backdrop(pal))
+            else ThemeEngine.backdrop(pal)
 
         // 卡片与内层（浓度可控）
         val cardColor = withAlpha(pal.card, alpha)

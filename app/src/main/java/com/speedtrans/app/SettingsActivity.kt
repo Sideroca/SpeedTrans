@@ -993,10 +993,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun applyWallpaper() {
         val skin = currentSkin ?: ShellSkins.current(this)
-        Wallpaper.applySlot(
+        val shown = Wallpaper.applySlot(
             this, R.id.ivWallpaper, R.id.wpScrim,
             store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
+        // 导航栏取色：有壁纸 → 跟随壁纸底缘同色（画面无缝）；无壁纸 → 皮肤底
+        window.navigationBarColor =
+            if (shown) Wallpaper.bottomColor(store.wpCrop("page"), skin.bg) else skin.bg
     }
 
     /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域）；滚动区用 inset 让位、底部坞整体上移 */
