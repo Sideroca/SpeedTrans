@@ -133,7 +133,11 @@ class TranslateEngine(private val store: SettingsStore) {
 
         // 续段标记：让模型知道这是长文本的延续，所有规则对本段同样生效
         // 防呆设计（用户钦定保留）：留空 = 内置极速翻译词；填写任意内容 = 完全以用户为准
-        val userContent = if (isContinuation && !isMtModel) "【续段】$text" else text
+        // 附加模块：内置提示词模式下把"翻译要求"随用户消息一起提交（附在结尾）——
+        // 降低"不翻译/不服从指令"概率；用户自定义了提示词则完全不加（与系统提示词同规则）
+        val appendix = if (store.customPrompt.isBlank() && !isMtModel)
+            "\n\n" + SettingsStore.DEFAULT_USER_APPENDIX else ""
+        val userContent = (if (isContinuation && !isMtModel) "【续段】$text" else text) + appendix
         val systemPrompt = store.customPrompt.ifBlank { SettingsStore.DEFAULT_SYS_PROMPT } +
                 if (isContinuation && !isMtModel)
                     "\n（注意：本条是此前内容的延续片段，所有规则对本段同样生效，输出仍然是简体中文。）"

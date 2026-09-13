@@ -158,6 +158,7 @@ class BallService : AccessibilityService() {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 val ov = TranslateCoordinator.overlay(this)
                 if (ov?.visible == true && !ov.hasKeyFocus) {
+                    ov.hideNow()   // 即时视觉反馈：按键一按，面板立即消失（哪怕摘窗慢一拍）
                     mainHandler.post { TranslateCoordinator.closeOverlay() }
                     backDownConsumed = true
                     backDownConsumedAt = android.os.SystemClock.elapsedRealtime()

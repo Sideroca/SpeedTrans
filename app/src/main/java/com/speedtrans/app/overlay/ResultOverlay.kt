@@ -29,8 +29,6 @@ class ResultOverlay(private val context: Context) {
     // ---- 流式滚动"钉住"状态（修复：偶发与手指抢屏 / 不断下滚） ----
     private var userTouching = false
     private var lastTouchUpAt = 0L
-    private var pinY = 0
-    private var selfScroll = false
     private var streaming = false
     private var catcher: View? = null
     private var tvStatus: TextView? = null
@@ -139,8 +137,8 @@ class ResultOverlay(private val context: Context) {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT
             )
-            // 流式期间"钉住"滚动位置：用户没摸屏幕时，任何自动滚动都会被拉回原位
-            // （修复：偶发与手指抢屏 / 内容不断自动下滚）
+            // 只记录"手指是否在摸"（append 时的位置锁用）；不再做任何自动拉回——
+            // 修复：流式滚动与手指"抢屏"。新原则：内容只追加，视图永不自动滚，整页滚动完全归用户
             setOnTouchListener { _, e ->
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> userTouching = true
@@ -150,18 +148,6 @@ class ResultOverlay(private val context: Context) {
                     }
                 }
                 false
-            }
-            setOnScrollChangeListener { _, _, _, _, _ ->
-                val now = android.os.SystemClock.elapsedRealtime()
-                if (!streaming) {
-                    pinY = scrollY
-                } else if (userTouching || now - lastTouchUpAt < 1200L) {
-                    pinY = scrollY          // 用户自己滑的：跟随
-                } else if (!selfScroll && scrollY != pinY) {
-                    selfScroll = true
-                    scrollTo(0, pinY)       // 非用户滚动：立刻钉回去
-                    selfScroll = false
-                }
             }
         }
         val out = TextView(ctx).apply {
@@ -273,7 +259,6 @@ class ResultOverlay(private val context: Context) {
 
     fun begin(reset: Boolean, status: String) {
         streaming = true
-        if (reset) pinY = 0
         ensure()
         if (reset) tvOut?.text = ""
         tvStatus?.text = status
@@ -323,7 +308,19 @@ class ResultOverlay(private val context: Context) {
         tvOut?.textSize = spSize.toFloat()
     }
 
+    /** 立刻视觉隐藏（任何关闭路径先走这一步：手感即时；摘窗慢一拍也不影响观感） */
+    fun hideNow() {
+        try {
+            root?.animate()?.cancel()
+            root?.alpha = 0f
+            root?.visibility = View.GONE
+            catcher?.visibility = View.GONE
+        } catch (_: Exception) {
+        }
+    }
+
     fun close() {
+        hideNow()
         val r = root
         val c = catcher
         // 先"立即清状态"：返回键/点外面的判定马上不再把本面板算作"开着"——
