@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -59,14 +60,17 @@ class ResultOverlay(private val context: Context) {
         val barTextC = if (Color.luminance(barBg) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        // 视觉面板（底部浮出）：窗口根已改为"全屏"，面板只是它的一个底部子视图
-        val panel = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
+        // 视觉面板（底部浮出）：窗口根已改为"全屏"，面板只是它的一个底部子视图。
+        // FrameLayout 外壳：内容列 + 右下角迷你返回键（固定长宽、随面板高度一起移动）
+        val panel = FrameLayout(ctx).apply {
             background = ThemeEngine.cardDrawable(
                 pal.panelBg, pal.cardRadius.toFloat(),
                 ctx.resources.displayMetrics.density
             )
             elevation = dp(8).toFloat() // 空气感投影（iOS/线框主题为 0）
+        }
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(8), dp(16), dp(10))
         }
 
@@ -163,9 +167,12 @@ class ResultOverlay(private val context: Context) {
         }
         scroll.addView(out)
 
-        panel.addView(top)
+        col.addView(top)
         topBar = top
-        panel.addView(scroll)
+        col.addView(scroll)
+        panel.addView(col, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+        ))
 
         val screenH = ctx.resources.displayMetrics.heightPixels
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
@@ -192,30 +199,40 @@ class ResultOverlay(private val context: Context) {
         ).apply { gravity = Gravity.BOTTOM }
         rootBox.addView(panel)
 
-        // 迷你返回键（右下角·灰白·不引人注目）：返回键失灵时的保底关闭通道。
-        // 点击 = 取消翻译 + 关闭面板（与返回键/✕ 等效）；跟随"显示关闭按钮"开关。
+        // 迷你返回键（面板右下角·固定长宽·灰白不抢眼）：返回键失灵时的保底关闭通道。
+        // 图标 = 豆包箭头（已抠图、透明底、保持原方向）；点击 = 取消翻译 + 关闭面板；跟随"显示关闭按钮"开关。
         if (st.showClose) {
-            val backIcon = TextView(ctx).apply {
-                text = "←"
-                textSize = 14f
-                gravity = Gravity.CENTER
-                // 浅色面板 → 柔灰；深色面板 → 灰白。半透明、无背景，极简
-                setTextColor(
-                    if (Color.luminance(pal.panelBg) > 0.5f) 0xB08A8F98.toInt()
-                    else 0xB0C9CED6.toInt()
-                )
+            val backIcon = ImageView(ctx).apply {
+                setImageResource(R.drawable.ic_back_arrow)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                alpha = 0.62f                     // 灰白、不引人注目
+                setPadding(dp(6), 0, dp(6), 0)    // 箭头本体 ≈32dp 宽；点击区远大于它
                 contentDescription = "关闭"
                 setOnClickListener {
                     TranslateCoordinator.cancelActive()
                     close()
                 }
             }
-            // 点击范围 = 正方形，边长与悬浮球直径一致（比图标本身大得多，好按）
-            rootBox.addView(backIcon, FrameLayout.LayoutParams(dp(st.ballSizeDp), dp(st.ballSizeDp)).apply {
+            // 固定长宽矩形：44dp × 131dp，钉在面板右下角（面板高度变化时随面板一起移动）
+            panel.addView(backIcon, FrameLayout.LayoutParams(dp(44), dp(131)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
                 rightMargin = dp(2)
-                bottomMargin = dp(2)
+                bottomMargin = dp(72)             // 先给保守值，随后按真实 inset 精确对齐
             })
+            // 底边自动避开导航栏：真实 inset + 8dp；若系统没派发 inset 则保守保持 72dp
+            panel.setOnApplyWindowInsetsListener { _, ins ->
+                val nb = ins.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                ).bottom
+                val want = maxOf(nb + dp(8), dp(56))
+                val lp = backIcon.layoutParams as? FrameLayout.LayoutParams
+                if (lp != null && lp.bottomMargin != want) {
+                    lp.bottomMargin = want
+                    backIcon.layoutParams = lp
+                }
+                ins
+            }
+            panel.requestApplyInsets()
         }
 
         // 顶部 8%（状态栏带）不接管：下拉状态栏/截屏走系统；其余区域：点=关（滑动不关）
