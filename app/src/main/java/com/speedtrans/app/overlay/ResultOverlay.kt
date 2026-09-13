@@ -10,6 +10,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -23,7 +24,7 @@ import com.speedtrans.app.translate.TranslateCoordinator
  */
 class ResultOverlay(private val context: Context) {
 
-    private var root: LinearLayout? = null
+    private var root: View? = null
     private var topBar: LinearLayout? = null
 
     // ---- 流式滚动"钉住"状态（修复：偶发与手指抢屏 / 不断下滚） ----
@@ -58,7 +59,8 @@ class ResultOverlay(private val context: Context) {
         val barTextC = if (Color.luminance(barBg) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val box = LinearLayout(ctx).apply {
+        // 视觉面板（底部浮出）：窗口根已改为"全屏"，面板只是它的一个底部子视图
+        val panel = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             background = ThemeEngine.cardDrawable(
                 pal.panelBg, pal.cardRadius.toFloat(),
@@ -159,100 +161,125 @@ class ResultOverlay(private val context: Context) {
         }
         scroll.addView(out)
 
-        box.addView(top)
+        panel.addView(top)
         topBar = top
-        box.addView(scroll)
+        panel.addView(scroll)
 
         val screenH = ctx.resources.displayMetrics.heightPixels
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
-        // 可聚焦窗口：直接监听返回键（不依赖无障碍的按键过滤，ROM 兼容性最好）
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            panelH,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            0, // 面板可聚焦收返回键；窗外触摸由全屏捕捉层统一处理（确定性，ROM 无关）
-            PixelFormat.TRANSLUCENT
-        )
-        lp.gravity = Gravity.BOTTOM or Gravity.START
-        lp.x = 0
-        lp.y = 0
-        // 横屏：允许铺进左侧挖孔区域，面板才能贴到屏幕最左边
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            lp.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-        } else if (android.os.Build.VERSION.SDK_INT >= 28) {
-            lp.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        val panelTopY = screenH - panelH
+
+        // 诊断标记：只要"窗外区域"收到触摸，就在触点闪一个圆点——
+        // 一次性区分"触摸没到"还是"逻辑没关"（也证明新方案真的接住了触摸）
+        val markDot = View(ctx).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(0x99FF6A00.toInt())
+            }
+            visibility = View.GONE
         }
 
-        box.isFocusable = true
-        box.isFocusableInTouchMode = true
-        box.setOnKeyListener { _, keyCode, event ->
+        // 全屏窗口根：面板之外的一切都由它自己接住——"点外面关闭"不再依赖任何隐形捕捉层
+        val rootBox = FrameLayout(ctx).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
+            addView(markDot, FrameLayout.LayoutParams(dp(30), dp(30)))
+        }
+        panel.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, panelH
+        ).apply { gravity = Gravity.BOTTOM }
+        rootBox.addView(panel)
+
+        // 顶部 8%（状态栏带）不接管：下拉状态栏/截屏走系统；其余区域：点=关（滑动不关）
+        val topGuardPx = (screenH * 0.08f).toInt()
+        val moveSlopPx = dp(24).toFloat()
+        var downX = 0f
+        var downY = 0f
+        var moved = false
+        var armed = false       // 本次手势是否为"窗外点击=关闭"候选
+        var onBallDown = false
+        rootBox.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (e.y < topGuardPx) {
+                        false   // 状态栏带：放行给系统
+                    } else {
+                        downX = e.x
+                        downY = e.y
+                        moved = false
+                        val b = com.speedtrans.app.service.BallService.instance?.ballBoundsOnScreen()
+                        onBallDown = b != null && b.contains(e.rawX.toInt(), e.rawY.toInt())
+                        armed = !onBallDown && e.y < panelTopY
+                        if (armed) {
+                            (markDot.layoutParams as? FrameLayout.LayoutParams)?.let { mlp ->
+                                mlp.leftMargin = (e.x - dp(15)).toInt()
+                                mlp.topMargin = (e.y - dp(15)).toInt()
+                                markDot.layoutParams = mlp
+                            }
+                            markDot.visibility = View.VISIBLE
+                            markDot.postDelayed({ markDot.visibility = View.GONE }, 900)
+                        }
+                        true
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = e.x - downX
+                    val dy = e.y - downY
+                    if (dx * dx + dy * dy > moveSlopPx * moveSlopPx) moved = true
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.performClick()   // 无障碍
+                    when {
+                        onBallDown && !moved ->
+                            com.speedtrans.app.service.BallService.instance?.tapFromPanel()
+                        armed && !moved ->
+                            TranslateCoordinator.onOutsideTouch()   // 点=关；大滑动不关
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
+
+        rootBox.setOnKeyListener { _, keyCode, event ->
             if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
                 event.action == android.view.KeyEvent.ACTION_DOWN
             ) {
-                if (root === box) {
+                if (root === rootBox) {
                     TranslateCoordinator.cancelActive()
                     close()
                     // 摘除若被魔改 ROM 卡住：立刻把窗口降级为"不抢焦点、不吞键"，保住返回键活路（防僵尸窗）
-                    if (box.isAttachedToWindow) neutralizeZombie(box)
+                    if (rootBox.isAttachedToWindow) neutralizeZombie(rootBox)
                     true
                 } else false
             } else false
         }
 
-        // 触摸捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译。
-        // ① 不再用"全透明"：垫一层纯黑 2/255 薄雾（人眼不可见，纯黑在 OLED 上不减一毫），
-        //    避免部分 ROM 把全透明的悬浮层当"无内容"处理（触摸穿透/冻结）——"点外面从来没生效"的可疑根因；
-        // ② 只铺屏幕下方 80%：顶部 20% 让给系统——下拉状态栏 / 截屏 / 系统手势不受影响，也不会误关面板。
-        val catchView = View(ctx).apply {
-            setBackgroundColor(0x02000000)
-            // 点球 = 放行给球（继续翻译/累积追加）；点其他空白 = 照旧关闭面板；
-            // 在球上拖动 = 不误触（视为未发生，球本身也不会动）
-            var downX = 0f; var downY = 0f; var moved = false
-            setOnTouchListener { v, e ->
-                val b = com.speedtrans.app.service.BallService.instance?.ballBoundsOnScreen()
-                val onBall = b != null && b.contains(e.rawX.toInt(), e.rawY.toInt())
-                when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; moved = false }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = e.rawX - downX; val dy = e.rawY - downY
-                        if (dx * dx + dy * dy > 60f * 60f) moved = true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        v.performClick()  // 无障碍
-                        if (onBall && !moved) com.speedtrans.app.service.BallService.instance?.tapFromPanel()
-                        else if (!onBall) TranslateCoordinator.onOutsideTouch()
-                    }
-                }
-                true
-            }
-        }
-        val clp = WindowManager.LayoutParams(
+        // 全屏窗口（可聚焦收返回键）：触摸投递不依赖透明度、不依赖系统"放行"
+        val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            (ctx.resources.displayMetrics.heightPixels * 0.80f).toInt(),
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT
+            0,
+            PixelFormat.TRANSLUCENT
         )
-        clp.gravity = Gravity.BOTTOM or Gravity.START
-        clp.x = 0
-        clp.y = 0
-        // 捕捉层同样覆盖挖孔区：横屏左边缘的空白带也能正常接住触摸
+        lp.gravity = Gravity.TOP or Gravity.START
+        lp.x = 0
+        lp.y = 0
+        // 横屏：允许铺进挖孔区域
         if (android.os.Build.VERSION.SDK_INT >= 30) {
-            clp.layoutInDisplayCutoutMode =
+            lp.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         } else if (android.os.Build.VERSION.SDK_INT >= 28) {
-            clp.layoutInDisplayCutoutMode =
+            lp.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-        wm?.addView(catchView, clp)
-        catcher = catchView
 
-        wm?.addView(box, lp)
-        box.post { if (box.isAttachedToWindow) box.requestFocus() }
-        box.requestFocus()
-        root = box
+        wm?.addView(rootBox, lp)
+        rootBox.post { if (rootBox.isAttachedToWindow) rootBox.requestFocus() }
+        rootBox.requestFocus()
+        root = rootBox
         tvStatus = status
         tvOut = out
     }
