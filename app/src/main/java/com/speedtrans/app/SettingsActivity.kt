@@ -143,6 +143,8 @@ class SettingsActivity : AppCompatActivity() {
             isAppearanceLightStatusBars = lightBars
             isAppearanceLightNavigationBars = lightBars
         }
+        // 导航栏取色跟随皮肤：部分 ROM 会忽略"透明"并强制白条——直接染成页面底色，肉眼即"覆盖"
+        window.navigationBarColor = skin.bg
         findViewById<ScanlineView>(R.id.fxScanlines).visibility =
             if (skin.scanline) View.VISIBLE else View.GONE
         findViewById<BeamView>(R.id.fxBeam).visibility =

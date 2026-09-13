@@ -150,6 +150,8 @@ class MainActivity : AppCompatActivity() {
         val d = resources.displayMetrics.density
         val alpha = store.cardAlphaPct
         val light = Color.luminance(pal.bg) > 0.5f
+        // 导航栏取色跟随主题底：部分 ROM 忽略"透明"强制白条——染成主题底色，肉眼即"覆盖"
+        window.navigationBarColor = ThemeEngine.backdrop(pal)
 
         applyHomeFont()
 
