@@ -179,6 +179,7 @@ class SettingsActivity : AppCompatActivity() {
         refreshThinkingRow()
         styleThinkingChips()
         styleCuff()
+        restylePropsFills()
         applyWallpaper()
         if (skin.beam) findViewById<BeamView>(R.id.fxBeam).start()
     }
@@ -295,6 +296,9 @@ class SettingsActivity : AppCompatActivity() {
     private var themeCatModern = true
     private var themeCatProps = false
     private var propsBox: LinearLayout? = null
+    private val propsPrimaryButtons = ArrayList<Button>()
+    private val propsSecondaryButtons = ArrayList<Button>()
+    private val propsChips = ArrayList<Pair<TextView, String>>()
 
     /** 主题分类选择器（主题变更后原地重画，不 recreate 不跳页） */
     private fun selectThemeCategory() {
@@ -338,6 +342,9 @@ class SettingsActivity : AppCompatActivity() {
         val box = findViewById<LinearLayout>(R.id.themePropsRow)
         box.removeAllViews()
         propsBox = box
+        propsPrimaryButtons.clear()
+        propsSecondaryButtons.clear()
+        propsChips.clear()
         box.background = ThemeEngine.cardDrawable(fadedCard(pal.card), 18f, den, blend(pal.bg, pal.accent, 0.12f))
         box.setPadding((16 * den).toInt(), (12 * den).toInt(), (16 * den).toInt(), (16 * den).toInt())
 
@@ -396,6 +403,8 @@ class SettingsActivity : AppCompatActivity() {
             text = "清除"; isSingleLine = true
             layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH).apply { marginStart = (10 * den).toInt() }
         }
+        propsPrimaryButtons.add(pickMain)
+        propsSecondaryButtons.add(clearMain)
         box.addView(buttonPair(pickMain, clearMain))
         val swMain = Switch(this).apply {
             setTextColor(pal.text)
@@ -439,6 +448,8 @@ class SettingsActivity : AppCompatActivity() {
             text = "清除"; isSingleLine = true
             layoutParams = LinearLayout.LayoutParams(wpBtnW, wpBtnH).apply { marginStart = (10 * den).toInt() }
         }
+        propsPrimaryButtons.add(pickPage)
+        propsSecondaryButtons.add(clearPage)
         box.addView(buttonPair(pickPage, clearPage))
         val swPage = Switch(this).apply {
             setTextColor(pal.text)
@@ -504,6 +515,7 @@ class SettingsActivity : AppCompatActivity() {
                 chips.forEach { (c, cid) -> styleSkinChip(c, nowId == cid, pal, den) }
             }
             styleSkinChip(chip, ShellSkins.current(this).id == id, pal, den)
+            propsChips.add(chip to id)
             chipRow.addView(chip)
         }
         box.addView(chipRow)
@@ -721,7 +733,7 @@ class SettingsActivity : AppCompatActivity() {
         for (i in 0 until row.childCount) {
             val c = row.getChildAt(i) as TextView
             val selected = p.levels.getOrNull(i)?.second == thinkingLevel
-            c.background = ShellSkins.chipBg(s, selected, d)
+            c.background = ShellSkins.chipBg(s, selected, d, store.settingsCardAlphaPct)
             c.setTextColor(ShellSkins.chipText(s, selected))
         }
     }
@@ -781,7 +793,7 @@ class SettingsActivity : AppCompatActivity() {
         val skin = currentSkin ?: ShellSkins.current(this)
         val follow = row.getChildAt(0) as TextView
         val followSel = selectedBarColor == null
-        follow.background = ShellSkins.chipBg(skin, followSel, d)
+        follow.background = ShellSkins.chipBg(skin, followSel, d, store.settingsCardAlphaPct)
         follow.setTextColor(ShellSkins.chipText(skin, followSel))
         barPresets.forEachIndexed { i, (_, hex) ->
             val sw = row.getChildAt(i + 1)
@@ -916,7 +928,7 @@ class SettingsActivity : AppCompatActivity() {
         for (i in 0 until row.childCount) {
             val c = row.getChildAt(i) as TextView
             val on = isOn(c.tag)
-            c.background = ShellSkins.chipBg(skin, on, d)
+            c.background = ShellSkins.chipBg(skin, on, d, store.settingsCardAlphaPct)
             c.setTextColor(ShellSkins.chipText(skin, on))
         }
     }
@@ -1300,6 +1312,16 @@ class SettingsActivity : AppCompatActivity() {
         return row
     }
 
+    /** 属性设置页的按钮/胶囊：按当前主题+浓度重刷（拖动浓度滑条/换肤时实时生效） */
+    private fun restylePropsFills() {
+        val pal = ThemeEngine.current(this)
+        val den = resources.displayMetrics.density
+        propsPrimaryButtons.forEach { stylePrimary(it, pal, den) }
+        propsSecondaryButtons.forEach { styleSecondary(it, pal, den) }
+        val nowId = ShellSkins.current(this).id
+        propsChips.forEach { (chip, sid) -> styleSkinChip(chip, nowId == sid, pal, den) }
+    }
+
     /** 设置页卡片浓度：给主题色叠 alpha（100 = 原样） */
     private fun fadedCard(color: Int): Int {
         val pct = store.settingsCardAlphaPct
@@ -1314,7 +1336,8 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun stylePrimary(b: Button, pal: Palette, d: Float) {
-        b.background = ThemeEngine.cardDrawable(pal.accent, 12f, d)
+        // 填充跟随"设置页卡片浓度"（文字不动）
+        b.background = ThemeEngine.cardDrawable(fadedCard(pal.accent), 12f, d)
         b.setTextColor(
             if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         )
@@ -1324,7 +1347,7 @@ class SettingsActivity : AppCompatActivity() {
         val dark = Color.luminance(pal.bg) < 0.4f
         val fill = blend(pal.bg, pal.accent, if (dark) 0.22f else 0.16f)
         val stroke = blend(fill, pal.accent, if (dark) 0.34f else 0.26f)
-        b.background = ThemeEngine.cardDrawable(fill, 12f, d, stroke)
+        b.background = ThemeEngine.cardDrawable(fadedCard(fill), 12f, d, fadedCard(stroke))
         b.setTextColor(
             if (Color.luminance(fill) > 0.5f) blend(pal.accent, 0xFF000000.toInt(), 0.30f)
             else blend(pal.accent, 0xFFFFFFFF.toInt(), 0.25f)
@@ -1333,13 +1356,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun styleSkinChip(chip: TextView, selected: Boolean, pal: Palette, d: Float) {
         if (selected) {
-            chip.background = ThemeEngine.cardDrawable(pal.accent, 999f, d)
+            chip.background = ThemeEngine.cardDrawable(fadedCard(pal.accent), 999f, d)
             chip.setTextColor(
                 if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
             )
         } else {
             val fill = blend(pal.bg, pal.accent, if (Color.luminance(pal.bg) < 0.4f) 0.20f else 0.10f)
-            chip.background = ThemeEngine.cardDrawable(fill, 999f, d, blend(fill, pal.accent, 0.30f))
+            chip.background = ThemeEngine.cardDrawable(fadedCard(fill), 999f, d, fadedCard(blend(fill, pal.accent, 0.30f)))
             chip.setTextColor(pal.text)
         }
     }

@@ -165,8 +165,11 @@ object ShellSkins {
     fun cut(skin: ShellSkin, d: Float): CutCornerDrawable =
         CutCornerDrawable(skin.panelBg, skin.cornerDp * d * 0.75f, skin.stroke, d)
 
-    fun chipBg(skin: ShellSkin, selected: Boolean, d: Float): Drawable =
-        if (selected) CutCornerDrawable(skin.accent, skin.cornerDp * d * 0.75f, skin.accent, d)
+    fun chipBg(skin: ShellSkin, selected: Boolean, d: Float, alphaPct: Int = 100): Drawable =
+        if (selected) CutCornerDrawable(
+            alphaFill(skin.accent, alphaPct), skin.cornerDp * d * 0.75f,
+            alphaFill(skin.accent, alphaPct), d
+        )
         else CutCornerDrawable(skin.panelBg, skin.cornerDp * d * 0.75f, skin.stroke, d)
 
     fun chipText(skin: ShellSkin, selected: Boolean): Int =
@@ -177,6 +180,13 @@ object ShellSkins {
     fun cuffIconBg(skin: ShellSkin, active: Boolean, d: Float): Drawable =
         if (active) CutCornerDrawable(blend(skin.bg, skin.accent, 0.20f), skin.cornerDp * d, skin.accent, d)
         else CutCornerDrawable(skin.panelBg, skin.cornerDp * d, skin.stroke, d)
+
+    /** 设置页卡片浓度：给填充色叠 alpha（100 = 原样） */
+    private fun alphaFill(c: Int, alphaPct: Int): Int {
+        if (alphaPct >= 100) return c
+        val a = (255 * alphaPct.coerceIn(0, 100)) / 100
+        return (c and 0x00FFFFFF) or (a shl 24)
+    }
 
     private fun blend(base: Int, fg: Int, alpha: Float): Int {
         val a = (alpha * 255).toInt()
@@ -207,13 +217,21 @@ object ShellSkins {
                     val dark = Color.luminance(skin.bg) < 0.4f
                     val fill = blend(skin.bg, skin.accent, if (dark) 0.22f else 0.16f)
                     val stroke = blend(fill, skin.accent, if (dark) 0.34f else 0.26f)
-                    root.background = CutCornerDrawable(fill, skin.cornerDp * d * 0.75f, stroke, 1.2f * d)
+                    val pct = root.context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                        .getInt("settings_card_alpha", 100)
+                    root.background = CutCornerDrawable(
+                        alphaFill(fill, pct), skin.cornerDp * d * 0.75f, alphaFill(stroke, pct), 1.2f * d
+                    )
                     root.setTextColor(
                         if (Color.luminance(fill) > 0.5f) blend(skin.accent, 0xFF000000.toInt(), 0.30f)
                         else blend(skin.accent, 0xFFFFFFFF.toInt(), 0.25f)
                     )
                 } else {
-                    root.background = CutCornerDrawable(skin.accent, skin.cornerDp * d * 0.75f, skin.accent, d)
+                    val pct = root.context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                        .getInt("settings_card_alpha", 100)
+                    root.background = CutCornerDrawable(
+                        alphaFill(skin.accent, pct), skin.cornerDp * d * 0.75f, alphaFill(skin.accent, pct), d
+                    )
                     root.setTextColor(if (Color.luminance(skin.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
                 }
             }
