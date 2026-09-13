@@ -221,8 +221,9 @@ class ResultOverlay(private val context: Context) {
                 bottomMargin = dp(72)             // 先给保守值，随后按真实 inset 精确对齐
             })
             // 底边自动避开导航栏：真实 inset + 8dp；若系统没派发 inset 则保守保持 72dp
-            panel.setOnApplyWindowInsetsListener { _, ins ->
-                val nb = ins.getInsets(
+            // （用 androidx ViewCompat 拿兼容版 insets——平台 getInsets 需要 API30，minSdk=26 不允许）
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(panel) { _, insets ->
+                val nb = insets.getInsets(
                     androidx.core.view.WindowInsetsCompat.Type.systemBars()
                 ).bottom
                 val want = maxOf(nb + dp(8), dp(56))
@@ -231,7 +232,7 @@ class ResultOverlay(private val context: Context) {
                     lp.bottomMargin = want
                     backIcon.layoutParams = lp
                 }
-                ins
+                insets
             }
             panel.requestApplyInsets()
         }
