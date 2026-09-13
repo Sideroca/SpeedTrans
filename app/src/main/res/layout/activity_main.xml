@@ -19,14 +19,6 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
-    <!-- 底部渐变桥：背景渐隐融进导航栏收口色（消除色层分界） -->
-    <View
-        android:id="@+id/vwNavBridgeMain"
-        android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:layout_gravity="bottom"
-        android:importantForAccessibility="no" />
-
     <ScrollView
         android:id="@+id/rootMain"
         android:layout_width="match_parent"

@@ -141,7 +141,8 @@ class SettingsActivity : AppCompatActivity() {
         val lightBars = Color.luminance(skin.bg) > 0.5f
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = lightBars
-            isAppearanceLightNavigationBars = lightBars
+            // 导航栏=纯白，图标固定深色
+            isAppearanceLightNavigationBars = true
         }
         // 导航栏收口色统一由 applyWallpaper()（含渐变桥）设置
         findViewById<ScanlineView>(R.id.fxScanlines).visibility =
@@ -154,6 +155,8 @@ class SettingsActivity : AppCompatActivity() {
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(Color.TRANSPARENT, skin.bg)
         )
+        // 底部膜填充：从坞下缘实心铺到屏幕最底——保证"立绘区"被白膜完全覆盖（不外露）
+        findViewById<View>(R.id.vwNavBridge).setBackgroundColor(skin.bg)
         ShellSkins.applyShell(
             findViewById(R.id.rootSettings), skin,
             cardIds = setOf(R.id.tvUsage),
@@ -996,19 +999,7 @@ class SettingsActivity : AppCompatActivity() {
             this, R.id.ivWallpaper, R.id.wpScrim,
             store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
-        // 导航栏收口：有壁纸 → 壁纸底缘色（按遮罩浓度压暗对齐）；无壁纸 → 皮肤底
-        setNavTone(
-            if (shown)
-                Wallpaper.dimColor(Wallpaper.bottomColor(store.wpCrop("page"), skin.bg), store.wpDim("page", 50))
-            else skin.bg
-        )
-    }
-
-    /** 导航栏收口色 + 底部渐变桥：把背景渐隐融进导航栏（消除色层分界，不依赖 ROM 透明支持） */
-    private fun setNavTone(color: Int) {
-        window.navigationBarColor = color
-        findViewById<View>(R.id.vwNavBridge).background =
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x00000000, color))
+        // （导航栏保持系统默认纯白，不参与染色；底部膜颜色由 applySkin 刷新）
     }
 
     /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域）；滚动区用 inset 让位、底部坞整体上移 */
@@ -1016,8 +1007,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupEdgeToEdge() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        // 关闭"导航栏对比度强制层"：透明导航栏后面的浅色 scrim 就是那条"白带"（与皮肤无关的根因）
+        // 导航栏：回到系统默认的纯白（用户钦定：不做任何染色）
+        window.navigationBarColor = android.graphics.Color.WHITE
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             window.isNavigationBarContrastEnforced = false
         }
@@ -1027,8 +1018,9 @@ class SettingsActivity : AppCompatActivity() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.settingsScroll)) { v, insets ->
             val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, b.top, 0, scrollBaseBottom + b.bottom)
-            val bridge = findViewById<View>(R.id.vwNavBridge)
-            bridge.layoutParams = bridge.layoutParams.apply { height = b.bottom + (72 * d).toInt() }
+            // 底部膜填充高度 = 坞下边距 + 导航栏高度（从坞下缘一路铺到屏幕最底）
+            val foot = findViewById<View>(R.id.vwNavBridge)
+            foot.layoutParams = foot.layoutParams.apply { height = dockBaseMargin + b.bottom + (8 * d).toInt() }
             insets
         }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomDock)) { v, insets ->

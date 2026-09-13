@@ -154,15 +154,9 @@ class MainActivity : AppCompatActivity() {
         applyHomeFont()
 
         findViewById<View>(R.id.rootMainHost).setBackgroundColor(ThemeEngine.backdrop(pal))
-        val wpMainShown = Wallpaper.applySlot(
+        Wallpaper.applySlot(
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
             store.wpCrop("main"), store.wpDim("main", 50), store.wpEnabled("main"), pal.bg
-        )
-        // 导航栏收口：有壁纸 → 壁纸底缘色（按遮罩浓度压暗对齐）；无壁纸 → 主题底
-        setNavTone(
-            if (wpMainShown)
-                Wallpaper.dimColor(Wallpaper.bottomColor(store.wpCrop("main"), ThemeEngine.backdrop(pal)), store.wpDim("main", 50))
-            else ThemeEngine.backdrop(pal)
         )
 
         // 卡片与内层（浓度可控）
@@ -230,7 +224,7 @@ class MainActivity : AppCompatActivity() {
         // 系统栏图标明暗随主题底色走
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = light
-            isAppearanceLightNavigationBars = light
+            isAppearanceLightNavigationBars = true   // 导航栏=纯白，图标固定深色
         }
     }
 
@@ -261,27 +255,16 @@ class MainActivity : AppCompatActivity() {
     private fun setupEdgeToEdge() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        // 关闭"导航栏对比度强制层"：透明导航栏后面的浅色 scrim 就是那条"白带"（与皮肤无关的根因）
+        // 导航栏：回到系统默认的纯白（用户钦定：不做任何染色）
+        window.navigationBarColor = android.graphics.Color.WHITE
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             window.isNavigationBarContrastEnforced = false
         }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootMain)) { v, insets ->
             val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, b.top, 0, b.bottom)
-            val bridge = findViewById<View>(R.id.vwNavBridgeMain)
-            bridge.layoutParams = bridge.layoutParams.apply {
-                height = b.bottom + (72 * resources.displayMetrics.density).toInt()
-            }
             insets
         }
-    }
-
-    /** 导航栏收口色 + 底部渐变桥：把背景渐隐融进导航栏（消除色层分界，不依赖 ROM 透明支持） */
-    private fun setNavTone(color: Int) {
-        window.navigationBarColor = color
-        findViewById<View>(R.id.vwNavBridgeMain).background =
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x00000000, color))
     }
 
     /** 打开「主题色」专页（首页外观：主题球 + 主界面壁纸 + 首页显示） */
