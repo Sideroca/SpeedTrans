@@ -203,9 +203,12 @@ class ResultOverlay(private val context: Context) {
             } else false
         }
 
-        // 全屏捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译（确定性，ROM 无关）
+        // 触摸捕捉层：垫在面板之下，接住窗外触摸——点原文区一次 = 关面板 + 取消翻译。
+        // ① 不再用"全透明"：垫一层纯黑 2/255 薄雾（人眼不可见，纯黑在 OLED 上不减一毫），
+        //    避免部分 ROM 把全透明的悬浮层当"无内容"处理（触摸穿透/冻结）——"点外面从来没生效"的可疑根因；
+        // ② 只铺屏幕下方 80%：顶部 20% 让给系统——下拉状态栏 / 截屏 / 系统手势不受影响，也不会误关面板。
         val catchView = View(ctx).apply {
-            setBackgroundColor(Color.TRANSPARENT)
+            setBackgroundColor(0x02000000)
             // 点球 = 放行给球（继续翻译/累积追加）；点其他空白 = 照旧关闭面板；
             // 在球上拖动 = 不误触（视为未发生，球本身也不会动）
             var downX = 0f; var downY = 0f; var moved = false
@@ -228,11 +231,15 @@ class ResultOverlay(private val context: Context) {
             }
         }
         val clp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            (ctx.resources.displayMetrics.heightPixels * 0.80f).toInt(),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             android.graphics.PixelFormat.TRANSLUCENT
         )
+        clp.gravity = Gravity.BOTTOM or Gravity.START
+        clp.x = 0
+        clp.y = 0
         // 捕捉层同样覆盖挖孔区：横屏左边缘的空白带也能正常接住触摸
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             clp.layoutInDisplayCutoutMode =
