@@ -32,6 +32,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- 底部渐变桥：把背景（壁纸/底色）渐隐融进导航栏收口色，消除"色层分界"（根治法，不依赖 ROM 透明支持） -->
+    <View
+        android:id="@+id/vwNavBridge"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_gravity="bottom"
+        android:importantForAccessibility="no" />
+
     <com.speedtrans.app.ui.GracefulScrollView
         android:id="@+id/settingsScroll"
         android:layout_width="match_parent"

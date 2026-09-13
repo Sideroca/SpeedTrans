@@ -87,6 +87,16 @@ object Wallpaper {
         fallback
     }
 
+    /** 按遮罩浓度近似压暗颜色（让导航栏与"遮罩后的壁纸"观感对齐） */
+    fun dimColor(c: Int, dim: Int): Int {
+        val f = (100 - dim.coerceIn(0, 100)) / 100f
+        return android.graphics.Color.rgb(
+            (android.graphics.Color.red(c) * f).toInt(),
+            (android.graphics.Color.green(c) * f).toInt(),
+            (android.graphics.Color.blue(c) * f).toInt()
+        )
+    }
+
     /** EXIF 方向修正（异常时原样返回） */
     @Suppress("DEPRECATION")
     private fun applyExifOrientation(bmp: Bitmap, path: String): Bitmap {

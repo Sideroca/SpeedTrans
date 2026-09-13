@@ -143,8 +143,7 @@ class SettingsActivity : AppCompatActivity() {
             isAppearanceLightStatusBars = lightBars
             isAppearanceLightNavigationBars = lightBars
         }
-        // 导航栏取色跟随皮肤：部分 ROM 会忽略"透明"并强制白条——直接染成页面底色，肉眼即"覆盖"
-        window.navigationBarColor = skin.bg
+        // 导航栏收口色统一由 applyWallpaper()（含渐变桥）设置
         findViewById<ScanlineView>(R.id.fxScanlines).visibility =
             if (skin.scanline) View.VISIBLE else View.GONE
         findViewById<BeamView>(R.id.fxBeam).visibility =
@@ -997,9 +996,19 @@ class SettingsActivity : AppCompatActivity() {
             this, R.id.ivWallpaper, R.id.wpScrim,
             store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
-        // 导航栏取色：有壁纸 → 跟随壁纸底缘同色（画面无缝）；无壁纸 → 皮肤底
-        window.navigationBarColor =
-            if (shown) Wallpaper.bottomColor(store.wpCrop("page"), skin.bg) else skin.bg
+        // 导航栏收口：有壁纸 → 壁纸底缘色（按遮罩浓度压暗对齐）；无壁纸 → 皮肤底
+        setNavTone(
+            if (shown)
+                Wallpaper.dimColor(Wallpaper.bottomColor(store.wpCrop("page"), skin.bg), store.wpDim("page", 50))
+            else skin.bg
+        )
+    }
+
+    /** 导航栏收口色 + 底部渐变桥：把背景渐隐融进导航栏（消除色层分界，不依赖 ROM 透明支持） */
+    private fun setNavTone(color: Int) {
+        window.navigationBarColor = color
+        findViewById<View>(R.id.vwNavBridge).background =
+            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x00000000, color))
     }
 
     /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域）；滚动区用 inset 让位、底部坞整体上移 */
@@ -1018,6 +1027,8 @@ class SettingsActivity : AppCompatActivity() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.settingsScroll)) { v, insets ->
             val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, b.top, 0, scrollBaseBottom + b.bottom)
+            val bridge = findViewById<View>(R.id.vwNavBridge)
+            bridge.layoutParams = bridge.layoutParams.apply { height = b.bottom + (72 * d).toInt() }
             insets
         }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomDock)) { v, insets ->

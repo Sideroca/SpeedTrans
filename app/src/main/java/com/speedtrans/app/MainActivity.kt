@@ -158,10 +158,12 @@ class MainActivity : AppCompatActivity() {
             this, R.id.ivWallpaperMain, R.id.wpScrimMain,
             store.wpCrop("main"), store.wpDim("main", 50), store.wpEnabled("main"), pal.bg
         )
-        // 导航栏取色：有壁纸 → 壁纸底缘同色（无缝）；无壁纸 → 主题底
-        window.navigationBarColor =
-            if (wpMainShown) Wallpaper.bottomColor(store.wpCrop("main"), ThemeEngine.backdrop(pal))
+        // 导航栏收口：有壁纸 → 壁纸底缘色（按遮罩浓度压暗对齐）；无壁纸 → 主题底
+        setNavTone(
+            if (wpMainShown)
+                Wallpaper.dimColor(Wallpaper.bottomColor(store.wpCrop("main"), ThemeEngine.backdrop(pal)), store.wpDim("main", 50))
             else ThemeEngine.backdrop(pal)
+        )
 
         // 卡片与内层（浓度可控）
         val cardColor = withAlpha(pal.card, alpha)
@@ -267,8 +269,19 @@ class MainActivity : AppCompatActivity() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootMain)) { v, insets ->
             val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, b.top, 0, b.bottom)
+            val bridge = findViewById<View>(R.id.vwNavBridgeMain)
+            bridge.layoutParams = bridge.layoutParams.apply {
+                height = b.bottom + (72 * resources.displayMetrics.density).toInt()
+            }
             insets
         }
+    }
+
+    /** 导航栏收口色 + 底部渐变桥：把背景渐隐融进导航栏（消除色层分界，不依赖 ROM 透明支持） */
+    private fun setNavTone(color: Int) {
+        window.navigationBarColor = color
+        findViewById<View>(R.id.vwNavBridgeMain).background =
+            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x00000000, color))
     }
 
     /** 打开「主题色」专页（首页外观：主题球 + 主界面壁纸 + 首页显示） */
