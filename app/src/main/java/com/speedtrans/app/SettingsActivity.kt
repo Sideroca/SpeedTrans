@@ -155,8 +155,11 @@ class SettingsActivity : AppCompatActivity() {
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(Color.TRANSPARENT, skin.bg)
         )
-        // 底部膜填充：从坞下缘实心铺到屏幕最底——保证"立绘区"被白膜完全覆盖（不外露）
-        findViewById<View>(R.id.vwNavBridge).setBackgroundColor(skin.bg)
+        // 底部膜填充：顶部渐入 + 其余实心，一直铺到屏幕最底——保证"立绘区"被白膜完全覆盖（不外露）
+        findViewById<View>(R.id.vwNavBridge).background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, skin.bg, skin.bg)
+        )
         ShellSkins.applyShell(
             findViewById(R.id.rootSettings), skin,
             cardIds = setOf(R.id.tvUsage),
@@ -1018,9 +1021,9 @@ class SettingsActivity : AppCompatActivity() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.settingsScroll)) { v, insets ->
             val b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(0, b.top, 0, scrollBaseBottom + b.bottom)
-            // 底部膜填充高度 = 坞下边距 + 导航栏高度（从坞下缘一路铺到屏幕最底）
+            // 底部膜填充高度 = 坞下边距 + 导航栏高度 + 88dp（顶部还有一段渐入，覆盖带更宽）
             val foot = findViewById<View>(R.id.vwNavBridge)
-            foot.layoutParams = foot.layoutParams.apply { height = dockBaseMargin + b.bottom + (8 * d).toInt() }
+            foot.layoutParams = foot.layoutParams.apply { height = dockBaseMargin + b.bottom + (88 * d).toInt() }
             insets
         }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomDock)) { v, insets ->
