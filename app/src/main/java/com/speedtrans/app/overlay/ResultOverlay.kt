@@ -156,6 +156,8 @@ class ResultOverlay(private val context: Context) {
             setTextColor(pal.panelText)
             textSize = st.overlayTextSize.toFloat()
             setLineSpacing(0f, 1.3f)
+            // 正文右侧留出与滚动条"刚刚好"的一线距离（视觉上=灰色进度条右移一点点，双方都不重叠）
+            setPadding(0, 0, dp(3), 0)
             // 长按进入系统文本选择（浮动工具条复制指定内容）；「复制」按钮仍复制全文
             setTextIsSelectable(true)
         }
@@ -196,24 +198,23 @@ class ResultOverlay(private val context: Context) {
             val backIcon = TextView(ctx).apply {
                 text = "←"
                 textSize = 14f
+                gravity = Gravity.CENTER
                 // 浅色面板 → 柔灰；深色面板 → 灰白。半透明、无背景，极简
                 setTextColor(
                     if (Color.luminance(pal.panelBg) > 0.5f) 0xB08A8F98.toInt()
                     else 0xB0C9CED6.toInt()
                 )
-                setPadding(dp(6), dp(2), dp(6), dp(2))
                 contentDescription = "关闭"
                 setOnClickListener {
                     TranslateCoordinator.cancelActive()
                     close()
                 }
             }
-            rootBox.addView(backIcon, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
+            // 点击范围 = 正方形，边长与悬浮球直径一致（比图标本身大得多，好按）
+            rootBox.addView(backIcon, FrameLayout.LayoutParams(dp(st.ballSizeDp), dp(st.ballSizeDp)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(10)
-                bottomMargin = dp(6)
+                rightMargin = dp(2)
+                bottomMargin = dp(2)
             })
         }
 
