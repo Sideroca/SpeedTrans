@@ -15,6 +15,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.speedtrans.app.R
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.translate.TranslateCoordinator
