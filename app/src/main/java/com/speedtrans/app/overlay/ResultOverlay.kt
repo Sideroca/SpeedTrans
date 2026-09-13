@@ -39,9 +39,17 @@ class ResultOverlay(private val context: Context) {
 
     val visible: Boolean get() = root?.isAttachedToWindow == true
 
+    /** 面板窗口是否持有按键焦点（有焦点时按键直达面板自身，全局键过滤无需插手） */
+    val hasKeyFocus: Boolean get() = root?.hasWindowFocus() == true
+
+    private val orphanViews = ArrayList<View>()
+    private val sweepHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var sweepTries = 0
+
     private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density + 0.5f).toInt()
 
     fun ensure() {
+        sweepOrphans()
         if (root != null) return
         val ctx = context
         val st = SettingsStore(ctx)
@@ -197,9 +205,13 @@ class ResultOverlay(private val context: Context) {
             if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
                 event.action == android.view.KeyEvent.ACTION_DOWN
             ) {
-                TranslateCoordinator.cancelActive()
-                close()
-                true
+                if (root === box) {
+                    TranslateCoordinator.cancelActive()
+                    close()
+                    // 摘除若被魔改 ROM 卡住：立刻把窗口降级为"不抢焦点、不吞键"，保住返回键活路（防僵尸窗）
+                    if (box.isAttachedToWindow) neutralizeZombie(box)
+                    true
+                } else false
             } else false
         }
 
@@ -314,16 +326,59 @@ class ResultOverlay(private val context: Context) {
     fun close() {
         val r = root
         val c = catcher
-        removeHard(c)
-        removeHard(r)
-        // 只有确认真的摘掉了才清状态；万一摘除瞬时失败，保留状态让返回键/窗外点还能再关（防"幽灵面板"）
-        if ((r == null || !r.isAttachedToWindow) && (c == null || !c.isAttachedToWindow)) {
-            root = null
-            tvOut = null
-            tvStatus = null
-            topBar = null
-            catcher = null
+        // 先"立即清状态"：返回键/点外面的判定马上不再把本面板算作"开着"——
+        // 修复"关闭在途 / 摘除受阻时，后续返回键被反复误吞"的竞态（返回键失灵的残留根因）
+        root = null
+        tvOut = null
+        tvStatus = null
+        topBar = null
+        catcher = null
+        if (r != null) orphanViews.add(r)
+        if (c != null) orphanViews.add(c)
+        sweepTries = 0
+        sweepOrphans()
+    }
+
+    /** 摘除遗留窗口：能摘就摘；摘不掉先"降级"（撤焦点/触控）再继续排队——绝不阻塞返回键 */
+    private fun sweepOrphans() {
+        val it = orphanViews.iterator()
+        while (it.hasNext()) {
+            val v = it.next()
+            removeHard(v)
+            if (!v.isAttachedToWindow) it.remove()
         }
+        if (orphanViews.isEmpty()) {
+            sweepTries = 0
+            return
+        }
+        sweepTries++
+        if (sweepTries == 6) {
+            orphanViews.forEach { v -> neutralizeZombie(v, schedule = false) }
+        }
+        if (sweepTries <= 12) {
+            sweepHandler.postDelayed({ sweepOrphans() }, 300)
+        } else {
+            orphanViews.clear()
+            sweepTries = 0
+        }
+    }
+
+    /** 僵尸窗口降级：撤销焦点与触摸能力（保住返回键/触摸的活路），并继续尝试摘除 */
+    private fun neutralizeZombie(v: View, schedule: Boolean = true) {
+        try {
+            v.isFocusable = false
+            v.isFocusableInTouchMode = false
+            v.clearFocus()
+            v.visibility = View.GONE
+            (v.layoutParams as? WindowManager.LayoutParams)?.let { lp ->
+                lp.flags = lp.flags or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                wm?.updateViewLayout(v, lp)
+            }
+        } catch (_: Exception) {
+        }
+        if (schedule && v.isAttachedToWindow) sweepHandler.postDelayed({ removeHard(v) }, 600)
     }
 
     /** 立即摘窗（removeViewImmediate 为主：removeView 异步排程，主线程忙时会延迟数秒才消失）；失败不静默，补一发 */

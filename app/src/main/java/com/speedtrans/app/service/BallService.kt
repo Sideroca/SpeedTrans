@@ -143,23 +143,31 @@ class BallService : AccessibilityService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /** 是否刚吞掉过一枚返回键 DOWN：只吞紧随其后的那一个 UP（成对吞，不误伤后续手势） */
+    /** 是否刚吞掉过一枚返回键 DOWN：只吞紧随其后的那一个 UP（配对吞，时限 1200ms） */
     private var backDownConsumed = false
+    private var backDownConsumedAt = 0L
 
-    /** 全局返回键过滤：译文面板打开时，按返回 = 关闭面板（DOWN 关闭；仅吞配对的 UP） */
+    /**
+     * 全局返回键过滤：只做"焦点不在面板上"的兜底。
+     * ① 面板持有焦点 → 不插手（按键直达面板自身 keyListener，最稳路径）；
+     * ② 面板开着但焦点丢失 → 吞掉 DOWN 并关面板（配对 UP 一并吞）；
+     * ③ 面板已关（含"关闭在途"）→ 绝不吞，返回键直达下层 App。
+     */
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 val ov = TranslateCoordinator.overlay(this)
-                if (ov?.visible == true) {
+                if (ov?.visible == true && !ov.hasKeyFocus) {
                     mainHandler.post { TranslateCoordinator.closeOverlay() }
                     backDownConsumed = true
+                    backDownConsumedAt = android.os.SystemClock.elapsedRealtime()
                     return true
                 }
-                backDownConsumed = false   // 新手势：明确不吞它的 UP（修"计时器误吞后续 UP → 返回键失灵"）
+                backDownConsumed = false
             } else if (event.action == KeyEvent.ACTION_UP && backDownConsumed) {
                 backDownConsumed = false
-                return true
+                // 只吞与 DOWN 配对的那一枚 UP（时限内有效，防"丢 UP"后长期误吞）
+                if (android.os.SystemClock.elapsedRealtime() - backDownConsumedAt < 1200L) return true
             }
         }
         return super.onKeyEvent(event)
