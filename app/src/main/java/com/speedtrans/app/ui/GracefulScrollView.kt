@@ -76,7 +76,7 @@ class GracefulScrollView @JvmOverloads constructor(
                     // 关键：掐死系统"把获焦控件滚进视野"的平滑动画（否则它会和手指抢、短滑被拽回）
                     smoothScrollBy(0, 0)
                     // 并把焦点从输入框抢走（社区标准解法：否则 ScrollView 会持续"照顾"获焦控件）
-                    currentFocus?.clearFocus()
+                    findFocus()?.clearFocus()
                     // 再给子视图发 CANCEL 复位按压态
                     val cancel = MotionEvent.obtain(ev)
                     cancel.action = MotionEvent.ACTION_CANCEL
