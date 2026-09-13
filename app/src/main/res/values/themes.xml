@@ -3,5 +3,7 @@
     <style name="Theme.App" parent="Theme.AppCompat.Light.NoActionBar">
         <!-- 浅色主题自成体系：禁用系统"强制深色"叠加 -->
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+        <!-- 关闭"导航栏对比度强制层"：否则透明导航栏后面会被系统抹一层浅色 scrim（"白带"根因） -->
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 </resources>

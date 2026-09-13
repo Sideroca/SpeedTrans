@@ -590,7 +590,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:lineSpacingExtra="3dp"
-                    android:text="· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译&#10;· 翻译中再点击 = 忽略（一次只跑第一次的反应）&#10;· 内容没变时点击 = 秒回，不发请求&#10;· 持续增长的内容（如模型思考）= 自动增量翻译"
+                    android:text="· 单击悬浮球 = 抓取当前屏幕文字，立即流式翻译&#10;· 翻译中再点击 = 忽略（一次只跑第一次的反应）&#10;· 内容没变时点击 = 秒回，不发请求&#10;· 持续增长的内容（如模型思考）= 自动增量翻译&#10;· 开启自启动 = 可以避免每次打开软件时的 10 秒无障碍服务验证等待"
                     android:textSize="11.5sp" />
             </LinearLayout>
 

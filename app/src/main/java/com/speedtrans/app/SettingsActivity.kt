@@ -80,6 +80,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         Wallpaper.ensureMigrated(this)
         setContentView(R.layout.activity_settings)
         setupEdgeToEdge()
@@ -1002,6 +1003,10 @@ class SettingsActivity : AppCompatActivity() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        // 关闭"导航栏对比度强制层"：透明导航栏后面的浅色 scrim 就是那条"白带"（与皮肤无关的根因）
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            window.isNavigationBarContrastEnforced = false
+        }
         val d = resources.displayMetrics.density
         val scrollBaseBottom = (260 * d + 0.5f).toInt()
         val dockBaseMargin = (40 * d + 0.5f).toInt()
