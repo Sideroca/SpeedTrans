@@ -151,15 +151,7 @@ class SettingsActivity : AppCompatActivity() {
             if (skin.beam) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.tvShellTitle).setTextColor(skin.accent)
         findViewById<View>(R.id.titleLine).setBackgroundColor(skin.accent)
-        findViewById<LinearLayout>(R.id.bottomDock).background = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(Color.TRANSPARENT, skin.bg)
-        )
-        // 底部膜填充：顶部渐入 + 其余实心，一直铺到屏幕最底——保证"立绘区"被白膜完全覆盖（不外露）
-        findViewById<View>(R.id.vwNavBridge).background = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(Color.TRANSPARENT, skin.bg, skin.bg)
-        )
+        // （坞渐变与底部幕布统一由 applyWallpaper 决策：一处定色，避免多对象不同色）
         ShellSkins.applyShell(
             findViewById(R.id.rootSettings), skin,
             cardIds = setOf(R.id.tvUsage),
@@ -1014,7 +1006,17 @@ class SettingsActivity : AppCompatActivity() {
             this, R.id.ivWallpaper, R.id.wpScrim,
             store.wpCrop("page"), store.wpDim("page", 50), store.wpEnabled("page"), skin.bg
         )
-        // （导航栏保持系统默认纯白，不参与染色；底部膜颜色由 applySkin 刷新）
+        // 底部收口统一（一处决策）：幕布+坞渐变同色——有壁纸时用"软件内部色"（卡片/面板色），
+        // 无壁纸时用皮肤底。透明→实色一张连续渐变，一路铺到屏幕最底。
+        val tone = if (shown) skin.panelBg else skin.bg
+        findViewById<View>(R.id.vwNavBridge).background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, tone, tone)
+        )
+        findViewById<LinearLayout>(R.id.bottomDock).background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, tone)
+        )
     }
 
     /** 全面屏：壁纸铺满整个屏幕（含状态栏/导航栏区域）；滚动区用 inset 让位、底部坞整体上移 */
@@ -1035,7 +1037,7 @@ class SettingsActivity : AppCompatActivity() {
             v.setPadding(0, b.top, 0, scrollBaseBottom + b.bottom)
             // 底部膜填充高度 = 坞下边距 + 导航栏高度 + 88dp（顶部还有一段渐入，覆盖带更宽）
             val foot = findViewById<View>(R.id.vwNavBridge)
-            foot.layoutParams = foot.layoutParams.apply { height = dockBaseMargin + b.bottom + (88 * d).toInt() }
+            foot.layoutParams = foot.layoutParams.apply { height = dockBaseMargin + b.bottom + (120 * d).toInt() }
             insets
         }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bottomDock)) { v, insets ->

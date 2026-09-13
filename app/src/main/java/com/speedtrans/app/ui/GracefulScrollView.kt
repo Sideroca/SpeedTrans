@@ -14,6 +14,7 @@ import kotlin.math.abs
 
 /**
  * 设置页专用 ScrollView：彻底解决两类"划不动"：
+ * （v3）接管时先 smoothScrollBy(0,0) 掐死系统"获焦滚动"动画——修复"短滑被强制回正"；
  * ① 起点落在输入框上的滑动手势被 EditText 获焦后吞掉（框架拦截管线在部分 ROM 上被旁路）——
  *    超过阈值后本视图**手动接管**手势：直接 scrollBy，不依赖任何子视图让权、不依赖框架裁决；
  * ② 起点落在滑条（SeekBar）上时**绝不抢**——让滑条安安稳稳被拖动（修"调遮罩浓度时屏幕乱晃"）。
@@ -67,11 +68,16 @@ class GracefulScrollView @JvmOverloads constructor(
                     return true
                 }
                 if (!sliderGuard && !frameworkDrag &&
-                    abs(ev.y - downY) > slop && abs(ev.y - downY) > abs(ev.x - downX) * 1.2f
+                    abs(ev.y - downY) > slop * 0.5f && abs(ev.y - downY) >= abs(ev.x - downX)
                 ) {
-                    // 框架没接管（被输入框获焦等吞掉）：手动接管——先给子视图发 CANCEL 复位按压态
+                    // 框架没接管（被输入框获焦等吞掉）：手动接管
                     dragging = true
                     lastY = ev.y
+                    // 关键：掐死系统"把获焦控件滚进视野"的平滑动画（否则它会和手指抢、短滑被拽回）
+                    smoothScrollBy(0, 0)
+                    // 并把焦点从输入框抢走（社区标准解法：否则 ScrollView 会持续"照顾"获焦控件）
+                    currentFocus?.clearFocus()
+                    // 再给子视图发 CANCEL 复位按压态
                     val cancel = MotionEvent.obtain(ev)
                     cancel.action = MotionEvent.ACTION_CANCEL
                     super.dispatchTouchEvent(cancel)
