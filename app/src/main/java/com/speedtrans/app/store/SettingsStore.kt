@@ -216,6 +216,11 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("card_alpha", 82).coerceIn(30, 100)
         set(v) = sp.edit().putInt("card_alpha", v.coerceIn(30, 100)).apply()
 
+    /** 设置页卡片/面板浓度（不透明度 %，100 = 现状不透明；0~100 可调） */
+    var settingsCardAlphaPct: Int
+        get() = sp.getInt("settings_card_alpha", 100).coerceIn(0, 100)
+        set(v) = sp.edit().putInt("settings_card_alpha", v.coerceIn(0, 100)).apply()
+
     /** 首页字号缩放（80~140，默认 100；作用到首页文字，大标题除外；与系统字体缩放叠加） */
     var homeFontPct: Int
         get() = sp.getInt("home_font_pct", 100).coerceIn(80, 140)

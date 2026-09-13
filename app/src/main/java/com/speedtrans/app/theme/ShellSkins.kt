@@ -93,10 +93,15 @@ object ShellSkins {
 
     fun current(context: Context): ShellSkin {
         val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        return when (sp.getString(KEY, "follow_theme")) {
+        val base = when (sp.getString(KEY, "follow_theme")) {
             "follow_theme" -> follow(ThemeEngine.current(context))
             else -> dsHolo
         }
+        // 设置页卡片浓度：给面板底叠 alpha（100 = 现状不透明；滑块实时调用 applySkin 即全页生效）
+        val pct = sp.getInt("settings_card_alpha", 100).coerceIn(0, 100)
+        if (pct >= 100) return base
+        val a = (255 * pct) / 100
+        return base.copy(panelBg = (base.panelBg and 0x00FFFFFF) or (a shl 24))
     }
 
     fun save(context: Context, id: String) {

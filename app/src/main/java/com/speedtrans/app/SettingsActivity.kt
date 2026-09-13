@@ -286,6 +286,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private var themeCatModern = true
     private var themeCatProps = false
+    private var propsBox: LinearLayout? = null
 
     /** 主题分类选择器（主题变更后原地重画，不 recreate 不跳页） */
     private fun selectThemeCategory() {
@@ -328,7 +329,8 @@ class SettingsActivity : AppCompatActivity() {
         val den = resources.displayMetrics.density
         val box = findViewById<LinearLayout>(R.id.themePropsRow)
         box.removeAllViews()
-        box.background = ThemeEngine.cardDrawable(pal.card, 18f, den, blend(pal.bg, pal.accent, 0.12f))
+        propsBox = box
+        box.background = ThemeEngine.cardDrawable(fadedCard(pal.card), 18f, den, blend(pal.bg, pal.accent, 0.12f))
         box.setPadding((16 * den).toInt(), (12 * den).toInt(), (16 * den).toInt(), (16 * den).toInt())
 
         val contentW = (resources.displayMetrics.widthPixels * 0.92f).toInt() - (40 * den).toInt()
@@ -451,6 +453,18 @@ class SettingsActivity : AppCompatActivity() {
             store.setWpDim("page", p)
             applyWallpaper()
         })
+        // 设置页卡片浓度：面板/卡片底的不透明度（100 = 现状）；拖动即全页生效
+        gap(12)
+        box.addView(
+            sliderRow("卡片浓度", 100, store.settingsCardAlphaPct, pal, den, fmt = { "$it%" }) { p ->
+                store.settingsCardAlphaPct = p
+                // 大盒子本身 + 全页（皮肤面板）实时生效
+                propsBox?.background = ThemeEngine.cardDrawable(
+                    fadedCard(pal.card), 18f, den, blend(pal.bg, pal.accent, 0.12f)
+                )
+                applySkin()
+            }
+        )
         pickPage.setOnClickListener { pickWallPage.launch("image/*") }
         clearPage.setOnClickListener {
             clearWall("page")
@@ -1228,7 +1242,9 @@ class SettingsActivity : AppCompatActivity() {
     // ---------- 属性设置面板 ----------
 
     private fun sliderRow(
-        name: String, max: Int, start: Int, pal: Palette, den: Float, onSet: (Int) -> Unit
+        name: String, max: Int, start: Int, pal: Palette, den: Float,
+        fmt: ((Int) -> String)? = null,
+        onSet: (Int) -> Unit
     ): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1253,10 +1269,10 @@ class SettingsActivity : AppCompatActivity() {
             gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams((56 * den).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
         }
-        valTv.text = fmtFor(name, start)
+        valTv.text = fmt?.invoke(start) ?: fmtFor(name, start)
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sk: SeekBar?, p: Int, fromUser: Boolean) {
-                valTv.text = fmtFor(name, p)
+                valTv.text = fmt?.invoke(p) ?: fmtFor(name, p)
                 if (fromUser) onSet(p)
             }
 
@@ -1266,6 +1282,13 @@ class SettingsActivity : AppCompatActivity() {
         row.addView(sb)
         row.addView(valTv)
         return row
+    }
+
+    /** 设置页卡片浓度：给主题色叠 alpha（100 = 原样） */
+    private fun fadedCard(color: Int): Int {
+        val pct = store.settingsCardAlphaPct
+        if (pct >= 100) return color
+        return (color and 0x00FFFFFF) or (((255 * pct) / 100) shl 24)
     }
 
     private fun fmtFor(name: String, p: Int): String = when (name) {
