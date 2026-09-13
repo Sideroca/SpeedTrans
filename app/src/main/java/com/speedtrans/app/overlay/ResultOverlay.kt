@@ -190,6 +190,33 @@ class ResultOverlay(private val context: Context) {
         ).apply { gravity = Gravity.BOTTOM }
         rootBox.addView(panel)
 
+        // 迷你返回键（右下角·灰白·不引人注目）：返回键失灵时的保底关闭通道。
+        // 点击 = 取消翻译 + 关闭面板（与返回键/✕ 等效）；跟随"显示关闭按钮"开关。
+        if (st.showClose) {
+            val backIcon = TextView(ctx).apply {
+                text = "←"
+                textSize = 14f
+                // 浅色面板 → 柔灰；深色面板 → 灰白。半透明、无背景，极简
+                setTextColor(
+                    if (Color.luminance(pal.panelBg) > 0.5f) 0xB08A8F98.toInt()
+                    else 0xB0C9CED6.toInt()
+                )
+                setPadding(dp(6), dp(2), dp(6), dp(2))
+                contentDescription = "关闭"
+                setOnClickListener {
+                    TranslateCoordinator.cancelActive()
+                    close()
+                }
+            }
+            rootBox.addView(backIcon, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                rightMargin = dp(10)
+                bottomMargin = dp(6)
+            })
+        }
+
         // 顶部 8%（状态栏带）不接管：下拉状态栏/截屏走系统；其余区域：点=关（滑动不关）
         val topGuardPx = (screenH * 0.08f).toInt()
         val moveSlopPx = dp(24).toFloat()

@@ -44,7 +44,12 @@ class GracefulScrollView @JvmOverloads constructor(
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (!textGuard) return super.onInterceptTouchEvent(ev)
         val r = super.onInterceptTouchEvent(ev)
-        if (r) frameworkDrag = true
+        if (r) {
+            frameworkDrag = true
+            // 框架层开始接管：同样掐掉"获焦滚动"动画并抢走焦点（迟到动画是"回正"的残余来源）
+            smoothScrollBy(0, 0)
+            findFocus()?.clearFocus()
+        }
         return r
     }
 
@@ -58,6 +63,10 @@ class GracefulScrollView @JvmOverloads constructor(
                 dragging = false
                 frameworkDrag = false
                 textGuard = isOnTextInput(ev.x, ev.y)
+                if (textGuard) {
+                    // 输入框获焦会在 DOWN 之后"迟到启动"把控件滚进视野的动画——当帧结束即杀
+                    post { smoothScrollBy(0, 0) }
+                }
                 tracker?.recycle()
                 tracker = VelocityTracker.obtain().apply { addMovement(ev) }
             }
@@ -77,6 +86,10 @@ class GracefulScrollView @JvmOverloads constructor(
                     lastY = ev.y
                     smoothScrollBy(0, 0)
                     findFocus()?.clearFocus()
+                    // 顺手收起键盘（键盘弹出引起的窗口重排也是"回正"来源之一）
+                    (context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                        as? android.view.inputmethod.InputMethodManager)
+                        ?.hideSoftInputFromWindow(windowToken, 0)
                     val cancel = MotionEvent.obtain(ev)
                     cancel.action = MotionEvent.ACTION_CANCEL
                     super.dispatchTouchEvent(cancel)
