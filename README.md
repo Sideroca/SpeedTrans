@@ -78,7 +78,7 @@ Android 13+ 通过微信 / QQ 等会话式安装器安装的 APK，无障碍开�
 2. 等 3~5 分钟 → 该次运行 → Artifacts → 下载 `SpeedTrans-debug-apk`
 3. 解压得 arm64 APK，安装
 
-> 仓库务必保持 Private：git 历史含旧密钥记录；开源前须做历史脱敏（新起干净仓库或 filter）。代码已零预置密钥。
+> 本仓库已开源（Apache-2.0）。代码不含预置密钥——接口 Key 由用户自行填写，仅存本机。
 
 ## 🧭 架构速览
 
@@ -107,3 +107,7 @@ IconStudio(快捷图标工坊) + HistoryStore(本地历史)
 - 夕汀系列第二款作品；双行签名：✦ glm5.3flash(๑ت๑) ／ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_
 - 开发者：轻响 · QQ 2093523014（邮箱同号，见设置页 → 其他）
 - 详细设计文档见 `SPEC.md`，AI 接手入口见 `AGENTS.md`
+
+## 📄 开源协议
+
+本项目基于 [Apache License 2.0](LICENSE) 开源。
