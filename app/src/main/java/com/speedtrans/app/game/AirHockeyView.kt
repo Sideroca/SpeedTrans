@@ -17,6 +17,7 @@ import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.random.Random
 
 /**
@@ -40,6 +41,13 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var scale = 1f
     private var offX = 0f
     private var offY = 0f
+    /**
+     * 世界速度倍率：把「屏上速度」锚定到**屏幕短边**，让横竖屏手感一致。
+     * 竖屏 = 1.00（逐位不变）；横屏 < 1（场地被放大多少，世界就慢多少）。
+     * 推导：屏上速度 = 世界速度 × scale，令 世界速度 = 虚拟速度 × speedK 且 speedK = REF/scale，
+     * 则 屏上速度 = 虚拟速度 × REF，而 REF = min(w,h)/layW 与朝向无关。
+     */
+    private var speedK = 1f
 
     // ---------------- 几何 / 物理常量（与原作一致） ----------------
     private val TABLE_X = 30f
@@ -61,6 +69,12 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private val CPU_ERROR_Y = 26f
     private val CPU_MISTAKE_CHANCE = 0.018f
     private val CPU_MISTAKE_DUR = 42
+    /**
+     * 每 tick 摩擦 = FRICTION^speedK。
+     * 世界按 speedK 减速后，若摩擦仍按原值衰减，球的滑行距离会缩短；取幂补偿后
+     * 「同一段虚拟轨迹」得以保留——只是走得慢些。speedK = 1 时逐位等于 FRICTION。
+     */
+    private var fric = FRICTION
 
     // ---------------- 颜色 ----------------
     private val C_BG = Color.parseColor("#04060a")
@@ -153,6 +167,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastNanos = 0L
     private var acc = 0.0
     private val STEP_NS = 1_000_000_000L / 60L
+    /** 单帧最多补算的物理步数：8 步 ≈ 兜住 7.5fps；触顶即丢弃积压（见 doFrame） */
+    private val MAX_STEPS = 8
 
     init {
         setBackgroundColor(C_BG)
@@ -181,11 +197,13 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         if (d > 100_000_000L) d = 100_000_000L
         acc += d.toDouble()
         var steps = 0
-        while (acc >= STEP_NS && steps < 4) {
+        while (acc >= STEP_NS && steps < MAX_STEPS) {
             tick()
             acc -= STEP_NS.toDouble()
             steps++
         }
+        // 触顶：丢弃积压的模拟时间，避免低帧率下越积越多、雪崩式掉速
+        if (acc >= STEP_NS.toDouble()) acc = 0.0
         invalidate()
         Choreographer.getInstance().postFrameCallback(this)
     }
@@ -196,6 +214,19 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         scale = min(w / layW, h / VH)
         offX = (w - layW * scale) / 2f
         offY = (h - VH * scale) / 2f
+
+        // 世界速度锚定「屏幕短边」（短边与朝向无关）：
+        //   竖屏 scale = 短边/layW  → speedK = 1.00，逐位不变
+        //   横屏 scale 被放大       → speedK < 1，场地放大多少就慢多少
+        val k = (min(w, h).toFloat() / layW / scale).coerceIn(0.2f, 1f)
+        if (k != speedK) {
+            // 旋转发生在对局中：把已在飞的球按同比例换算，避免换朝向瞬间速度跳变
+            val r = k / speedK
+            puck.vx *= r; puck.vy *= r
+        }
+        speedK = k
+        // 摩擦取幂补偿：世界慢了，摩擦也要同步放松，否则滑行距离变短
+        fric = if (k >= 1f) FRICTION else FRICTION.pow(k)
     }
 
     // ---------------- 输入：相对拖动（手指不挡球拍） ----------------
@@ -261,8 +292,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
     private fun resetRound(server: Int) {
         puck.x = CX; puck.y = CY
-        puck.vx = if (server == 0) -2.2f else 2.2f
-        puck.vy = (Random.nextFloat() - 0.5f) * 1.6f
+        puck.vx = (if (server == 0) -2.2f else 2.2f) * speedK
+        puck.vy = (Random.nextFloat() - 0.5f) * 1.6f * speedK
         player.x = TABLE_X + 110f; player.y = CY
         cpu.x = VW - TABLE_X - 110f; cpu.y = CY
         pvx = 0f; pvy = 0f
@@ -394,7 +425,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         if (cornered || (farHome && !puckToMe)) {
             tx = homeX; ty = CY
         } else if (puckOnMySide && puckToMe) {
-            val frames = max(1f, min((cpu.x - puck.x) / max(0.5f, puck.vx), 60f))
+            val frames = max(1f, min((cpu.x - puck.x) / max(0.5f * speedK, puck.vx), 60f))
             tx = clamp(puck.x + puck.vx * frames * CPU_REACT, minX, maxX)
             ty = clamp(puck.y + puck.vy * frames * CPU_REACT + err, minY, maxY)
         } else if (puckOnMySide) {
@@ -409,7 +440,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         val dx = tx - cpu.x; val dy = ty - cpu.y
         val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
         if (dist > 0.1f) {
-            val step = min(dist, CPU_SPEED * ts)
+            val step = min(dist, CPU_SPEED * ts * speedK)
             cpu.x += dx / dist * step
             cpu.y += dy / dist * step
         }
@@ -431,18 +462,18 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         }
         trailX[trailN - 1] = puck.x; trailY[trailN - 1] = puck.y
 
-        if (spd < 0.8f) {
-            puck.vx += (Random.nextFloat() - 0.5f) * 0.18f
-            puck.vy += (Random.nextFloat() - 0.5f) * 0.18f
-        } else if (spd < 2.5f) {
-            puck.vx += (Random.nextFloat() - 0.5f) * 0.06f
-            puck.vy += (Random.nextFloat() - 0.5f) * 0.06f
+        if (spd < 0.8f * speedK) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.18f * speedK
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.18f * speedK
+        } else if (spd < 2.5f * speedK) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.06f * speedK
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.06f * speedK
         }
 
         puck.x += puck.vx
         puck.y += puck.vy
-        puck.vx *= FRICTION
-        puck.vy *= FRICTION
+        puck.vx *= fric
+        puck.vy *= fric
 
         val tx = TABLE_X; val ty = TABLE_Y; val tw = TABLE_W; val th = TABLE_H
         if (puck.y - puck.r < ty) {
@@ -501,20 +532,21 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         pk.vy += impulse * ny
 
         var spd = hypot(pk.vx.toDouble(), pk.vy.toDouble()).toFloat()
-        val cap = (if (isPlayer) 20f else 16f) * puckSpeedMult
+        val cap = (if (isPlayer) 20f else 16f) * puckSpeedMult * speedK
         if (spd > cap) { pk.vx = pk.vx / spd * cap; pk.vy = pk.vy / spd * cap; spd = cap }
         if (!isPlayer) cpuHitCool = 20
 
-        val mph = Math.round(spd * 4f)
+        // 显示与阈值一律换算回「基准速度」（÷speedK），横竖屏的 TOP SPEED / POWER HITS 才可比
+        val mph = Math.round(spd / speedK * 4f)
         if (isPlayer) { if (mph > pTopSpeed) pTopSpeed = mph } else { if (mph > cTopSpeed) cTopSpeed = mph }
-        if (spd > 14f) { if (isPlayer) pPower++ else cPower++ }   // POWER HITS（原作阈值 14）
+        if (spd > 14f * speedK) { if (isPlayer) pPower++ else cPower++ }   // POWER HITS（原作阈值 14）
 
-        if (spd > 3f) {
+        if (spd > 3f * speedK) {
             burst(pk.x, pk.y, if (isPlayer) C_PLAYER else C_CPU, min((spd * 1.5f).toInt(), 40))
-            sound.playHit(spd)
+            sound.playHit(spd / speedK)
             if (isPlayer) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
-        if (spd > 19f) shake(min((spd - 19f) * 0.4f, 3f))
+        if (spd > 19f * speedK) shake(min((spd - 19f * speedK) * 0.4f, 3f * speedK))
     }
 
     // ---------------- 特效 ----------------
@@ -523,7 +555,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         while (i < n && partN < MAX_PART) {
             val p = parts[partN++]
             val a = Random.nextFloat() * 6.2832f
-            val v = 1f + Random.nextFloat() * 5f
+            val v = (1f + Random.nextFloat() * 5f) * speedK
             p.x = x; p.y = y
             p.vx = kotlin.math.cos(a) * v; p.vy = kotlin.math.sin(a) * v
             p.t = 0f
@@ -540,8 +572,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         while (i < 6 && partN < MAX_PART) {
             val p = parts[partN++]
             p.x = x; p.y = y
-            p.vx = (Random.nextFloat() - 0.5f) * 4f
-            p.vy = (Random.nextFloat() - 0.5f) * 4f
+            p.vx = (Random.nextFloat() - 0.5f) * 4f * speedK
+            p.vy = (Random.nextFloat() - 0.5f) * 4f * speedK
             p.t = 0f
             p.life = 8f + Random.nextFloat() * 8f
             p.size = 1.2f + Random.nextFloat() * 1.6f

@@ -38,7 +38,8 @@
             └─ 自定义提示词：通用模型走 system，MT 模型走 domains
 ResultOverlay（译文面板：高度/按钮显隐/左右/边距可调，不自动滚动，返回键关闭）
 KeepAliveService（前台保活，划掉最近任务不掉球）
-KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
+windowSoftInputMode=adjustResize + setDecorFitsSystemWindows(false) + 手动 insets（状态栏/键盘适配；
+XML 的 fitsSystemWindows 已弃用，全仓仅 activity_crop 保留）
 ```
 
 ## 三、关键经验（别踩重复的坑）
@@ -69,9 +70,10 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 
 ## 五、当前主题系统（v3.2/v3.3）
 
-- `ThemeEngine.kt`：22 套 Palette（现代经典 18 + 中国传统色 4，色值来自 Color Atlas 官方场景调色板）
+- `ThemeEngine.kt`：64 套 Palette（现代经典 18 + 中国传统色 46，色值来自 Color Atlas 官方场景调色板）
 - Palette 字段：bg/card/accent/text/subText/panelBg/panelText/panelSub/barBg/barText（传统色撞色条）/cardStroke/elev/cardRadius/btnRadius/solidBtn/group/isDark
-- 撞色条：面板标题栏 + 设置页 Tab 行 + 主界面色球条三处应用
+- 撞色条（barBg）现落两处：① 译文面板标题栏（可被「撞色条独立选色」覆盖）② 设置页「跟随主界面主题」皮肤的 accentStrong +
+  主题预览卡选中态底色。旧的「设置页 Tab 行」（Tab 已退役）与「主界面色球条」（现走 pal.accent）均已不适用
 - 用户已验收：赛博 2077、紫电夜、底排暗色系、ChatGPT 极简；OLED 已定 C 暗金 #C8A951
 - 主题选择：分类按钮（现代经典/🏮中国传统色）+ 整套配色预览卡（三段色条）
 
@@ -103,10 +105,10 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 把 Palette 从"预设表"升级为"用户可编辑表"，四层。
 
 **实现状态（v4.0 时点）——未实现部分为 v4.x 待办：**
-- ✅ 已实现（v4.1 增补）：OCR 缩放提速（宽≤1080）、模型预热（消除冷启动）、
+- ✅ 已实现（v4.1 增补）：OCR 缩放提速（宽≤900，宽高同一比例）、模型预热（消除冷启动）、
   空结果原尺寸自动重试、截屏限流 400ms 自动重试、面板实时诊断状态行
-- ✅ 已实现：三态模式、游戏前台检测、智能阈值（可调）、
-  OCR 语言勾选（5 体系）、OCR 回退开关、面板高度/按钮自定义、22 套主题+撞色条、
+- ✅ 已实现：两态模式（📄仅文本/🖼仅识图；**智能判定与游戏前台检测已退役**，旧 smart 值自动迁移为仅文本）、
+  OCR 语言勾选（5 体系）、OCR 回退开关、面板高度/按钮自定义、64 套主题+撞色条、
   返回键关面板、签名显示
 - ⬜ 待实现：颜色 11 槽 HEX 编辑（背景/卡片/强调/主文字/次文字/撞色条底/撞色条字/
   面板背景/面板文字/面板次文字/卡片描边）
@@ -114,14 +116,14 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 - ⬜ 待实现：字体族（默认/衬线/等宽）+ 从文件导入 .ttf（失败自动回退）
 - ⬜ 待实现：卡片圆角/按钮圆角滑条、实心/描边按钮用户级切换
 - ⬜ 待实现：签名文字自定义输入框
-- ⬜ 待实现：Tab emoji 替换（备选字符需避开缺字形）
+- ⬜ 待实现：底部导航 emoji 替换（Cuff Links 五键上的 🔌🎨⚡🖼✍️；备选字符需避开缺字形）
 - ⬜ 待实现：主题 JSON 导出/导入（社区分享）
 
 四层明细：
 
 1. **颜色 11 槽全开放**：HEX 输入 + 色块预览（背景/卡片/强调/主文字/次文字/撞色条底/撞色条字/面板背景/面板文字/面板次文字/卡片描边）
 2. **排版**：标题/正文/次文字/按钮 四档字号滑条；字体族（默认/衬线/等宽）+ 从文件导入 .ttf（失败回退）
-3. **形状与签名**：卡片圆角、按钮圆角滑条、实心/描边切换（已有）；签名文字自定义（默认双行：✦ glm5.3flash(๑ت๑) ／ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_）；Tab emoji 可替换（备选字符需避开缺字形）
+3. **形状与签名**：卡片圆角、按钮圆角滑条、实心/描边切换（已有）；签名文字自定义（默认双行：✦ glm5.3flash(๑ت๑) ／ deepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_）；底部导航 emoji 可替换（备选字符需避开缺字形）
 4. **主题 JSON 导出/导入**（社区分享）
 
 **提示词防呆设计（v3.5 定稿，用户钦点保留）**：留空 = 引擎使用内置极速翻译词兜底（防手滑删空导致质量崩坏）；填写任意内容 = 完全以用户为准（可加"轻响，我爱你"、16 进制颜色码转色名等任何玩法）。默认文案预填在设置页输入框（可见可删可改）。设置页提示词标签行**长按浮现规则气泡**（View.setTooltipText，触发模式：一行字当按钮，按住浮现另一行字）。红线：此区域任何改动不得损害极速。
@@ -135,9 +137,21 @@ KeepAliveService + adjustResize + fitsSystemWindows（状态栏/键盘适配）
 ```
 app/src/main/java/com/speedtrans/app/
 ├── MainActivity.kt                  入口页：三权限状态卡 + 快捷主题色球条（撞色条底）+ 保活启动
-├── SettingsActivity.kt              设置页：5 标签页（🔌接口/🎨主题/⚡悬浮球面板/🖼桌面/✍️其他）
-│                                    · 主题选择器：分类 chips + 整套配色预览卡（三段色条+名字）
-│                                    · 面板按钮自定义（显隐/左右/边距）· 提示词标签长按浮现规则
+│                                    · tintTagged = 按 view.tag 的树染色（首页四卡）——全仓两套树染色之一
+├── SettingsActivity.kt              设置页**壳层**（2026-10-01 拆分：1620 → 430 行）
+│                                    · 切换件 = 底部「Cuff Links 弧形五键」（两端下沉 12/5/0/5/12，非 Tab）
+│                                    · 留在这里的：store/currentSkin/applySkin/Cuff 导航 + 6 个
+│                                      @ActivityResult 启动器 + setupEdgeToEdge（跨 ROM 最敏感，拆时未动）
+│                                    · 5 个页面各拆一个文件（见下），写成 internal 扩展函数而**不是新类**
+│                                      —— 因为 registerForActivityResult 必须注册在 Activity 上
+├── settings/ApiPage.kt              🔌 接口页：服务商联想（ContainsAdapter）/ 思考档位 / 测试连接
+├── settings/ThemePage.kt            🎨 主题页：分类 chips + 整套配色预览卡 + 换主题原地刷新
+├── settings/BallPage.kt             ⚡ 悬浮球页：外观 / OCR 语言 / 译文面板 / 面板按钮自定义
+├── settings/DesktopPage.kt          🖼 桌面页：壁纸 / 快捷图标工坊 / 桌面入口
+├── settings/MorePage.kt             ✍️ 其他页：撞色条独立选色 / 提示词
+├── settings/PropsPanel.kt           主题标签下的「属性设置」面板 + 全部样式工具（sliderRow/style*/blend/fadedCard…）
+├── settings/SettingsSaver.kt        保存落盘（把界面选择一次性写回 SettingsStore）
+├── ui/ContainsAdapter.kt            包含式匹配的下拉适配器（原在 SettingsActivity 尾部）
 ├── service/BallService.kt           无障碍服务：悬浮球（文字/图片）绘制 + 节点取词触发
 │                                    + onKeyEvent 返回键关面板（flagRequestFilterKeyEvents）
 ├── service/KeepAliveService.kt      前台保活：常驻通知（specialUse 类型，防 MIUI 杀）
@@ -147,11 +161,14 @@ app/src/main/java/com/speedtrans/app/
 │                                    / 提示词防呆兜底（ifBlank→DEFAULT） / 续段标记
 ├── translate/TextCollector.kt       节点树取词：可见性过滤+位置排序+同行合并+坐标记录
 ├── translate/TranslateCoordinator.kt 编排单例：增量判断（startsWith）/秒回缓存/忙碌忽略
-├── theme/ThemeEngine.kt             22 套 Palette（现代 18 + 中国传统色 4）+ applyTo 视图树染色
+├── theme/ThemeEngine.kt             64 套 Palette（现代 18 + 中国传统色 46）+ cardDrawable/barGradient 绘制工具
+│                                    （v2.3 曾有的 applyTo 树染色已于 2026-10-01 删除：被重构架空后无人调用）
+├── theme/ShellSkins.kt              皮肤参数化（切角八边形 Drawable）；applyShell = 按控件 id 的树染色（设置页）
 ├── store/SettingsStore.kt           全配置存取 + 所有默认值定义（模型/预填提示词/API/Key）
 app/src/main/res/layout/
-├── activity_main.xml                主界面（fitsSystemWindows + 色球条 HorizontalScrollView）
-├── activity_settings.xml            设置页 5 Tab（Tab 行=撞色条背景，改布局勿动 fitsSystemWindows）
+├── activity_main.xml                主界面（色球条 HorizontalScrollView；rootMain 由代码处理 insets）
+├── activity_settings.xml            设置页布局：5 个 page* 容器 + cuffRow（底弧五键，代码构建）
+│                                    （已无 Tab 行；也已不用 fitsSystemWindows——全仓只有 activity_crop 用）
 app/src/main/res/xml/
 └── accessibility_service_config.xml 无障碍配置（flagRequestFilterKeyEvents 勿删=返回键失效）
 仓库根/

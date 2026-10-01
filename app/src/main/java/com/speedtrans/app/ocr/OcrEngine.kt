@@ -54,6 +54,8 @@ object OcrEngine {
             } catch (_: Exception) {
             }
         }
+        // 注意：这里**不能** tiny.recycle()——process() 是异步的，位图可能在后台线程才被读。
+        // 16×16 = 1KB，回收零收益、风险实在，索性留着。
     }
 
     fun recognize(

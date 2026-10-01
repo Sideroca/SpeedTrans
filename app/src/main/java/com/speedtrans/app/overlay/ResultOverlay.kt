@@ -49,6 +49,9 @@ class ResultOverlay(private val context: Context) {
 
     private fun dp(v: Int): Int = (v * context.resources.displayMetrics.density + 0.5f).toInt()
 
+    /** 小数 dp（只用于符号级微调；判定范围一概不受影响） */
+    private fun dpf(v: Float): Int = (v * context.resources.displayMetrics.density + 0.5f).toInt()
+
     fun ensure() {
         sweepOrphans()
         if (root != null) return
@@ -179,21 +182,10 @@ class ResultOverlay(private val context: Context) {
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
         val panelTopY = screenH - panelH
 
-        // 诊断标记：只要"窗外区域"收到触摸，就在触点闪一个圆点——
-        // 一次性区分"触摸没到"还是"逻辑没关"（也证明新方案真的接住了触摸）
-        val markDot = View(ctx).apply {
-            background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.OVAL
-                setColor(0x99FF6A00.toInt())
-            }
-            visibility = View.GONE
-        }
-
         // 全屏窗口根：面板之外的一切都由它自己接住——"点外面关闭"不再依赖任何隐形捕捉层
         val rootBox = FrameLayout(ctx).apply {
             isFocusable = true
             isFocusableInTouchMode = true
-            addView(markDot, FrameLayout.LayoutParams(dp(30), dp(30)))
         }
         panel.layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, panelH
@@ -206,8 +198,10 @@ class ResultOverlay(private val context: Context) {
             val backIcon = ImageView(ctx).apply {
                 setImageResource(R.drawable.ic_back_arrow)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                alpha = 0.62f                     // 灰白、不引人注目
-                setPadding(dp(6), 0, dp(6), 0)    // 箭头本体 ≈32dp 宽；点击区远大于它
+                alpha = 0.45f                     // 更浅（原 0.62）：看得见，但不抢眼
+                // 符号缩 10%：箭头本体 32dp → 28.8dp（靠内距收缩）。
+                // **只缩符号**——判定范围仍是下面那个 44×131dp 的整个盒子，一点没动。
+                setPadding(dpf(7.6f), 0, dpf(7.6f), 0)
                 contentDescription = "关闭"
                 setOnClickListener {
                     TranslateCoordinator.cancelActive()
@@ -257,15 +251,6 @@ class ResultOverlay(private val context: Context) {
                         val b = com.speedtrans.app.service.BallService.instance?.ballBoundsOnScreen()
                         onBallDown = b != null && b.contains(e.rawX.toInt(), e.rawY.toInt())
                         armed = !onBallDown && e.y < panelTopY
-                        if (armed) {
-                            (markDot.layoutParams as? FrameLayout.LayoutParams)?.let { mlp ->
-                                mlp.leftMargin = (e.x - dp(15)).toInt()
-                                mlp.topMargin = (e.y - dp(15)).toInt()
-                                markDot.layoutParams = mlp
-                            }
-                            markDot.visibility = View.VISIBLE
-                            markDot.postDelayed({ markDot.visibility = View.GONE }, 900)
-                        }
                         true
                     }
                 }

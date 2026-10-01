@@ -1,17 +1,10 @@
 package com.speedtrans.app.theme
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.content.res.ColorStateList
-import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
 
 /**
- * 主题引擎 v3.2：24 套配色图书馆。
+ * 主题引擎 v3.2：64 套配色图书馆（现代经典 18 + 中国传统色 46）。
  * 两大分类：现代经典（各知名软件设计语言）/ 中国传统色（Chinese Color Atlas 官方调色板）。
  * 每套 = 语义色 + 形状语言（圆角/实心描边）+ 质感（描边/投影）+ 撞色条（barBg/barText，传统色对撞）。
  */
@@ -140,7 +133,7 @@ object ThemeEngine {
             cardRadius = 6, btnRadius = 6, solidBtn = false)
     )
 
-    // ============ 中国传统色（4，Chinese Color Atlas 官方调色板） ============
+    // ============ 中国传统色 · 早期两套（Chinese Color Atlas 官方调色板） ============
     val chineseLight = listOf(
         // 宋代美学：月白留白，天水碧为魂，缃色点缀
         Palette("song", "宋代美学 · 天水碧", "chinese", false,
@@ -436,41 +429,4 @@ object ThemeEngine {
             if (strokeColor != 0 && strokePx > 0) setStroke(strokePx.toInt().coerceAtLeast(1), strokeColor)
         }
 
-    /**
-     * 递归应用主题到视图树（语义色 + 形状语言 + 撞色条）。
-     */
-    fun applyTo(view: View, pal: Palette, cardIds: Set<Int> = emptySet(), subIds: Set<Int> = emptySet()) {
-        val density = view.resources.displayMetrics.density
-        when (view) {
-            is ViewGroup -> for (i in 0 until view.childCount) applyTo(view.getChildAt(i), pal, cardIds, subIds)
-            is Button -> {
-                if (view is android.widget.CompoundButton) {
-                    view.buttonTintList = ColorStateList.valueOf(pal.accent)
-                    view.setTextColor(pal.text)
-                } else if (pal.solidBtn) {
-                    view.backgroundTintList = ColorStateList.valueOf(pal.accent)
-                    view.setTextColor(if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
-                } else {
-                    view.background = cardDrawable(pal.card, pal.btnRadius.toFloat(), density, pal.accent)
-                    view.setTextColor(pal.accent)
-                }
-            }
-            is EditText -> {
-                view.background = cardDrawable(pal.card, 10f, density, pal.cardStroke)
-                view.setTextColor(pal.text)
-                view.setHintTextColor(pal.subText)
-            }
-            is TextView -> {
-                // 白名单制：只有明确标记的才上卡片背景，说明文字保持纯文字
-                if (view.id in cardIds) {
-                    view.background = cardDrawable(pal.card, pal.cardRadius.toFloat(), density, pal.cardStroke)
-                }
-                view.setTextColor(when (view.id) {
-                    in cardIds -> pal.text
-                    in subIds -> pal.subText
-                    else -> pal.text
-                })
-            }
-        }
-    }
 }

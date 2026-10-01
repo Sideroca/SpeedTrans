@@ -42,12 +42,12 @@ import kotlin.math.hypot
 /**
  * 无障碍服务：绘制悬浮球 + 取词/截屏 + 触发翻译。
  *
- * 取词三态（设置页/通知栏可切）：
+ * 取词两态（设置页/通知栏可切）：
  * - 📄 仅文本：无障碍节点取词（原文零误差）
  * - 🖼 仅识图：静默截屏 + 端侧 OCR（游戏/图片/视频字幕，100% 画面内容）
- * - 🤖 智能（默认）：先取词，字数低于阈值或前台是游戏 → 自动转识图
+ * （旧的「🤖 智能」判定与游戏前台检测已退役，历史 smart 值自动迁移为仅文本）
  *
- * 双击悬浮球（时间窗可调）= 取消当前 + 强制识图翻当前画面。
+ * 单击悬浮球 = 按当前模式取词/识图。（v3.6 已移除双击手势，见 SPEC §九「双击翻图（已删除）」）
  * 识图截屏完全静默（无动画无声音不留文件），图像仅在本地识别。
  */
 class BallService : AccessibilityService() {
@@ -75,6 +75,8 @@ class BallService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        // 服务回来了：把通知栏从"告警态"恢复成常态
+        KeepAliveService.refreshBallState(this)
         mainHandler.post { showBall() }
         // 后台预热 OCR 模型（消除首次识图的冷启动）
         mainHandler.postDelayed({ warmUpOcr() }, 800)
@@ -94,9 +96,23 @@ class BallService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        // 先掐掉所有待执行的延时任务（OCR 预热 800ms、连接预热 600ms 等），
+        // 否则服务已销毁它们还会跑一轮，拿着废 Context 去碰 ML Kit / OkHttp
+        mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post { hideBall() }
         mainHandler.post { TranslateCoordinator.closeOverlay() }   // 服务没了，面板也不该留在屏幕上
         super.onDestroy()
+    }
+
+    /**
+     * 系统解绑（重启 / 被清理 / 应用更新）——悬浮球会就此消失。
+     * 必须**在这里**先把 instance 置空：通知内容是照 instance 判"在不在线"的，
+     * 而 onDestroy 晚于 onUnbind，等它再置空就晚了。
+     */
+    override fun onUnbind(intent: Intent?): Boolean {
+        instance = null
+        KeepAliveService.refreshBallState(this)
+        return super.onUnbind(intent)
     }
 
     override fun onInterrupt() {}
@@ -301,7 +317,7 @@ class BallService : AccessibilityService() {
         }
     }
 
-    // ---------------- 点击判定：单击 = 智能，双击 = 强制识图 ----------------
+    // ---------------- 点击判定：单击 = 按当前模式取词/识图（无双击手势） ----------------
 
     private fun onBallTap() {
         // 翻译/识图进行中忽略点球：连点视为未发生，一次只跑第一次的反应
@@ -322,7 +338,7 @@ class BallService : AccessibilityService() {
     /** 面板开着时点球：由捕捉层转交（走完整守卫：翻译中/刚关面板都忽略） */
     fun tapFromPanel() = onBallTap()
 
-    // ---------------- 抓取 + 三态判定 + OCR ----------------
+    // ---------------- 抓取 + 按当前模式分发 + OCR ----------------
 
     private fun collectScreen(): TextCollector.Collected {
         var root: AccessibilityNodeInfo? = rootInActiveWindow
@@ -370,6 +386,12 @@ class BallService : AccessibilityService() {
             ov.showStatus("⚠️ 图像识别需要 Android 11 及以上")
             return
         }
+        // 提前拦：OCR 引擎在"一个语言都没勾"时只会回一句笼统的"识别失败：请重试"，
+        // 用户会以为是坏了，其实是没勾语言
+        if (SettingsStore(this).ocrLanguages.isEmpty()) {
+            ov.showStatus("⚠️ 请先在设置里勾选至少一种识别语言")
+            return
+        }
         ocrBusy = true
         val t0 = android.os.SystemClock.elapsedRealtime()
         ov.showStatus("📷 正在静默截屏…")
@@ -389,32 +411,39 @@ class BallService : AccessibilityService() {
                     mainHandler.post { ov.showStatus("⚠️ 截屏转换失败") }
                     return
                 }
-                // 缩放到宽 ≤900：像素量约 -30%，识别更快；识别为空时自动原尺寸重试兜底
-                val bmp = if (scaled && raw.width > 900) {
-                    val r = 900f / raw.width
-                    Bitmap.createScaledBitmap(raw, 1080, (raw.height * r).toInt(), true)
-                } else raw
+                // 缩放到宽 900：像素量约 -30%，识别更快；识别为空时自动原尺寸重试兜底
+                // 宽高必须共用同一个比例 r：此前宽度写死 1080、高度却按 900 的比例算，
+                // 图像被横向拉伸 1.2×，且下方按 900 换算的排除矩形只盖住左侧 83% 宽
+                //（状态栏右半边的时钟/电量因此漏网，会被认成正文混进译文）
+                // 先把原图尺寸存下来：recycle() 之后就不再依赖位图对象本身了
+                val rawW = raw.width
+                val rawH = raw.height
+                val r = if (scaled && rawW > 900) 900f / rawW else 1f
+                val bmp = if (r != 1f)
+                    Bitmap.createScaledBitmap(raw, 900, (rawH * r).toInt(), true)
+                else raw
+                if (bmp !== raw) raw.recycle()   // 全屏 ARGB_8888（≈18MB）用完即放，不再每次识图留 18MB 垃圾
                 val tPrep = android.os.SystemClock.elapsedRealtime() - t0
                 mainHandler.post { ov.showStatus("🔍 识别中…（截屏 ${tShot}ms · 预处理 ${tPrep - tShot}ms）") }
 
                 // force（仅识图模式）= 抛弃文本层、全屏 100% 内容；自动回退 = 剔除文本层坐标
                 // 状态栏/导航栏永远排除（系统栏不是翻译对象）
-                // 排除清单统一换算到位图坐标系——修复高分辨率机型缩放后文本层排除失效的存量 bug
-                val r = if (scaled && raw.width > 900) 900f / raw.width else 1f
+                // 排除清单换算到位图坐标系——比例与上面缩放用的 r 严格一致
                 fun toBmp(rc: android.graphics.Rect) = if (r == 1f) rc else android.graphics.Rect(
                     (rc.left * r).toInt(), (rc.top * r).toInt(), (rc.right * r).toInt(), (rc.bottom * r).toInt()
                 )
                 val sysRects = buildList {
                     val sbH = systemDimenPx("status_bar_height")
                     val nbH = systemDimenPx("navigation_bar_height")
-                    if (sbH > 0) add(android.graphics.Rect(0, 0, raw.width, sbH))
-                    if (nbH > 0 && nbH < raw.height) add(android.graphics.Rect(0, raw.height - nbH, raw.width, raw.height))
+                    if (sbH > 0) add(android.graphics.Rect(0, 0, rawW, sbH))
+                    if (nbH > 0 && nbH < rawH) add(android.graphics.Rect(0, rawH - nbH, rawW, rawH))
                 }
                 val exclude = (if (force) emptyList() else lastRects.map { toBmp(it) }) + sysRects.map { toBmp(it) }
                 OcrEngine.recognize(
                     this@BallService, bmp, exclude,
                     onResult = { t ->
                         val tAll = android.os.SystemClock.elapsedRealtime() - t0
+                        bmp.recycle()   // 识别已全部结束，位图可以放了
                         ocrBusy = false
                         mainHandler.post {
                             if (t.isNotEmpty()) {
@@ -434,6 +463,7 @@ class BallService : AccessibilityService() {
                         }
                     },
                     onFail = { e ->
+                        bmp.recycle()
                         ocrBusy = false
                         mainHandler.post { ov.showStatus("⚠️ 识别失败：${e?.message ?: "请重试"}") }
                     }

@@ -29,7 +29,10 @@ class SettingsStore(context: Context) {
 
     /** 最大输出 tokens；0 = 不发送此参数（交给服务端默认）。默认给大一些：长文翻译不被截断 */
     var maxTokens: Int
-        get() = sp.getInt("max_tokens", 8192).let { if (it >= 65536) 8192 else it }   // 老的 100000 默认值自动降回 8192
+        // 只迁移"老的 100000 默认值"这一个确切值。
+        // 此前用 `>= 65536` 一刀切：setter 原样存、getter 却回 8192 ——
+        // 用户想设 128k 会被静默吞掉（读出来是 8192），读写不对称。
+        get() = sp.getInt("max_tokens", 8192).let { if (it == LEGACY_MAX_TOKENS) 8192 else it }
         set(v) = sp.edit().putInt("max_tokens", v).apply()
 
     /** 采样温度；负数 = 不发送（默认不发送，尊重各家模型默认值，用户想调才调） */
@@ -247,6 +250,9 @@ class SettingsStore(context: Context) {
         private const val KEY_URL = "base_url"
         private const val KEY_API = "api_key"
         private const val KEY_MODEL = "model"
+
+        /** 老版本的 max_tokens 默认值：读到它说明是历史遗留，自动降回 8192（只认这一个值，不再一刀切） */
+        private const val LEGACY_MAX_TOKENS = 100000
 
         /** 最终版：不预置地址（全新安装 = 未配置，引导用户自行填写） */
         const val DEFAULT_BASE_URL = ""

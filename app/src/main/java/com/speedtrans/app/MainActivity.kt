@@ -36,6 +36,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var store: SettingsStore
 
     /** 图标底色板（浅色主题用；深色主题自动换算为透明底+提亮色） */
+    /** 小米权限图解弹窗：持有 Activity 引用，必须在 onDestroy 里兜底关掉（否则旋转/退出即泄漏） */
+    private var permissionDialog: android.app.Dialog? = null
+
     private val tintPairs: Map<String, Pair<Int, Int>> = mapOf(
         "theme" to (0xFFE5E4FC.toInt() to 0xFF5B6FEF.toInt()),
         "status" to (0xFFDDF3EE.toInt() to 0xFF35B69F.toInt()),
@@ -347,6 +350,16 @@ class MainActivity : AppCompatActivity() {
         return ld
     }
 
+    /** 权限图解弹窗若还开着，退出/旋转重建时兜底关掉，避免它继续攥着 Activity */
+    override fun onDestroy() {
+        try {
+            permissionDialog?.takeIf { it.isShowing }?.dismiss()
+        } catch (_: Throwable) {
+        }
+        permissionDialog = null
+        super.onDestroy()
+    }
+
     // ---------------- 状态刷新 ----------------
 
     override fun onResume() {
@@ -415,7 +428,7 @@ class MainActivity : AppCompatActivity() {
     // ---------------- 小米权限图解（含防杀后台说明） ----------------
 
     private fun showPermissionTutorial() {
-        val d = android.app.Dialog(this)
+        val d = android.app.Dialog(this).also { permissionDialog = it }
         val den = resources.displayMetrics.density
         val col = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL

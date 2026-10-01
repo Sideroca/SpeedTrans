@@ -143,7 +143,7 @@ class SoundKit {
     fun playWall() = play(wall, 0.30f)
     fun playGoal() = play(goal, 0.55f)
     fun playWin() = play(win, 0.50f)
-    fun playLose() = play(lose, 0.45f)
+    fun playLose() = play(lose, 0.675f)   // 失败音：0.45 → +50%（轻响 2026-10-01）
     fun playSpeed() = play(speed, 0.42f)
 
     fun release() {

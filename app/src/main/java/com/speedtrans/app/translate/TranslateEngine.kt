@@ -21,13 +21,22 @@ import java.util.concurrent.TimeUnit
  */
 class TranslateEngine(private val store: SettingsStore) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        // 读超时 = 两次数据之间的最大间隔（非总时长）。60s 无新数据视为连接死亡，
-        // 防止"翻译中"永久悬挂（此前为 0 = 永不超时）
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+    companion object {
+        /**
+         * 全进程共用一个 OkHttpClient。
+         * 否则每 new 一个 TranslateEngine 就是一套连接池 + 线程池：
+         * 设置页每点一次「测试连接」建一套、BallService 每次连上也建一套，白吃内存与 fd。
+         */
+        private val client: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(8, TimeUnit.SECONDS)
+                // 读超时 = 两次数据之间的最大间隔（非总时长）。60s 无新数据视为连接死亡，
+                // 防止"翻译中"永久悬挂（此前为 0 = 永不超时）
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(15, TimeUnit.SECONDS)
+                .build()
+        }
+    }
 
     /**
      * 连接预热：提前完成 DNS 解析 / TCP 握手 / TLS（HEAD 请求，忽略状态码）。
@@ -52,8 +61,17 @@ class TranslateEngine(private val store: SettingsStore) {
     /**
      * 连接测试：非流式小请求，快速验证地址/Key/模型三项是否正确。
      * 返回人性化结果信息（含常见 404/401 的排查提示）。
+     *
+     * @return 发起的请求；地址非法等**无法发起**的情况返回 null（同时用 onResult 给出提示）。
+     *         （此前这里直接 `url(baseUrl)`：用户手打的地址不带 http/https 会抛
+     *         IllegalArgumentException，而调用方没有 try → 直接闪退。）
      */
-    fun testConnection(onResult: (String) -> Unit): Call {
+    fun testConnection(onResult: (String) -> Unit): Call? {
+        if (!store.baseUrl.startsWith("http://") && !store.baseUrl.startsWith("https://")) {
+            val shown = store.baseUrl.ifBlank { "空" }.take(60)
+            onResult("❌ 地址要以 http:// 或 https:// 开头\n（当前：$shown）")
+            return null
+        }
         val isMtModel = store.model.startsWith("qwen-mt")
         val body = JSONObject().apply {
             put("model", store.model)
@@ -69,11 +87,17 @@ class TranslateEngine(private val store: SettingsStore) {
                 put(JSONObject().put("role", "user").put("content", "hi"))
             })
         }
-        val req = Request.Builder()
-            .url(store.baseUrl)
-            .header("Authorization", "Bearer ${store.apiKey}")
-            .post(body.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+        // 兜底：形如 "https://" 的空壳地址等仍可能让 OkHttp 抛错——绝不把异常泄到调用方主线程
+        val req = try {
+            Request.Builder()
+                .url(store.baseUrl)
+                .header("Authorization", "Bearer ${store.apiKey}")
+                .post(body.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+        } catch (e: Exception) {
+            onResult("❌ 地址无法解析：${e.message?.take(80) ?: "格式不对"}")
+            return null
+        }
 
         val start = android.os.SystemClock.elapsedRealtime()
         val call = client.newCall(req)
@@ -124,7 +148,13 @@ class TranslateEngine(private val store: SettingsStore) {
         isContinuation: Boolean = false,
         onDelta: (String) -> Unit,
         onDone: (Throwable?) -> Unit,
-        includeMax: Boolean = true
+        includeMax: Boolean = true,
+        /**
+         * 每次真正发起请求时回调（含下方 400 自动重试另起的那一个 Call）。
+         * 编排层靠它把"当前请求"始终攥在手里——否则取消只能取消到已结束的外层请求，
+         * 重试出来的那个会在后台继续跑到自然结束。
+         */
+        onCallCreated: ((Call) -> Unit)? = null
     ): Call {
         val isMtModel = store.model.startsWith("qwen-mt")
         val isDashScope =
@@ -231,6 +261,7 @@ class TranslateEngine(private val store: SettingsStore) {
             .build()
 
         val call = client.newCall(req)
+        onCallCreated?.invoke(call)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 onDone(if (call.isCanceled()) null else e)
@@ -247,7 +278,11 @@ class TranslateEngine(private val store: SettingsStore) {
                         // 容错：max_tokens 超过服务端上限（各家 8k/16k/32k 不等）被 400 拒绝时，
                         // 自动去掉该参数重试一次，保证"绝不会因为一个可选参数把翻译打死"
                         if (includeMax && store.maxTokens > 0 && r.code == 400) {
-                            translate(text, isContinuation, onDelta, onDone, includeMax = false)
+                            // 把 onCallCreated 一并透传：重试另起的那一个 Call 也要能被编排层取消到
+                            translate(
+                                text, isContinuation, onDelta, onDone,
+                                includeMax = false, onCallCreated = onCallCreated
+                            )
                             return
                         }
                         onDone(IOException("HTTP ${r.code} $detail"))

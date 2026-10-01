@@ -198,7 +198,10 @@ object TranslateCoordinator {
                             ov.finish(err)
                         }
                     }
-                }
+                },
+                // 400 自动重试会另起一个 Call：把它交回这里攥住，
+                // 否则 cancelActive() 取消到的是已经结束的外层请求，重试那个会在后台跑到自然结束
+                onCallCreated = { c -> if (mySeq == seq) currentCall = c }
             )
         } catch (e: Exception) {
             // 接口地址非法等同步异常：不闪退，面板直接报错

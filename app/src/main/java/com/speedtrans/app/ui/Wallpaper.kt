@@ -29,6 +29,8 @@ object Wallpaper {
             target.outputStream().use { input.copyTo(it) }
         }
         true
+    } catch (_: OutOfMemoryError) {
+        false
     } catch (_: Exception) {
         false
     }
@@ -51,8 +53,21 @@ object Wallpaper {
         var sample = 1
         while (longEdge / (sample * 2) >= reqLongEdge) sample *= 2
         while (longEdge / sample > hardCap) sample *= 2
+        // 再按"可用堆"兜一道：极端长图（4000×12000 之类）光卡长边仍可能解出几十 MB。
+        // 预算 = maxMemory/4；超了就继续加倍采样——宁可糊一点，也不要 OOM 崩进程。
+        val budget = Runtime.getRuntime().maxMemory() / 4
+        var w = max(1, bounds.outWidth / sample)
+        var h = max(1, bounds.outHeight / sample)
+        while (w.toLong() * h * 4 > budget && sample < 64) {
+            sample *= 2
+            w = max(1, bounds.outWidth / sample)
+            h = max(1, bounds.outHeight / sample)
+        }
         val bmp = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
         if (bmp == null) null else applyExifOrientation(bmp, path)
+    } catch (_: OutOfMemoryError) {
+        // OOM 是 Error 不是 Exception——不单独接住的话，一张超大图就能崩掉整个进程
+        null
     } catch (_: Exception) {
         null
     }
@@ -75,6 +90,8 @@ object Wallpaper {
             val r = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
             if (r !== bmp) bmp.recycle()
             r
+        } catch (_: OutOfMemoryError) {
+            bmp   // 旋转副本开不出来 → 退回未摆正的原图，总比崩掉强
         } catch (_: Exception) {
             bmp
         }
@@ -130,6 +147,8 @@ object Wallpaper {
             outBmp.recycle()
             src.recycle()
             ok
+        } catch (_: OutOfMemoryError) {
+            false
         } catch (_: Exception) {
             false
         }
@@ -181,6 +200,8 @@ object Wallpaper {
             outBmp.recycle()
             src.recycle()
             ok
+        } catch (_: OutOfMemoryError) {
+            false
         } catch (_: Exception) {
             false
         }
@@ -265,6 +286,8 @@ object Wallpaper {
             if (sq !== bmp) sq.recycle()
             bmp.recycle()
             ok
+        } catch (_: OutOfMemoryError) {
+            false
         } catch (_: Exception) {
             false
         }
