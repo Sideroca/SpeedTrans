@@ -41,13 +41,23 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var scale = 1f
     private var offX = 0f
     private var offY = 0f
+    /** 触摸映射基准（屏幕短边/布局宽）。详见 onSizeChanged */
+    private var ref = 1f
+
     /**
-     * 世界速度倍率：把「屏上速度」锚定到**屏幕短边**，让横竖屏手感一致。
-     * 竖屏 = 1.00（逐位不变）；横屏 < 1（场地被放大多少，世界就慢多少）。
-     * 推导：屏上速度 = 世界速度 × scale，令 世界速度 = 虚拟速度 × speedK 且 speedK = REF/scale，
-     * 则 屏上速度 = 虚拟速度 × REF，而 REF = min(w,h)/layW 与朝向无关。
+     * 球拍灵敏度倍率：**手指位移 × sens = 球拍在场地坐标里的位移**。
+     * · 竖屏恒为 **1.0**（屏幕 1:1 跟手，与原版逐位一致）
+     * · 横屏 = 场地放大倍数 `scale/ref`（≈1.96），再乘 [LAND_TRIM] 收一档
      */
-    private var speedK = 1f
+    private var sens = 1f
+
+    /**
+     * 横屏**整体降速系数**（球拍与球的极限移速各降 15%，轻响 2026-10-02 要求）。
+     * 竖屏恒为 **1.0**（逐位不变）；横屏 0.85。
+     * · 作用在球拍：`sens` 再乘它 → 单位手指位移推动的距离少 15%
+     * · 作用在球：见 [collide] 里的速度上限 `cap`
+     */
+    private var landSlow = 1f
 
     // ---------------- 几何 / 物理常量（与原作一致） ----------------
     private val TABLE_X = 30f
@@ -63,18 +73,19 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private val MALLET_R = 24f
     private val MAX_SCORE = 7
     private val FRICTION = 0.995f
+
+    /**
+     * 横屏灵敏度修正：场地在横屏被放大 ~1.96 倍，灵敏度先补到同倍数，再乘这个值收一档。
+     * 0.85 = 轻响 2026-10-01 实测"横屏偏高、手指微动球拍就飞"，要求削减 15%（1.96 → 1.67）。
+     * **竖屏不受影响**（竖屏 sens 恒为 1.0）；想让横竖屏严格一致就把它设成 1.0f。
+     */
+    private val LAND_TRIM = 0.85f
     private val WALL_BOUNCE = 0.82f
     private val CPU_SPEED = 4.6f
     private val CPU_REACT = 0.62f
     private val CPU_ERROR_Y = 26f
     private val CPU_MISTAKE_CHANCE = 0.018f
     private val CPU_MISTAKE_DUR = 42
-    /**
-     * 每 tick 摩擦 = FRICTION^speedK。
-     * 世界按 speedK 减速后，若摩擦仍按原值衰减，球的滑行距离会缩短；取幂补偿后
-     * 「同一段虚拟轨迹」得以保留——只是走得慢些。speedK = 1 时逐位等于 FRICTION。
-     */
-    private var fric = FRICTION
 
     // ---------------- 颜色 ----------------
     private val C_BG = Color.parseColor("#04060a")
@@ -170,6 +181,15 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     /** 单帧最多补算的物理步数：8 步 ≈ 兜住 7.5fps；触顶即丢弃积压（见 doFrame） */
     private val MAX_STEPS = 8
 
+    /**
+     * 屏幕抖动总开关（2026-10-01 临时置 false 做二分测试）。
+     *
+     * 起因：用户报"操作蓝色球撞击目标球体时感觉发生了 bug 变形"。我的 speedK 改动只碰了速度类量、
+     * 没碰任何尺寸，但**屏幕抖动是唯一会让"整张球台平移错位"的视觉**——看起来最像"画面坏了"。
+     * 关掉它 → 若"变形"消失，就是它；若还在，就排除了这一项，继续查别的。
+     */
+    private val SHAKE_ON = false
+
     init {
         setBackgroundColor(C_BG)
         isFocusable = true
@@ -215,18 +235,16 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         offX = (w - layW * scale) / 2f
         offY = (h - VH * scale) / 2f
 
-        // 世界速度锚定「屏幕短边」（短边与朝向无关）：
-        //   竖屏 scale = 短边/layW  → speedK = 1.00，逐位不变
-        //   横屏 scale 被放大       → speedK < 1，场地放大多少就慢多少
-        val k = (min(w, h).toFloat() / layW / scale).coerceIn(0.2f, 1f)
-        if (k != speedK) {
-            // 旋转发生在对局中：把已在飞的球按同比例换算，避免换朝向瞬间速度跳变
-            val r = k / speedK
-            puck.vx *= r; puck.vy *= r
-        }
-        speedK = k
-        // 摩擦取幂补偿：世界慢了，摩擦也要同步放松，否则滑行距离变短
-        fric = if (k >= 1f) FRICTION else FRICTION.pow(k)
+        // **球拍触摸映射的基准** = 屏幕短边 / 布局宽（短边与朝向无关）。
+        // 竖屏时场地本来就按宽度铺满 → ref == scale；横屏时场地被放大 scale/ref 倍。
+        ref = min(w, h).toFloat() / layW
+        // 灵敏度：
+        //   · 竖屏：scale == ref → 1.0，**与原版逐位一致**
+        //   · 横屏：补到"场地放大倍数"（否则球拍相对场地慢一半，球比手快）
+        //           ；再乘 LAND_TRIM —— 用户实测横屏偏高 15%（手指微动球拍就飞）
+        val land = scale > ref * 1.02f
+        landSlow = if (land) 0.85f else 1f              // 横屏整体再收 15%（极限移速）
+        sens = if (land) (scale / ref) * LAND_TRIM * landSlow else 1f
     }
 
     // ---------------- 输入：相对拖动（手指不挡球拍） ----------------
@@ -235,8 +253,10 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastVY = 0f
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        val vx = (e.x - offX) / scale - PANEL
-        val vy = (e.y - offY) / scale
+        // 屏幕位移 ÷ scale = 场地位移；再乘 sens 补上"横屏场地被放大"的那部分（见 sens 的说明）。
+        // 竖屏 sens == 1 → 逐位等于原版。
+        val vx = (e.x - offX) / scale * sens - PANEL
+        val vy = (e.y - offY) / scale * sens
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 // 标题/结束页右上角：点按开关音效
@@ -292,8 +312,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
 
     private fun resetRound(server: Int) {
         puck.x = CX; puck.y = CY
-        puck.vx = (if (server == 0) -2.2f else 2.2f) * speedK
-        puck.vy = (Random.nextFloat() - 0.5f) * 1.6f * speedK
+        puck.vx = (if (server == 0) -2.2f else 2.2f)
+        puck.vy = (Random.nextFloat() - 0.5f) * 1.6f
         player.x = TABLE_X + 110f; player.y = CY
         cpu.x = VW - TABLE_X - 110f; cpu.y = CY
         pvx = 0f; pvy = 0f
@@ -425,7 +445,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         if (cornered || (farHome && !puckToMe)) {
             tx = homeX; ty = CY
         } else if (puckOnMySide && puckToMe) {
-            val frames = max(1f, min((cpu.x - puck.x) / max(0.5f * speedK, puck.vx), 60f))
+            val frames = max(1f, min((cpu.x - puck.x) / max(0.5f, puck.vx), 60f))
             tx = clamp(puck.x + puck.vx * frames * CPU_REACT, minX, maxX)
             ty = clamp(puck.y + puck.vy * frames * CPU_REACT + err, minY, maxY)
         } else if (puckOnMySide) {
@@ -440,7 +460,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         val dx = tx - cpu.x; val dy = ty - cpu.y
         val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
         if (dist > 0.1f) {
-            val step = min(dist, CPU_SPEED * ts * speedK)
+            val step = min(dist, CPU_SPEED * ts)
             cpu.x += dx / dist * step
             cpu.y += dy / dist * step
         }
@@ -462,18 +482,18 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         }
         trailX[trailN - 1] = puck.x; trailY[trailN - 1] = puck.y
 
-        if (spd < 0.8f * speedK) {
-            puck.vx += (Random.nextFloat() - 0.5f) * 0.18f * speedK
-            puck.vy += (Random.nextFloat() - 0.5f) * 0.18f * speedK
-        } else if (spd < 2.5f * speedK) {
-            puck.vx += (Random.nextFloat() - 0.5f) * 0.06f * speedK
-            puck.vy += (Random.nextFloat() - 0.5f) * 0.06f * speedK
+        if (spd < 0.8f) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.18f
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.18f
+        } else if (spd < 2.5f) {
+            puck.vx += (Random.nextFloat() - 0.5f) * 0.06f
+            puck.vy += (Random.nextFloat() - 0.5f) * 0.06f
         }
 
         puck.x += puck.vx
         puck.y += puck.vy
-        puck.vx *= fric
-        puck.vy *= fric
+        puck.vx *= FRICTION
+        puck.vy *= FRICTION
 
         val tx = TABLE_X; val ty = TABLE_Y; val tw = TABLE_W; val th = TABLE_H
         if (puck.y - puck.r < ty) {
@@ -532,21 +552,29 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         pk.vy += impulse * ny
 
         var spd = hypot(pk.vx.toDouble(), pk.vy.toDouble()).toFloat()
-        val cap = (if (isPlayer) 20f else 16f) * puckSpeedMult * speedK
+        // 极限移速：横屏**只降玩家侧**（landSlow；竖屏恒为 1.0，逐位不变）。
+        //
+        // 为什么不是"两边同降"：轻响 2026-10-02 说清了目的 —— 这次调整**不是**为了手感舒适，
+        // 而是为了削掉一个**必胜套路**："开局把球朝右上角 45° 打，对方根本反应不过来"。
+        // 所以**玩家越弱、对方相对越强**才对。把 CPU 的上限一起降（我第一版就是这么干的 ✗）
+        // 等于把对方也削弱了，正好与目的相反。
+        //
+        // 副作用（预期内的）：玩家 20→17、CPU 保持 16，两者差距收窄 → 玩家更难碾压。
+        val cap = (if (isPlayer) 20f * landSlow else 16f) * puckSpeedMult
         if (spd > cap) { pk.vx = pk.vx / spd * cap; pk.vy = pk.vy / spd * cap; spd = cap }
         if (!isPlayer) cpuHitCool = 20
 
-        // 显示与阈值一律换算回「基准速度」（÷speedK），横竖屏的 TOP SPEED / POWER HITS 才可比
-        val mph = Math.round(spd / speedK * 4f)
+        // 显示与阈值：世界速度已与朝向无关（见 ref / onSizeChanged），这里直接用原值即可
+        val mph = Math.round(spd * 4f)
         if (isPlayer) { if (mph > pTopSpeed) pTopSpeed = mph } else { if (mph > cTopSpeed) cTopSpeed = mph }
-        if (spd > 14f * speedK) { if (isPlayer) pPower++ else cPower++ }   // POWER HITS（原作阈值 14）
+        if (spd > 14f) { if (isPlayer) pPower++ else cPower++ }   // POWER HITS（原作阈值 14）
 
-        if (spd > 3f * speedK) {
+        if (spd > 3f) {
             burst(pk.x, pk.y, if (isPlayer) C_PLAYER else C_CPU, min((spd * 1.5f).toInt(), 40))
-            sound.playHit(spd / speedK)
+            sound.playHit(spd)
             if (isPlayer) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
-        if (spd > 19f * speedK) shake(min((spd - 19f * speedK) * 0.4f, 3f * speedK))
+        if (spd > 19f) shake(min((spd - 19f) * 0.4f, 3f))
     }
 
     // ---------------- 特效 ----------------
@@ -555,7 +583,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         while (i < n && partN < MAX_PART) {
             val p = parts[partN++]
             val a = Random.nextFloat() * 6.2832f
-            val v = (1f + Random.nextFloat() * 5f) * speedK
+            val v = (1f + Random.nextFloat() * 5f)
             p.x = x; p.y = y
             p.vx = kotlin.math.cos(a) * v; p.vy = kotlin.math.sin(a) * v
             p.t = 0f
@@ -572,8 +600,8 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         while (i < 6 && partN < MAX_PART) {
             val p = parts[partN++]
             p.x = x; p.y = y
-            p.vx = (Random.nextFloat() - 0.5f) * 4f * speedK
-            p.vy = (Random.nextFloat() - 0.5f) * 4f * speedK
+            p.vx = (Random.nextFloat() - 0.5f) * 4f
+            p.vy = (Random.nextFloat() - 0.5f) * 4f
             p.t = 0f
             p.life = 8f + Random.nextFloat() * 8f
             p.size = 1.2f + Random.nextFloat() * 1.6f
@@ -627,7 +655,7 @@ class AirHockeyView(context: Context) : View(context), Choreographer.FrameCallba
         }
     }
 
-    private fun shake(a: Float) { shakeAmt = max(shakeAmt, a) }
+    private fun shake(a: Float) { if (SHAKE_ON) shakeAmt = max(shakeAmt, a) }
 
     // ---------------- 绘制 ----------------
     override fun onDraw(canvas: Canvas) {

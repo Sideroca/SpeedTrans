@@ -147,6 +147,7 @@ class SettingsActivity : AppCompatActivity() {
         bindPanelButtons()
         bindOcr()
         bindLauncherSection()
+        bindScrollDiag()   // 临时：长按标题看滚动诊断（排查完删）
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
         // 还原成默认图标（闪译）：把三个桌面别名的组件状态恢复为清单默认
@@ -163,6 +164,13 @@ class SettingsActivity : AppCompatActivity() {
 
     internal var currentSkin: ShellSkin? = null
     private var selectedCuff = 0
+
+    /**
+     * 「思考档位」那排 chip 的**上次签名**（服务商 + 档位数 + 是否可见）。
+     * 变了才重建 —— 重建会 requestLayout，而 ScrollView.onLayout 里有一条
+     * "把获焦控件滚进视野"，会把整页 scrollTo(0)（见 ApiPage.refreshThinkingRow 的说明）。
+     */
+    internal var lastThinkingSig: String? = null
     companion object {
         /** 从外部直达某个标签页：接口 api / 主题 theme / 悬浮 ball / 桌面 desktop / 其他 more */
         const val EXTRA_TAB = "tab"
@@ -275,6 +283,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun selectCuff(idx: Int, animate: Boolean = true) {
+        val changed = selectedCuff != idx
         selectedCuff = idx
         val pages = listOf(
             R.id.pageApi, R.id.pageTheme, R.id.pageBall,
@@ -291,6 +300,20 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         styleCuff()
+        // 切页 → 回到顶部。
+        // 5 个页面共用**同一个** ScrollView（只切 GONE/VISIBLE），滚动位置本来是延续的：
+        // 在「接口」滑到底再点「其他」，会直接落在「其他」的中段——用户反馈的设计问题。
+        // 用即时 scrollTo 而不是 smoothScrollTo：本类的框架 scroller 是**故意不步进**的
+        //（见 computeScroll 的注释），平滑滚动在这里根本不会动。
+        if (changed) findViewById<GracefulScrollView>(R.id.settingsScroll).scrollTo(0, 0)
+    }
+
+    /** 临时诊断入口（2026-10-01 排查"跳顶/回弹"；查明即删）：长按标题弹出手势时序，可一键复制 */
+    private fun bindScrollDiag() {
+        findViewById<TextView>(R.id.tvShellTitle).setOnLongClickListener {
+            findViewById<GracefulScrollView>(R.id.settingsScroll).showDiagDialog()
+            true
+        }
     }
 
     private fun styleCuff() {
@@ -299,9 +322,9 @@ class SettingsActivity : AppCompatActivity() {
         cuffItems.forEachIndexed { i, it ->
             val active = i == selectedCuff
             it.icon.background = ShellSkins.cuffIconBg(s, active, d)
-            it.icon.setTextColor(if (active) s.accent else s.subText)
-            it.label.setTextColor(if (active) s.accent else s.subText)
-            it.dot.setBackgroundColor(if (active) s.accentStrong else Color.TRANSPARENT)
+            it.icon.setTextColor(if (active) s.sel else s.subText)     // ⑮.2 选中态 → 选取色
+            it.label.setTextColor(if (active) s.sel else s.subText)
+            it.dot.setBackgroundColor(if (active) s.sel else Color.TRANSPARENT)
         }
     }
 

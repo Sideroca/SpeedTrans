@@ -108,10 +108,49 @@ internal fun SettingsActivity.bindIconStudio() {
         markColor(bgRow, studioBg, d)
         refresh()
 
-        findViewById<LinearLayout>(R.id.cardContact).setOnClickListener {
+        // 复制联系方式：**只有这个小按钮**可点。
+        // 2026-10-01 改：原来整块 cardContact 都挂了点击 → 手滑蹭到就把 QQ 号塞进剪贴板（误触），
+        // 而且一个铺满宽度的可点区块会跟页面滑动打架（用户实测：从这块起手，页面滑不动）。
+        // 「当前版本 + 检查更新」（2026-10-02；玲珑调音会话给的做法，轻响采纳）。
+        //
+        // 三条设计要点都是对的，我只改了一处（见下）：
+        //   ① 不申请网络权限 —— 只用 ACTION_VIEW 丢给浏览器，App 自身不联网 ✓
+        //   ② 不自己比版本 —— 直接跳 releases 页，GitHub 那边永远是最新的 ✓
+        //   ③ 异常兜底 —— 没浏览器时 toast 提示 ✓
+        // ④（我改的）目标地址用 `/releases` 而不是 `/releases/latest`：
+        //   闪译唯一的 release（nightly）是 **prerelease**，`/latest` 找不到"正式版"会 302 回
+        //   releases 列表页（实测）—— 不 404，但落点不是"某个 tag"，不如直接写列表页来得明确。
+        val verName = try {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                packageManager.getPackageInfo(
+                    packageName, PackageManager.PackageInfoFlags.of(0)
+                ).versionName
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0).versionName
+            }
+        } catch (_: Exception) {
+            null
+        }
+        findViewById<TextView>(R.id.tvVersion).text =
+            if (verName.isNullOrBlank()) "" else "当前版本 $verName"
+
+        findViewById<Button>(R.id.btnCheckUpdate).setOnClickListener {
+            try {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Sideroca/SpeedTrans/releases")
+                    )
+                )
+            } catch (e: Exception) {
+                toast("打不开浏览器：" + (e.message ?: ""))
+            }
+        }
+
+        findViewById<Button>(R.id.btnCopyContact).setOnClickListener {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val body = findViewById<TextView>(R.id.tvContactBody).text.toString()
-                .replace("\n点一下复制", "")
             cm.setPrimaryClip(ClipData.newPlainText("flash", body))
             toast("已复制（含 QQ、打赏与仓库地址）")
         }

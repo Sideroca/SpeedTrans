@@ -112,6 +112,18 @@ class SettingsStore(context: Context) {
         set(v) = sp.edit().putInt("max_chars", v).apply()
 
     /** 屏幕文字少时自动截屏识别图片/游戏内容 */
+    /**
+     * 悬浮球是否被隐藏（2026-10-01）。
+     *
+     * "隐藏" = 把悬浮球窗口从 WindowManager 里**摘掉**（`removeView`），不是缩小/透明 ——
+     * 没有窗口就没有触摸目标，**误触风险为零**。服务本身照常连着，所以不影响"自启动"，
+     * 也就省掉了每次手动重开无障碍的那 10 秒。
+     * 藏起来之后由**通知条**负责召唤（见 KeepAliveService 的三态通知）。
+     */
+    var ballHidden: Boolean
+        get() = sp.getBoolean("ball_hidden", false)
+        set(v) = sp.edit().putBoolean("ball_hidden", v).apply()
+
     /** 📄仅文本 / 🖼仅识图（两态；历史 smart 值自动迁移为仅文本） */
     var translateMode: String
         get() = sp.getString("translate_mode", "text")!!.let { if (it == "smart") "text" else it }

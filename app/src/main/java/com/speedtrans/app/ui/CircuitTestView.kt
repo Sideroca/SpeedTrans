@@ -109,22 +109,54 @@ class CircuitTestView @JvmOverloads constructor(
 
     fun state(): State = state
 
+    /**
+     * 帧循环（2026-10-02 性能优化）。
+     *
+     * 原来只有"挂载 / 卸载"两个开关 ✗ —— 于是**只要它在视图树里就永远 60fps** 地投帧，
+     * 哪怕它根本不可见：切到设置页别的标签时它是 `GONE`、退到后台时窗口不可见 ——
+     * 两种情况下都在空转（`invalidate()` 画了个没人看的帧）。
+     *
+     * 现在按**可见性**开关：不可见就停，可见了自动接上。
+     * 这条是**零视觉代价**的 —— `!isShown` 的视图本来就不会被绘制，所以停下来看不出任何区别 ✓
+     */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (!running) {
-            running = true
-            Choreographer.getInstance().postFrameCallback(this)
-        }
+        resumeFrames()
     }
 
     override fun onDetachedFromWindow() {
+        pauseFrames()
+        super.onDetachedFromWindow()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == View.VISIBLE) resumeFrames() else pauseFrames()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == View.VISIBLE) resumeFrames() else pauseFrames()
+    }
+
+    private fun resumeFrames() {
+        if (running) return
+        running = true
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    private fun pauseFrames() {
         running = false
         Choreographer.getInstance().removeFrameCallback(this)
-        super.onDetachedFromWindow()
     }
 
     override fun doFrame(frameTimeNanos: Long) {
         if (!running) return
+        // 中途变不可见（切标签页 / 退后台）→ 自己收摊，别空转
+        if (!isShown) {
+            running = false
+            return
+        }
         invalidate()
         Choreographer.getInstance().postFrameCallback(this)
     }

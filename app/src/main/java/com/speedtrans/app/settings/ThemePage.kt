@@ -69,8 +69,9 @@ private fun SettingsActivity.themeRow(p: Palette, selected: Boolean): View {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { bottomMargin = (8 * d).toInt() }
             background = ThemeEngine.cardDrawable(
-                if (selected) p.barBg else p.card, 12f, d,
-                if (selected) p.accent else p.cardStroke
+                // ⑮.2 选中行＝「选取色」（中间调）；以前用的是 p.barBg（**撞色条**的颜色）
+                if (selected) p.selColor else p.card, 12f, d,
+                if (selected) p.selColor else p.cardStroke
             )
         }
         // 三段色条：accent 一半，card/bg 各四分之一 —— 整套搭配一目了然
@@ -93,7 +94,10 @@ private fun SettingsActivity.themeRow(p: Palette, selected: Boolean): View {
         val name = TextView(this).apply {
             text = p.name
             textSize = 13f
-            setTextColor(if (selected) p.accent else p.text)
+            setTextColor(
+                if (selected) (if (Color.luminance(p.selColor) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt())
+                else p.text
+            )
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginStart = (10 * d).toInt()
@@ -130,12 +134,12 @@ private fun SettingsActivity.styleCatChip(chip: TextView, on: Boolean) {
         val den = resources.displayMetrics.density
         val c = store.settingsCardAlphaPct
         chip.background = ThemeEngine.cardDrawable(
-            fadedCard(if (on) pal.accent else pal.card, if (on) maxOf(c, CAT_CHIP_FLOOR) else c),
+            fadedCard(if (on) pal.selColor else pal.card, if (on) maxOf(c, CAT_CHIP_FLOOR) else c),
             18f, den,
             fadedCard(pal.cardStroke, c)
         )
         val base = if (on) {
-            if (Color.luminance(pal.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
+            if (Color.luminance(pal.selColor) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         } else pal.text
         chip.setTextColor(fadedCard(base, (100 + c) / 2))
         chip.typeface = if (on) Typeface.DEFAULT_BOLD else Typeface.DEFAULT

@@ -29,6 +29,18 @@ object HistoryStore {
 
     private fun file(context: Context) = File(context.filesDir, "history.json")
 
+    /**
+     * 读-改-写必须**串行**（并发 append 会互相覆盖），而且整份开销要**挪出主线程**。
+     *
+     * 2026-10-01：`append()` 的调用点在 `TranslateCoordinator` 的主线程回调里，而它做的是
+     * "读整份 JSON + 重建 + 写回整份 JSON" —— 条目短时无感（注释原来按 200 条 100~200KB 估的），
+     * 但**单字翻译的译文很长**时，文件轻松到 1~2MB，等于每次翻译成功都在主线程干几百毫秒。
+     * 首字 1~2 秒是生命线，这个开销不该压在它旁边。
+     */
+    private val io = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "st-history").apply { isDaemon = true }
+    }
+
     fun load(context: Context): List<Entry> = try {
         val arr = JSONArray(file(context).readText())
         (0 until arr.length()).map { i ->
@@ -42,9 +54,17 @@ object HistoryStore {
         emptyList()
     }
 
-    /** 成功翻译后追加一条；增量翻译（新原文延续上一条）替换上一条。原文只存摘要，译文全量 */
+    /**
+     * 成功翻译后追加一条；增量翻译（新原文延续上一条）替换上一条。原文只存摘要，译文全量。
+     * **立即返回**，真正的读改写丢给后台单线程（见 [io]）。
+     */
     fun append(context: Context, task: String, source: String, text: String) {
         if (text.isBlank()) return
+        val app = context.applicationContext
+        io.execute { appendNow(app, task, source, text) }
+    }
+
+    private fun appendNow(context: Context, task: String, source: String, text: String) {
         val list = ArrayDeque(load(context))
         val now = System.currentTimeMillis()
         val last = list.firstOrNull()
@@ -75,10 +95,14 @@ object HistoryStore {
         }
     }
 
+    /** 清空。同样走 [io] 串行——否则"清空"和正在排队的 append 会打架（清完又被写回来） */
     fun clear(context: Context) {
-        try {
-            file(context).delete()
-        } catch (_: Exception) {
+        val app = context.applicationContext
+        io.execute {
+            try {
+                file(app).delete()
+            } catch (_: Exception) {
+            }
         }
     }
 }

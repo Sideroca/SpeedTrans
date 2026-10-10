@@ -36,7 +36,12 @@ data class ShellSkin(
     val cornerDp: Float,   // 切角尺寸（dp）
     val glow: Boolean,     // 输入聚焦发光
     val scanline: Boolean,
-    val beam: Boolean
+    val beam: Boolean,
+    // ---- 派生色（《夕汀前端规范》⑭/⑮）：默认回落 accent，未列入 ⑭ 的配色行为不变 ----
+    val ball: Int = accent,                      // ⑭ 球色（同色相明度+12）→ 滑条滑块
+    val sel: Int = accent,                       // ⑮.2 选取色（中间调）→ 选中芯片 / 页签 / 指示点
+    val gen: Int = accent,                       // ⑭ 生成色（提亮提纯）→ 主行动按钮
+    val genInk: Int = 0xFF111111.toInt()         // ⑮.1 主行动按钮字色
 )
 
 object ShellSkins {
@@ -56,7 +61,12 @@ object ShellSkins {
         cornerDp = 8f,
         glow = true,
         scanline = true,
-        beam = true
+        beam = true,
+        // 炫酷黑自带配色：球/选取沿用青蓝；主行动用它的琥珀金（保持原观感）
+        ball = 0xFF1EA5C7.toInt(),
+        sel = 0xFF1EA5C7.toInt(),
+        gen = 0xFFFBC02D.toInt(),
+        genInk = 0xFF111111.toInt()
     )
 
     /** 跟随主界面主题：22 套旧配色穿 DS 骨架（切角保留，氛围关闭） */
@@ -76,13 +86,19 @@ object ShellSkins {
             panelBg = pal.card,
             stroke = strokeFallback,
             accent = pal.accent,
-            accentStrong = if (pal.barBg != 0) pal.barBg else pal.accent,
+            // §⑥「保存」按钮＝**透明玻璃 + accent 档**（面色/描边/字都取 accent）。
+            // 以前这里是 pal.barBg（**撞色条**的颜色）—— 那正是"从一套配色里挑错色"的来源，改掉。
+            accentStrong = pal.accent,
             text = pal.text,
             subText = pal.subText,
             cornerDp = 8f,
             glow = false,
             scanline = false,
-            beam = false
+            beam = false,
+            ball = pal.ballColor,      // ⑭ 滑条球
+            sel = pal.selColor,        // ⑮.2 选中态
+            gen = pal.genColor,        // ⑭ 主行动
+            genInk = pal.genInk        // ⑮.1 白字
         )
     }
 
@@ -167,18 +183,19 @@ object ShellSkins {
 
     fun chipBg(skin: ShellSkin, selected: Boolean, d: Float, alphaPct: Int = 100): Drawable =
         if (selected) CutCornerDrawable(
-            alphaFill(skin.accent, alphaPct), skin.cornerDp * d * 0.75f,
-            alphaFill(skin.accent, alphaPct), d
+            // ⑮.2 选中态＝「选取色」（中间调），不再是 raw accent（大面积高彩度会"吵"）
+            alphaFill(skin.sel, alphaPct), skin.cornerDp * d * 0.75f,
+            alphaFill(skin.sel, alphaPct), d
         )
         else CutCornerDrawable(skin.panelBg, skin.cornerDp * d * 0.75f, skin.stroke, d)
 
     fun chipText(skin: ShellSkin, selected: Boolean): Int =
         if (selected) {
-            if (Color.luminance(skin.accent) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
+            if (Color.luminance(skin.sel) > 0.5f) 0xFF111111.toInt() else 0xFFFFFFFF.toInt()
         } else skin.subText
 
     fun cuffIconBg(skin: ShellSkin, active: Boolean, d: Float): Drawable =
-        if (active) CutCornerDrawable(blend(skin.bg, skin.accent, 0.20f), skin.cornerDp * d, skin.accent, d)
+        if (active) CutCornerDrawable(blend(skin.bg, skin.sel, 0.20f), skin.cornerDp * d, skin.sel, d)
         else CutCornerDrawable(skin.panelBg, skin.cornerDp * d, skin.stroke, d)
 
     /** 设置页卡片浓度：给填充色叠 alpha（100 = 原样） */
@@ -210,6 +227,17 @@ object ShellSkins {
                 } else if (root.id == R.id.btnSave) {
                     root.background = CutCornerDrawable(Color.TRANSPARENT, skin.cornerDp * d, skin.accentStrong, d)
                     root.setTextColor(skin.accentStrong)
+                } else if (root.id == R.id.btnCopyContact || root.id == R.id.btnCheckUpdate) {
+                    // 「点一下复制」：**完全不填色**，只借卡片那条线（与 cardContact 同一支描边）
+                    // 用户钦定：不要实心按钮，就要一个简洁的卡片线框
+                    root.background = CutCornerDrawable(
+                        Color.TRANSPARENT, skin.cornerDp * d * 0.75f, skin.stroke, d
+                    )
+                    root.setTextColor(skin.text)
+                    root.minHeight = 0
+                    root.minimumHeight = 0
+                    root.stateListAnimator = null
+                    root.setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
                 } else if (root.id == R.id.btnIconRestore || root.id == R.id.btnClearImage) {
                     // 次级按钮（还原成默认图标）：页面底浅染主色 + 完整软描边
                     // 配方：底 = blend(页面底, accent, 深22%/浅16%)；描边 = blend(底, accent, 深34%/浅26%)
@@ -246,7 +274,8 @@ object ShellSkins {
             }
             is SeekBar -> {
                 root.progressTintList = android.content.res.ColorStateList.valueOf(skin.accent)
-                root.thumbTintList = android.content.res.ColorStateList.valueOf(skin.accent)
+                // ⑭ 滑块（"球"）＝ 同色相、明度 +12（大深小浅，抵面积稀释感）→ 不再是 raw accent 的"黑洞"
+                root.thumbTintList = android.content.res.ColorStateList.valueOf(skin.ball)
             }
             is TextView -> {
                 if (root.id in cardIds) {

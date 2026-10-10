@@ -7,3 +7,6 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# 构建缓存（2026-10-10 补）
+.kotlin/

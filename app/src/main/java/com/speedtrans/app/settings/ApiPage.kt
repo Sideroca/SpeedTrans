@@ -139,6 +139,21 @@ internal fun SettingsActivity.refreshThinkingRow() {
         val row = findViewById<LinearLayout>(R.id.tierRow)
         val url = findViewById<AutoCompleteTextView>(R.id.etUrl).text.toString()
         val p = Providers.match(url)
+        val wantVisible = !(p == null || p.levels.isEmpty())
+        val sig = "${p?.label}|${p?.levels?.size}|$wantVisible"
+        // ★★ 2026-10-01 真凶修复：**没变化就什么都不做**。
+        //
+        // 原来这里每次调用都 `row.removeAllViews()` + 重新 addView → **requestLayout** →
+        // 而 ScrollView.onLayout 里有一条"把获焦控件滚进视野"（mChildToScrollTo → scrollToDescendant）
+        // → 它会直接 `scrollTo(0)` —— **页面被拽回顶部**。
+        // 诊断日志抓到的正是这个序列（refreshThinkingRow → onLayout:1870 → scrollTo y=0），
+        // 而且启动时它被调了 3 次（GONE→VISIBLE→VISIBLE）= 三次无谓的布局抖动。
+        // 这条闸门既治"跳"，也顺手去掉每次进页面的一批无效重建。
+        if (lastThinkingSig == sig) return
+        lastThinkingSig = sig
+        com.speedtrans.app.ui.GracefulScrollView.note(
+            "refreshThinkingRow → ${if (wantVisible) "VISIBLE(${p!!.levels.size} chips)" else "GONE"}  url=${url.take(28)}"
+        )
         if (p == null || p.levels.isEmpty()) {
             tv.text = "🧠 思考档位（按接口地址自动识别服务商）"
             row.visibility = View.GONE

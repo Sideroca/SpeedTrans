@@ -196,8 +196,18 @@ class BallService : AccessibilityService() {
 
     // ---------------- 悬浮球 ----------------
 
+    /** 按持久化的开关同步悬浮球可见性（通知条的「隐藏/召唤」按钮调它） */
+    fun syncBallVisibility() {
+        mainHandler.post {
+            if (SettingsStore(this).ballHidden) hideBall() else showBall()
+        }
+    }
+
     private fun showBall() {
         if (!Settings.canDrawOverlays(this) || ball != null) return
+        // 用户把球藏起来了 → 不重建窗口。**服务照常连着**（不影响自启动/无障碍状态），
+        // 只是屏幕上没有球。"隐藏"= 摘窗，没有窗口就没有触摸目标，零误触。
+        if (SettingsStore(this).ballHidden) return
         val st = SettingsStore(this)
         val sizePx = dp(st.ballSizeDp)
         val shape = st.ballShape

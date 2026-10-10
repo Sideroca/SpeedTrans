@@ -24,6 +24,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.speedtrans.app.service.KeepAliveService
+import com.speedtrans.app.service.BallService
 import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.ThemeEngine
 import com.speedtrans.app.ui.Wallpaper
@@ -76,6 +77,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 用户**手动点图标打开** → 把悬浮球召唤回来（轻响 2026-10-02 定的规则）。
+        //
+        // 判据是"**这次是怎么被打开的**"，而不是"球是怎么被隐藏的"：
+        //   · 点图标 → LAUNCHER 的 MAIN 意图、且不是"从历史里捞回来" → **召唤** ✓
+        //   · 系统自启动 → 只会拉起保活/无障碍服务，**根本不经过 Activity** → 球保持隐藏 ✓
+        //     （所以"自启动不召唤"这条天然成立，不需要额外判断 ✓）
+        // 于是"划掉任务 → 球消失"和"再点图标 → 球回来"配成一对，语义就是关闭/开启，
+        // 用户不必跑去通知栏点「召唤悬浮球」。
+        val fromLauncher = intent?.action == Intent.ACTION_MAIN &&
+                intent.categories?.contains(Intent.CATEGORY_LAUNCHER) == true &&
+                (intent.flags and Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT) == 0
+        if (fromLauncher) {
+            SettingsStore(this).ballHidden = false
+            BallService.instance?.syncBallVisibility()   // 服务没连上是空操作，不崩
+        }
         setContentView(R.layout.activity_main)
         setupEdgeToEdge()
         store = SettingsStore(this)

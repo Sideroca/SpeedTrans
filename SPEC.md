@@ -6,7 +6,7 @@
 
 安卓悬浮球流式翻译工具：单击悬浮球 → 无障碍服务抓取当前屏幕文字 → LLM 流式翻译成中文，译文以可调悬浮面板显示。
 
-- 用户：小米手机（Android 14，MIUI），追求**极速**（首字 1~2 秒内）
+- 用户：小米手机（**Android 16**，HyperOS/澎湃），追求**极速**（首字 1~2 秒内）
 - 翻译对象：大量英文（LLM 思考内容、Twitter、YouTube 网页等），英→中固定方向
 - 仓库：github.com/Sideroca/SpeedTrans（Private；**已脱敏**——零预置密钥、已关云备份/换机迁移）
 - 构建：GitHub Actions 云端（本地 aarch64 无法编译），workflow 在 `.github/workflows/build.yml`
