@@ -1,0 +1,31 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#eef1f5;font-family:"MiSans","Noto Sans CJK SC",sans-serif;width:380px;padding:14px;color:#2b3340}
+h1{font-size:16px;margin-bottom:2px}
+.sub{font-size:10.5px;color:#7a8494;line-height:1.6;margin-bottom:12px}
+.row{display:flex;gap:10px;margin-bottom:6px}
+.cell{flex:1;text-align:center}
+.cap{font-size:10.5px;color:#4a5566;margin-bottom:5px;line-height:1.5}
+.cap b{display:block;font-size:11.5px}
+.panel{background:#fff;border:1px solid #e3e7ef;border-radius:10px;padding:6px 0;
+       display:flex;justify-content:center}
+.hit{width:44px;height:131px;border:1px dashed #c8d2e0;border-radius:5px;
+     display:flex;align-items:center;justify-content:center;position:relative}
+.hit::after{content:"";position:absolute;left:-1px;right:-1px;top:-1px;bottom:-1px;
+     border-radius:5px;background:transparent}
+img{display:block}
+.foot{font-size:10px;color:#7a8494;line-height:1.75;margin-top:8px;border-top:1px solid #dbe1e9;padding-top:7px}
+</style></head><body>
+<h1>译文面板 · 返回键（方向键）符号微调</h1>
+<div class="sub">渲染图（非真机截图）｜箭头 = 真素材 ic_back_arrow.png 1:1 摆放｜虚线框 = 判定范围</div>
+<div class="row">
+  <div class="cell"><div class="cap"><b>现状</b>符号 32dp · alpha 0.62</div>
+    <div class="panel"><div class="hit"><img src="ic_back_arrow.png" style="width:32px;opacity:0.62"></div></div></div>
+  <div class="cell"><div class="cap"><b>改后（已采用）</b>符号 28.8dp · alpha 0.45</div>
+    <div class="panel"><div class="hit"><img src="ic_back_arrow.png" style="width:28.8px;opacity:0.45"></div></div></div>
+  <div class="cell"><div class="cap"><b>备选·更浅</b>符号 28.8dp · alpha 0.35</div>
+    <div class="panel"><div class="hit"><img src="ic_back_arrow.png" style="width:28.8px;opacity:0.35"></div></div></div>
+</div>
+<div class="foot">虚线框三格完全一样大 = <b>44×131dp 判定范围一点没动</b>；变的只有符号本体（靠内距收缩）。
+<br>符号宽度算法：44dp − 2×6dp = 32dp → 缩 10% = 28.8dp → 内距 7.6dp。</div>
+</body></html>

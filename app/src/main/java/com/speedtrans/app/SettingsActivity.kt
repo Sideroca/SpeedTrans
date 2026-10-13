@@ -147,7 +147,8 @@ class SettingsActivity : AppCompatActivity() {
         bindPanelButtons()
         bindOcr()
         bindLauncherSection()
-        bindScrollDiag()   // 临时：长按标题看滚动诊断（排查完删）
+        // bindScrollDiag()   // ★ 2026-10-10 注释掉（原注释："临时：长按标题看滚动诊断（排查完删）"）——
+        //                      留着备用：滚动又出怪问题时长按标题可看诊断。要用就把这行解开。
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
         // 还原成默认图标（闪译）：把三个桌面别名的组件状态恢复为清单默认

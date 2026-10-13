@@ -227,7 +227,24 @@ object ShellSkins {
                 } else if (root.id == R.id.btnSave) {
                     root.background = CutCornerDrawable(Color.TRANSPARENT, skin.cornerDp * d, skin.accentStrong, d)
                     root.setTextColor(skin.accentStrong)
-                } else if (root.id == R.id.btnCopyContact || root.id == R.id.btnCheckUpdate) {
+                } else if (root.id == R.id.btnCheckUpdate) {
+                    // 「检查更新」：**次级按钮** —— 面色 accent@16% / 描边 accent@42% / 字 accent。
+                    // 原来它和「复制联系方式」共用"全透明、只借卡片那条线"那一档，
+                    // 用户 2026-10-10 反馈"全透明很不好" → 拆出来，给它一个看得见的底。
+                    val dark2 = Color.luminance(skin.bg) < 0.4f
+                    val fill2 = blend(skin.bg, skin.accent, if (dark2) 0.22f else 0.16f)
+                    val pct2 = root.context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                        .getInt("settings_card_alpha", 100)
+                    root.background = CutCornerDrawable(
+                        alphaFill(fill2, pct2), skin.cornerDp * d * 0.75f,
+                        alphaFill(blend(fill2, skin.accent, if (dark2) 0.34f else 0.26f), pct2), 1.2f * d
+                    )
+                    root.setTextColor(skin.accent)
+                    root.minHeight = 0
+                    root.minimumHeight = 0
+                    root.stateListAnimator = null
+                    root.setPadding((14 * d).toInt(), (9 * d).toInt(), (14 * d).toInt(), (9 * d).toInt())
+                } else if (root.id == R.id.btnCopyContact) {
                     // 「点一下复制」：**完全不填色**，只借卡片那条线（与 cardContact 同一支描边）
                     // 用户钦定：不要实心按钮，就要一个简洁的卡片线框
                     root.background = CutCornerDrawable(

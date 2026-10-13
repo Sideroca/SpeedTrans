@@ -330,6 +330,8 @@ class ResultOverlay(private val context: Context) {
     fun showStatus(msg: String) {
         ensure()
         tvStatus?.text = msg
+        // 面板出现了 → 打开「全局按键过滤」（这样"返回键关面板"才有；平时是关着的，见 BallService.setKeyFilter）
+        com.speedtrans.app.service.BallService.instance?.setKeyFilter(true)
     }
 
     fun showFinished(srcLen: Int, translated: String) {
@@ -337,6 +339,7 @@ class ResultOverlay(private val context: Context) {
         tvOut?.text = translated
         tvStatus?.text = "⚡ 原文 $srcLen 字 · 秒回（内容未变）"
         scrollOutTop()
+        com.speedtrans.app.service.BallService.instance?.setKeyFilter(true)
     }
 
     fun append(delta: String) {
@@ -369,6 +372,8 @@ class ResultOverlay(private val context: Context) {
 
     /** 立刻视觉隐藏（任何关闭路径先走这一步：手感即时；摘窗慢一拍也不影响观感） */
     fun hideNow() {
+        // 面板没了 → **关掉全局按键过滤**（音量键不再经过本进程；用户 2026-10-10 的卡顿根因）
+        com.speedtrans.app.service.BallService.instance?.setKeyFilter(false)
         try {
             root?.animate()?.cancel()
             root?.alpha = 0f

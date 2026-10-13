@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- ⚠️ 2026-10-10：`flagRequestFilterKeyEvents` 已**从 accessibilityFlags 移除**。
+     它是**全量**按键过滤 —— 开着时系统会把**每一个物理按键**（含音量键）先送到本进程等回话，
+     用户实测这就是"音量键按下去卡顿一下"的根因（关掉无障碍立刻顺滑）。
+     现在改成**运行时按需开关**：`BallService.setKeyFilter(true/false)`，
+     只在**译文面板显示期间**打开（"返回键关面板"照旧可用），平时关着 → 音量键完全不经过本进程。
+     ⚠️ 下面的 `canRequestFilterKeyEvents="true"` 是**能力声明**，必须保留，否则运行时开不起来。 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRequestFilterKeyEvents"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:canRequestFilterKeyEvents="true"
     android:canTakeScreenshot="true"

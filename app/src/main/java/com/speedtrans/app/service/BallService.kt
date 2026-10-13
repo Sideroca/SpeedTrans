@@ -196,6 +196,31 @@ class BallService : AccessibilityService() {
 
     // ---------------- 悬浮球 ----------------
 
+    /**
+     * 运行时开关「**全局按键过滤**」。
+     *
+     * **平时关**：开着的话，系统会把**每一个物理按键**（含音量键）先送到本进程等回话
+     * —— 用户 2026-10-10 实测：这正是"音量键按下去卡顿一下"的根因（关掉无障碍立刻顺滑）。
+     * **只在译文面板显示期间开**：那时才需要拦"返回键"来关面板。
+     *
+     * 注意：`accessibility_service_config.xml` 里的 `canRequestFilterKeyEvents="true"`（**能力声明**）
+     * 必须保留，否则运行时开不起来；而 `accessibilityFlags` 里的 `flagRequestFilterKeyEvents`
+     * （**当前是否接收**）已移除 —— 由本方法动态控制。
+     */
+    fun setKeyFilter(on: Boolean) {
+        runCatching {
+            val si = serviceInfo ?: return
+            val F = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+            @Suppress("DEPRECATION")
+            val has = (si.flags and F) != 0
+            if (has == on) return
+            @Suppress("DEPRECATION")
+            si.flags = if (on) si.flags or F else si.flags and F.inv()
+            setServiceInfo(si)
+            Log.i(TAG, "key filter -> $on")
+        }
+    }
+
     /** 按持久化的开关同步悬浮球可见性（通知条的「隐藏/召唤」按钮调它） */
     fun syncBallVisibility() {
         mainHandler.post {

@@ -1,0 +1,45 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E4EAE0;font-family:"MiSans","Noto Sans CJK SC",sans-serif;width:380px;padding:14px;color:#3B4634}
+h1{font-size:16px;margin-bottom:2px}
+.sub{font-size:10.5px;color:#7B8471;line-height:1.6;margin-bottom:12px}
+.sec{margin-bottom:14px}
+.nm{font-size:13px;font-weight:700;color:#2F3A28}
+.ds{font-size:10.5px;color:#7B8471;line-height:1.6;margin:3px 0 6px}
+.card{position:relative;background:#FFFFFF;border:1px solid #C5D1BC;border-radius:12px;overflow:hidden}
+.tx{padding:12px 14px 0;font-size:13px;line-height:1.44;color:#3B4634;white-space:pre-line}
+.hit{position:absolute;left:0;right:0;bottom:0;border:1px dashed #C08A2E;background:rgba(230,170,60,.15);
+     display:flex;align-items:center;justify-content:center;font-size:18px;color:#9E8368}
+.legend{font-size:10px;color:#B4762A;margin-top:4px;line-height:1.6}
+</style></head><body>
+<h1>历史页 · 定稿：判定条与两种判定范围</h1>
+<div class="sub">渲染图（合成预览，非真机截图）｜虚线仅用于说明判定范围，真机上完全不可见</div>
+
+<div class="sec"><div class="nm">① 折叠态 —— 点它 = 展开（判定 <b>32dp</b>，好点中）</div>
+<div class="ds">正文显示 12 行 ≈ 240 字。底部一条整宽判定条，只有一个淡省略号，无底色无分隔线。</div>
+<div class="card">
+  <div class="tx">03-25 15:02 · 翻译
+原文：孔子曰学而时习之不亦说乎有朋自远方来不亦乐乎人不知而不愠不亦君子乎
+孔子说，学了又时常温习和练习，不是很愉快吗？有志同道合的人从远方来，不是很令人高兴吗？人家不了解我，我也不怨恨、恼怒，不也是一个有德的君子吗？
+有子曰，其为人也孝弟，而好犯上者鲜矣。不好犯上而好作乱者，未之有也。君子务本，本立而道生。孝弟也者，其为仁之本与？巧言令色，鲜矣仁。吾日三省吾身：为人谋而不忠乎？与朋友交而不信乎？传不习乎？道千乘之国，敬事而信，节用而爱人，使民以时。弟子入则孝，出则弟，谨而信，泛爱众，而亲仁；行有余力，则以学文。君子不重则不威，学则不固。主忠信，无友不如己者，过则勿惮改。</div>
+  <div class="hit" style="height:32px">…</div>
+</div>
+<div class="legend">↑ 黄底虚线 = 32dp 判定区（原 48dp，按你要求缩掉 1/3：上下各收 1/6）</div></div>
+
+<div class="sec"><div class="nm">② 展开态 —— 点它 = 收起（判定 <b>20dp</b>，防误收）</div>
+<div class="ds">全文显示。判定条收窄、省略号变淡 —— 看了一半时不容易被误碰收回。</div>
+<div class="card">
+  <div class="tx">03-25 15:02 · 翻译
+原文：孔子曰学而时习之不亦说乎有朋自远方来不亦乐乎人不知而不愠不亦君子乎
+孔子说，学了又时常温习和练习，不是很愉快吗？有志同道合的人从远方来，不是很令人高兴吗？人家不了解我，我也不怨恨、恼怒，不也是一个有德的君子吗？
+有子曰，其为人也孝弟，而好犯上者鲜矣。不好犯上而好作乱者，未之有也。君子务本，本立而道生。孝弟也者，其为仁之本与？巧言令色，鲜矣仁。吾日三省吾身：为人谋而不忠乎？与朋友交而不信乎？传不习乎？道千乘之国，敬事而信，节用而爱人，使民以时。弟子入则孝，出则弟，谨而信，泛爱众，而亲仁；行有余力，则以学文。君子不重则不威，学则不固。主忠信，无友不如己者，过则勿惮改。</div>
+  <div class="hit" style="height:20px;color:#C0AE94">…</div>
+</div>
+<div class="legend">↑ 20dp 判定区（比展开小一档）｜点卡片任意处也等同于点这一条</div></div>
+
+<div class="sec"><div class="nm">③ 交互（2026-10-01 改版）</div>
+<div class="ds">· <b>点卡片 / 点底部条</b> = 展开·收起<br>
+· <b>长按卡片</b> = 复制全文 <span style="color:#B4762A">← 从"点一下复制"改成"长按复制"</span><br>
+<br>原因：原来整张卡都是"点一下=复制"，而卡片极大 —— <b>手指搭上去、或轻微抖动（不足 slop）都会判成一次点击</b> → 想滑动却先弹一次"已复制"。复制是需要<b>刻意</b>的动作，交给长按正好；"点"留给"看得更多"。</div></div>
+
+</body></html>
