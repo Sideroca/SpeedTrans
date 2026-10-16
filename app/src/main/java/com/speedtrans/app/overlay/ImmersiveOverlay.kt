@@ -331,7 +331,13 @@ class ImmersiveOverlay(private val context: Context) {
         // 关键：覆盖高度**至少=原文块高度**。否则译文比原文短时只盖住上半截，
         // 原文下半截全露出来 → "长文像是没翻"（真机实测的根因）
         tv.minimumHeight = item.rect.height() + padY * 2
-        val lp = FrameLayout.LayoutParams(w, FrameLayout.LayoutParams.WRAP_CONTENT)
+        // 宽度：**不写死原文框宽**——最小=原文框（保证盖住原文）、最大=屏幕内，
+        // 中间让译文自己决定（译文够宽就一行 → 横卡；以前写死 → 中文被迫折行 → 竖卡）
+        tv.minimumWidth = w
+        tv.maxWidth = maxW
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT
+        )
         lp.leftMargin = left
         lp.topMargin = (item.rect.top - padY).coerceAtLeast(0)
         if (blocks.size < 3) {
