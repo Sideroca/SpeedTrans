@@ -684,7 +684,14 @@ class BallService : AccessibilityService() {
 
     /** 无障碍节点取词：每个"可见文本节点"一条（文本 + 真实屏幕矩形），不做行合并 */
     private fun collectA11yItems(): List<ImmersiveItem> {
-        val root = rootInActiveWindow ?: return emptyList()
+        val rootNode = rootInActiveWindow ?: return emptyList()
+        // 结构性定位"网页内容容器"：Chromium / GeckoView 的 root web area 恒为 android.webkit.WebView
+        // → 只遍历它的子树，浏览器工具栏/地址栏（外部的原生 View）**天然进不来**（不再靠逐条过滤）
+        val anchor = findWebAnchor(rootNode)
+        com.speedtrans.app.util.DiagLog.log(
+            "a11y", if (anchor != null) "命中网页内容容器 → 只扫子树" else "无网页容器 → 扫整树"
+        )
+        val root = anchor ?: rootNode
         val out = ArrayList<ImmersiveItem>()
         val d = resources.displayMetrics.density
         val st = SettingsStore(this)
@@ -707,7 +714,9 @@ class BallService : AccessibilityService() {
                     // ② 巨型容器（>35% 屏面积）不是正文
                     area <= screenArea * 35 / 100 &&
                     // ③ 有文字子节点的容器不要（要叶子节点，避免一个框套住整段）
-                    !hasTextChild(n)
+                    !hasTextChild(n) &&
+                    // ④ URL / 域名 / 查询串（地址栏那类）不要
+                    !looksLikeUrl(raw)
                 ) {
                     if (total + raw.length <= st.maxChars) {
                         total += raw.length
@@ -729,6 +738,52 @@ class BallService : AccessibilityService() {
     }
 
     /** 文本是否"绝大部分是汉字/假名/谚文"（是 → 无需翻译） */
+    /**
+     * 找"网页内容容器"（root web area）：className == android.webkit.WebView，取可见面积最大者。
+     * Chromium / GeckoView 都用这个常量给 root web area 命名 → 一条判据通吃主流浏览器。
+     * 只有它确实占屏幕一大块（≥35% 屏面积）才采用；找不到就退回整树（非浏览器 App 通常很干净）。
+     */
+    private fun findWebAnchor(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var best: AccessibilityNodeInfo? = null
+        var bestArea = 0L
+        val q = java.util.ArrayDeque<AccessibilityNodeInfo>()
+        q.add(root)
+        var guard = 0
+        while (q.isNotEmpty() && guard++ < 6000) {
+            val n = q.removeFirst()
+            if (n.className?.toString() == "android.webkit.WebView" && n.isVisibleToUser) {
+                val rr = android.graphics.Rect()
+                n.getBoundsInScreen(rr)
+                val area = rr.width().toLong() * rr.height()
+                if (area > bestArea) {
+                    bestArea = area
+                    best = n
+                }
+            }
+            for (i in 0 until n.childCount) {
+                val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
+                q.add(c)
+            }
+        }
+        val dm = resources.displayMetrics
+        val screenArea = dm.widthPixels.toLong() * dm.heightPixels
+        return if (best != null && bestArea >= screenArea * 35 / 100) best else null
+    }
+
+    /** 像 URL / 域名 / 查询串（浏览器地址栏那类，不该被当成正文翻译） */
+    private fun looksLikeUrl(t: String): Boolean {
+        val s0 = t.trim()
+        if (s0.contains("://") || s0.contains("www.")) return true
+        if (Regex("[A-Za-z0-9-]+\\.[A-Za-z]{2,}(/|\\b)").containsMatchIn(s0) &&
+            s0.count { it == ' ' } <= 2
+        ) return true
+        for (tld in listOf(".com/", ".org/", ".net/", ".co/", ".uk/", ".io/", ".dev/", ".gov/", ".edu/")) {
+            if (s0.contains(tld, true)) return true
+        }
+        if (s0.length >= 40 && !s0.contains(' ')) return true
+        return false
+    }
+
     private fun isMostlyCjk(t: String): Boolean {
         var cjk = 0
         var letters = 0
