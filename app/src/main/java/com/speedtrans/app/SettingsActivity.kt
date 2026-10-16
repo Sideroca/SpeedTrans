@@ -40,6 +40,11 @@ import com.speedtrans.app.settings.bindApi
 import com.speedtrans.app.settings.bindBallAppearance
 import com.speedtrans.app.settings.bindBarColor
 import com.speedtrans.app.settings.bindIconStudio
+import com.speedtrans.app.settings.markColor
+import com.speedtrans.app.settings.restyleChips
+import com.speedtrans.app.settings.studioBg
+import com.speedtrans.app.settings.studioStyle
+import com.speedtrans.app.settings.bindImmersive
 import com.speedtrans.app.settings.bindLauncherSection
 import com.speedtrans.app.settings.bindOcr
 import com.speedtrans.app.settings.bindPanelAppearance
@@ -146,8 +151,9 @@ class SettingsActivity : AppCompatActivity() {
         bindPanelAppearance()
         bindPanelButtons()
         bindOcr()
+        bindImmersive()
         bindLauncherSection()
-        // bindScrollDiag()   // ★ 2026-10-10 注释掉（原注释："临时：长按标题看滚动诊断（排查完删）"）——
+        bindScrollDiag()   // 长按标题 → 运行日志（2026-10-15 起改为诊断日志入口）
         //                      留着备用：滚动又出怪问题时长按标题可看诊断。要用就把这行解开。
 
         findViewById<Button>(R.id.btnSave).setOnClickListener { save() }
@@ -224,12 +230,19 @@ class SettingsActivity : AppCompatActivity() {
         styleCuff()
         restylePropsFills()
         restyleCatChips()
+        // 图标工坊的「样式」「背景色」芯片：换肤必须重刷，否则停在旧主题的选中色（规范 16.1）
+        val sRow = findViewById<LinearLayout>(R.id.studioStyleRow)
+        if (sRow.childCount > 0) restyleChips(sRow) { (it as Int) == studioStyle }
+        val bRow = findViewById<LinearLayout>(R.id.studioBgRow)
+        if (bRow.childCount > 0) markColor(bRow, studioBg, resources.displayMetrics.density)
         applyWallpaper()
         if (skin.beam) findViewById<BeamView>(R.id.fxBeam).start()
     }
 
     private fun bindCuff() {
         val row = findViewById<LinearLayout>(R.id.cuffRow)
+        row.clipChildren = false
+        row.clipToPadding = false
         val d = resources.displayMetrics.density
         val defs = listOf(
             "🔌" to "接口", "🎨" to "主题", "⚡" to "悬浮",
@@ -309,10 +322,35 @@ class SettingsActivity : AppCompatActivity() {
         if (changed) findViewById<GracefulScrollView>(R.id.settingsScroll).scrollTo(0, 0)
     }
 
-    /** 临时诊断入口（2026-10-01 排查"跳顶/回弹"；查明即删）：长按标题弹出手势时序，可一键复制 */
+    /** 诊断入口（2026-10-15）：长按标题 → 看运行日志（通知条/沉浸式/OCR 每一步），可复制给助手排查 */
     private fun bindScrollDiag() {
         findViewById<TextView>(R.id.tvShellTitle).setOnLongClickListener {
-            findViewById<GracefulScrollView>(R.id.settingsScroll).showDiagDialog()
+            val d = resources.displayMetrics.density
+            val p = (12 * d).toInt()
+            val body = TextView(this).apply {
+                text = com.speedtrans.app.util.DiagLog.dump().ifBlank { "（暂无日志）" }
+                textSize = 11f
+                setTextIsSelectable(true)
+                setPadding(p, p, p, p)
+            }
+            val sv = android.widget.ScrollView(this).apply { addView(body) }
+            android.app.AlertDialog.Builder(this)
+                .setTitle("运行日志（${com.speedtrans.app.util.DiagLog.size()} 条 · v" +
+                        packageManager.getPackageInfo(packageName, 0).versionName + "）")
+                .setView(sv)
+                .setPositiveButton("复制") { _, _ ->
+                    val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                            as android.content.ClipboardManager
+                    cm.setPrimaryClip(
+                        android.content.ClipData.newPlainText(
+                            "diag", com.speedtrans.app.util.DiagLog.dump()
+                        )
+                    )
+                    Toast.makeText(this, "已复制日志", Toast.LENGTH_SHORT).show()
+                }
+                .setNeutralButton("清空") { _, _ -> com.speedtrans.app.util.DiagLog.clear() }
+                .setNegativeButton("关闭", null)
+                .show()
             true
         }
     }

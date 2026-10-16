@@ -120,7 +120,7 @@
                     android:id="@+id/tvProviderNote"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="4dp"
                     android:textSize="11sp" />
 
                 <com.speedtrans.app.ui.BurnAutoCompleteTextView
@@ -170,7 +170,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:text="最大输出 Tokens（默认 8192；0 = 不发送）"
                     android:textSize="12sp" />
 
@@ -210,7 +210,7 @@
                     android:id="@+id/tierRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:orientation="horizontal" />
 
                 <LinearLayout
@@ -224,6 +224,7 @@
                         android:id="@+id/btnTest"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical|start"
                         android:minWidth="0dp"
                         android:minHeight="0dp"
                         android:paddingHorizontal="14dp"
@@ -242,7 +243,7 @@
                     android:id="@+id/tvPromptLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="32dp"
                     android:text="✍️ 自定义提示词（如有填写，以你的内容为准）"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -251,11 +252,146 @@
                     android:id="@+id/etPrompt"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:gravity="top"
                     android:hint="例：技术文档风格翻译，保留英文专有名词，不要解释。"
                     android:inputType="textMultiLine"
                     android:minLines="2"
                     android:textSize="13sp" />
+
+                <LinearLayout
+                    android:id="@+id/rowImmToggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:paddingEnd="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🧩 沉浸式翻译"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/ivImmArrow"
+                        android:layout_width="8dp"
+                        android:layout_height="5.5dp"
+                        android:layout_marginStart="6dp"
+                        android:contentDescription="展开/收起"
+                        android:src="@drawable/ic_tri_down" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/boxImm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="覆盖不透明度（100% = 纯译文；调低 = 原文透出）"
+                        android:layout_marginTop="16dp"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/sbImmCover"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp"
+                            android:minHeight="0dp"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="40"
+                            android:progress="40" />
+
+                        <TextView
+                            android:id="@+id/tvImmCoverVal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="52dp"
+                            android:text="100%"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/swImmFontAuto"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center_vertical"
+                        android:text="字号自动跟随原文行高"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="沉浸式固定字号（关闭上面「自动」后生效）"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/sbImmTextSize"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp"
+                            android:minHeight="0dp"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="12"
+                            android:progress="4" />
+
+                        <TextView
+                            android:id="@+id/tvImmTextSizeVal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="52dp"
+                            android:text="16sp"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvImmPromptLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="沉浸式提示词（如有填写，以你的内容为准）"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etImmPrompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="top"
+                        android:hint="留空 = 使用内置结构词"
+                        android:inputType="textMultiLine"
+                        android:minLines="3"
+                        android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- ===== 页：主题 ===== -->
@@ -284,7 +420,7 @@
                     android:id="@+id/themeCatRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="horizontal">
 
                     <TextView
@@ -369,7 +505,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="颜色"
                     android:textSize="13sp" />
 
@@ -377,7 +513,7 @@
                     android:id="@+id/colorRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal" />
 
@@ -451,13 +587,13 @@
 
                         <FrameLayout
                             android:id="@+id/btnTuhun"
-                            android:layout_width="46dp"
-                            android:layout_height="46dp">
+                            android:layout_width="34dp"
+                            android:layout_height="34dp">
 
                             <ImageView
                                 android:id="@+id/ivTuhunBall"
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
                                 android:layout_gravity="center"
                                 android:contentDescription="吐魂球"
                                 android:src="@drawable/ball_tuhun" />
@@ -467,7 +603,7 @@
                             android:id="@+id/tvTuhunTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="4dp"
                             android:text="吐魂"
                             android:textSize="10.5sp" />
                     </LinearLayout>
@@ -477,6 +613,7 @@
                     android:id="@+id/rgSize"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:orientation="horizontal">
 
                     <RadioButton
@@ -528,34 +665,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
-                    android:text="🔀 翻译模式（三选一，与通知栏按钮同步）"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <RadioGroup
-                    android:id="@+id/rgMode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:orientation="vertical">
-
-                    <RadioButton
-                        android:id="@+id/rbModeText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📄 仅文本（无障碍取词，原文零误差）" />
-
-                    <RadioButton
-                        android:id="@+id/rbModeOcr"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🖼 仅识图（静默截屏，全屏 100% 识别）" />
-                </RadioGroup>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
                     android:text="🌐 识别语言"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -596,20 +705,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
                     android:text="单次翻译原文上限（超出截断）"
-                    android:textSize="13sp" />
+                    android:textSize="13sp" 
+                    android:layout_marginTop="16dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <SeekBar
                         android:id="@+id/sbMaxChars"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:minHeight="0dp"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="24dp"
                         android:layout_weight="1"
                         android:max="46"
                         android:progress="8" />
@@ -635,20 +747,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
                     android:text="面板高度（占屏幕比例）"
-                    android:textSize="13sp" />
+                    android:textSize="13sp" 
+                    android:layout_marginTop="16dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <SeekBar
                         android:id="@+id/sbHeight"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:minHeight="0dp"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="24dp"
                         android:layout_weight="1"
                         android:max="70"
                         android:progress="50" />
@@ -666,20 +781,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
                     android:text="译文文字大小"
-                    android:textSize="13sp" />
+                    android:textSize="13sp" 
+                    android:layout_marginTop="16dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <SeekBar
                         android:id="@+id/sbTextSize"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:minHeight="0dp"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="24dp"
                         android:layout_weight="1"
                         android:max="12"
                         android:progress="4" />
@@ -697,7 +815,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="✕ 关闭按钮位置"
                     android:textSize="13sp" />
 
@@ -724,25 +842,27 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="显示的按钮"
                     android:textSize="13sp" />
 
                 <Switch
                     android:id="@+id/swShowCopy"
+                    android:layout_marginTop="8dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
                     android:text="显示「复制」按钮" />
 
                 <Switch
                     android:id="@+id/swShowClose"
+                    android:layout_marginTop="8dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="显示「✕ 关闭」按钮" />
 
                 <Switch
                     android:id="@+id/swAccumulate"
+                    android:layout_marginTop="8dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="译文累积（面板不关时，新译文追加在下方）" />
@@ -750,20 +870,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
                     android:text="标题栏按钮距面板边缘"
-                    android:textSize="13sp" />
+                    android:textSize="13sp" 
+                    android:layout_marginTop="16dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <SeekBar
                         android:id="@+id/sbBtnPad"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:minHeight="0dp"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="24dp"
                         android:layout_weight="1"
                         android:max="24"
                         android:progress="8" />
@@ -778,18 +901,28 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
+                <Switch
+                    android:id="@+id/swCornerClose"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="显示右下角关闭键（面板 / 沉浸式）" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="🎨 撞色条颜色（译文面板标题条，独立于主题）"
+                    android:layout_marginTop="16dp"
+                    android:text="🎨 状态条颜色（译文面板标题条，独立于主题）"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <HorizontalScrollView
+                    android:clipToPadding="false"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:scrollbars="none">
 
                     <LinearLayout
@@ -803,7 +936,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="悬浮页面板按钮大小"
                     android:textSize="13sp" />
 
@@ -868,13 +1001,13 @@
                     android:id="@+id/ivStudioPreview"
                     android:layout_width="160dp"
                     android:layout_height="160dp"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:contentDescription="图标预览" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="样式"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -889,7 +1022,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="背景颜色"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -987,8 +1120,9 @@
 · 持续增长的内容（如模型思考）：自动增量翻译
 
 通知条（常驻 · 划不掉）：
-· 点一下 = 切换模式（📄仅文本 ↔ 🖼仅识图）
-· 长按 = 展开下方按钮：「隐藏悬浮球」/「召唤悬浮球」·「🖼 识图翻译」
+· 点一下 = 切换模式（📄仅文本 ↔ 🖼仅识图）；若当前是沉浸式，点一下就切回 📄仅文本（= 关闭沉浸式）
+· 长按 = 展开下方按钮：「隐藏悬浮球 / 召唤悬浮球」·「🧩 沉浸式翻译」（沉浸式只能从这里进）
+· 🧩 沉浸式：切到该模式后，**点悬浮球**才翻译——把当前这一屏逐处替换成中文（可穿透操作下层；点右下角小窗退出，换页自动关）
 · 隐藏悬浮球 = 把球从屏幕上摘掉（不占屏、零误触）；服务照常跑，不影响自启动
 · 通知条变成 ⚠️ = 无障碍被系统关掉了，点它直达开启页
 
@@ -1013,7 +1147,7 @@
                     android:id="@+id/cardContact"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:orientation="vertical"
                     android:padding="14dp">
 
@@ -1028,7 +1162,7 @@
                         android:id="@+id/btnCopyContact"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="12dp"
                         android:text="点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -1046,7 +1180,7 @@
                     android:id="@+id/tvVersion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="16dp"
                     android:gravity="center"
                     android:textSize="12sp" />
 
@@ -1054,7 +1188,7 @@
                     android:id="@+id/btnCheckUpdate"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:gravity="center"
                     android:text="检查更新" />
 

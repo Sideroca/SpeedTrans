@@ -147,10 +147,8 @@ private fun SettingsActivity.paintSwatch(v: View, color: Int, selected: Boolean)
         }
 }
 internal fun SettingsActivity.bindOcr() {
-        // 翻译模式二选一（与通知栏按钮循环同步）
-        findViewById<RadioGroup>(R.id.rgMode).check(
-            if (store.translateMode == "ocr") R.id.rbModeOcr else R.id.rbModeText
-        )
+        listOf(R.id.sbMaxChars).forEach { fixSeekDrag(it) }
+        // 翻译模式（仅文本 / 仅识图）已改为只由通知条点按切换（2026-10-15 轻响：设置页该模块删除）
         val langs = store.ocrLanguages
         langIds.forEach { (id, code) ->
             findViewById<CheckBox>(id).isChecked = code in langs
@@ -171,6 +169,7 @@ internal fun SettingsActivity.bindOcr() {
 // ---------- 译文面板 ----------
 
 internal fun SettingsActivity.bindPanelAppearance() {
+        listOf(R.id.sbHeight, R.id.sbTextSize).forEach { fixSeekDrag(it) }
         val sb = findViewById<SeekBar>(R.id.sbHeight)
         val tvVal = findViewById<TextView>(R.id.tvHeightVal)
         sb.progress = (store.overlayHeightPct - 30).coerceIn(0, 70)
@@ -215,8 +214,10 @@ internal fun SettingsActivity.bindPanelAppearance() {
 // ---------- 面板按钮自定义 ----------
 
 internal fun SettingsActivity.bindPanelButtons() {
+        listOf(R.id.sbBtnPad).forEach { fixSeekDrag(it) }
         findViewById<Switch>(R.id.swShowCopy).isChecked = store.showCopy
         findViewById<Switch>(R.id.swShowClose).isChecked = store.showClose
+        findViewById<Switch>(R.id.swCornerClose).isChecked = store.showCornerClose
         findViewById<Switch>(R.id.swAccumulate).isChecked = store.panelAccumulate
 
         val rgSide = findViewById<RadioGroup>(R.id.rgBtnSide)
@@ -239,4 +240,57 @@ internal fun SettingsActivity.bindPanelButtons() {
             override fun onStartTrackingTouch(s: SeekBar?) {}
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
+}
+
+// ---------- 沉浸式翻译（2026-10-14） ----------
+
+internal fun SettingsActivity.bindImmersive() {
+        listOf(R.id.sbImmCover, R.id.sbImmTextSize).forEach { fixSeekDrag(it) }
+        findViewById<Switch>(R.id.swImmFontAuto).isChecked = store.immersiveFontAuto
+
+        val sbC = findViewById<SeekBar>(R.id.sbImmCover)
+        val tvC = findViewById<TextView>(R.id.tvImmCoverVal)
+        sbC.progress = (store.immersiveCoverAlphaPct - 60).coerceIn(0, 40)
+        tvC.text = "${store.immersiveCoverAlphaPct}%"
+        sbC.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvC.text = "${p + 60}%"
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+
+        val sbT = findViewById<SeekBar>(R.id.sbImmTextSize)
+        val tvT = findViewById<TextView>(R.id.tvImmTextSizeVal)
+        sbT.max = 12
+        sbT.progress = (store.immersiveTextSize - 12).coerceIn(0, 12)
+        tvT.text = "${store.immersiveTextSize}sp"
+        sbT.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvT.text = "${p + 12}sp"
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+}
+
+/**
+ * 滑条手势修复（2026-10-15 真机复现）：
+ * 拖动滑条时，设置页的滚动容器会把触摸**截走** → 变成"调滑条 = 整页上下滚"。
+ * 做法：按下/移动期间禁止父容器拦截；抬起再放开。
+ */
+internal fun SettingsActivity.fixSeekDrag(id: Int) {
+    findViewById<SeekBar>(id).setOnTouchListener { v, e ->
+        when (e.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN,
+            android.view.MotionEvent.ACTION_MOVE ->
+                v.parent?.requestDisallowInterceptTouchEvent(true)
+            android.view.MotionEvent.ACTION_UP,
+            android.view.MotionEvent.ACTION_CANCEL ->
+                v.parent?.requestDisallowInterceptTouchEvent(false)
+        }
+        false
+    }
 }

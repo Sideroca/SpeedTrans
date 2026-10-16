@@ -192,7 +192,7 @@ class GracefulScrollView @JvmOverloads constructor(
         tr.computeCurrentVelocity(1000)
         val vy = -tr.yVelocity.toInt()
         if (abs(vy) > 200) {
-            val maxY = maxOf(0, (getChildAt(0)?.height ?: 0) - height)
+            val maxY = maxOf(0, computeVerticalScrollRange() - height)   // 2026-10-16：原式漏 padding → 甩动比真底部早停 341dp
             scroller.fling(0, scrollY, 0, vy, 0, 0, 0, maxY)
             postInvalidateOnAnimation()
         }

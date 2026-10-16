@@ -47,21 +47,24 @@ internal fun SettingsActivity.save() {
             R.id.rbBtnBig -> 125
             else -> 100
         }
-        store.translateMode = when (findViewById<RadioGroup>(R.id.rgMode).checkedRadioButtonId) {
-            R.id.rbModeOcr -> "ocr"
-            else -> "text"
-        }
+        // 翻译模式改由通知条点按切换（设置页已删该模块）→ 保存时不动它
         store.ocrLanguages = langIds.mapNotNull { (id, code) ->
             if (findViewById<CheckBox>(id).isChecked) code else null
         }.toSet()
         store.maxChars = findViewById<SeekBar>(R.id.sbMaxChars).progress * 1000 + 4000
         store.showCopy = findViewById<Switch>(R.id.swShowCopy).isChecked
         store.showClose = findViewById<Switch>(R.id.swShowClose).isChecked
+        store.showCornerClose = findViewById<Switch>(R.id.swCornerClose).isChecked
         store.panelAccumulate = findViewById<Switch>(R.id.swAccumulate).isChecked
         store.btnCloseLeft =
             findViewById<RadioGroup>(R.id.rgBtnSide).checkedRadioButtonId == R.id.rbSideLeft
         store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress
         store.barColorHex = selectedBarColor ?: ""
+        // 沉浸式翻译（2026-10-14）
+        store.immersiveCoverAlphaPct = findViewById<SeekBar>(R.id.sbImmCover).progress + 60
+        store.immersiveFontAuto = findViewById<Switch>(R.id.swImmFontAuto).isChecked
+        store.immersiveTextSize = findViewById<SeekBar>(R.id.sbImmTextSize).progress + 12
+        store.immersivePrompt = findViewById<EditText>(R.id.etImmPrompt).text.toString()
         // 保存后预热新地址的连接（换服务商后首字同样快）
         try {
             com.speedtrans.app.translate.TranslateEngine(store).warmUp()

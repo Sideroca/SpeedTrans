@@ -309,11 +309,254 @@ class TranslateEngine(private val store: SettingsStore) {
         return call
     }
 
-    private fun parseDelta(data: String): String = try {
-        val choices = JSONObject(data).optJSONArray("choices") ?: return ""
-        val delta = choices.optJSONObject(0)?.optJSONObject("delta") ?: return ""
-        delta.optString("content", "")
-    } catch (_: Exception) {
-        ""
+    /** 沉浸式（结构化）：一次请求 + ⟦n⟧ 逐块；失败由编排层降级逐块 */
+    fun translateImmersive(
+        userContent: String,
+        onDelta: (String) -> Unit,
+        onAlive: () -> Unit = {},
+        onDone: (Throwable?) -> Unit,
+        onCallCreated: ((Call) -> Unit)? = null
+    ): Call = startRequest(true, userContent, onDelta, onAlive, onDone, onCallCreated, 0)
+
+    /** 沉浸式（逐块）：单条 user 消息 → 对位天然成立、不依赖模型行为（MT 模型也能用） */
+    fun translateBlock(
+        text: String,
+        onDelta: (String) -> Unit,
+        onAlive: () -> Unit = {},
+        onDone: (Throwable?) -> Unit,
+        onCallCreated: ((Call) -> Unit)? = null
+    ): Call = startRequest(false, text, onDelta, onAlive, onDone, onCallCreated, 0)
+
+    /**
+     * 统一发起：level 0=完整；1=去掉 max_tokens；2=最简（只留 model/stream/messages）。
+     * 主要应对"某个可选参数被服务端 400"——逐级退让而不是一次打死。
+     */
+    private fun startRequest(
+        structured: Boolean,
+        userContent: String,
+        onDelta: (String) -> Unit,
+        onAlive: () -> Unit,
+        onDone: (Throwable?) -> Unit,
+        onCallCreated: ((Call) -> Unit)?,
+        level: Int
+    ): Call {
+        val body = buildBody(structured, userContent, level)
+        val req = try {
+            val b = Request.Builder()
+                .url(store.baseUrl)
+                .header("Authorization", "Bearer ${store.apiKey}")
+                .header("Accept", "text/event-stream")
+            // Azure OpenAI 用 api-key 头
+            if (store.baseUrl.contains("azure", true)) b.header("api-key", store.apiKey)
+            b.post(body.toString().toRequestBody("application/json".toMediaType())).build()
+        } catch (e: Exception) {
+            onDone(e)
+            return client.newCall(Request.Builder().url("http://127.0.0.1/").build())
+        }
+        val call = client.newCall(req)
+        onCallCreated?.invoke(call)
+        enqueueStream(call, onDelta, onAlive, onDone, level) { next ->
+            startRequest(structured, userContent, onDelta, onAlive, onDone, onCallCreated, next)
+        }
+        return call
+    }
+
+    /** level 0=全量；1=去 max_tokens；2=最简 */
+    private fun buildBody(structured: Boolean, userContent: String, level: Int): JSONObject {
+        val isMt = store.model.startsWith("qwen-mt")
+        return JSONObject().apply {
+            put("model", store.model)
+            put("stream", true)
+            if (level == 0) {
+                val tp = store.temperature
+                if (tp >= 0f) put("temperature", tp.toDouble())
+                val mt = store.maxTokens
+                if (mt > 0) {
+                    if (store.baseUrl.contains("openai.com", true)) put("max_completion_tokens", mt)
+                    else put("max_tokens", mt)
+                }
+            }
+            if (isMt) {
+                put(
+                    "translation_options",
+                    JSONObject().put("source_lang", "auto").put("target_lang", "Chinese")
+                )
+            } else if (level == 0) {
+                // 只在**已知**服务商发思考参数；自建 vLLM/ollama 乱发会 400
+                val u = store.baseUrl
+                when {
+                    u.contains("dashscope", true) || u.contains("aliyun", true) ->
+                        put("enable_thinking", false)
+                    u.contains("volces.com", true) ->
+                        put("thinking", JSONObject().put("type", "disabled"))
+                    u.contains("bigmodel.cn", true) -> {
+                        if (!store.model.startsWith("glm-5"))
+                            put("thinking", JSONObject().put("type", "disabled"))
+                    }
+                    u.contains("deepseek.com", true) ->
+                        put("thinking", JSONObject().put("type", "disabled"))
+                    u.contains("moonshot.cn", true) ->
+                        put("thinking", JSONObject().put("type", "disabled"))
+                    u.contains("openai.com", true) ->
+                        put("reasoning_effort", "minimal")
+                }
+            }
+            val sys = if (structured)
+                store.immersivePrompt.ifBlank { SettingsStore.DEFAULT_IMMERSIVE_PROMPT }
+            else
+                store.immersivePrompt.ifBlank { SettingsStore.DEFAULT_BLOCK_PROMPT }
+            put("messages", JSONArray().apply {
+                if (!isMt && sys.isNotBlank())
+                    put(JSONObject().put("role", "system").put("content", sys))
+                put(JSONObject().put("role", "user").put("content", userContent))
+            })
+        }
+    }
+
+    /**
+     * 读流：多协议容错 + 400 逐级退让 + 非流式兜底。
+     * onAlive：每收到一条有内容的行就回调（思考型模型只出 reasoning 时不算挂起）。
+     */
+    private fun enqueueStream(
+        call: Call,
+        onDelta: (String) -> Unit,
+        onAlive: () -> Unit,
+        onDone: (Throwable?) -> Unit,
+        level: Int,
+        resend: (Int) -> Unit
+    ) {
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                onDone(if (call.isCanceled()) null else e)
+            }
+
+            override fun onResponse(call: Call, resp: Response) {
+                resp.use { r ->
+                    com.speedtrans.app.util.DiagLog.log("http", "响应 code=${r.code} level=$level")
+                    if (!r.isSuccessful) {
+                        val detail = try {
+                            r.body?.string()?.take(300)
+                        } catch (_: Exception) {
+                            ""
+                        }
+                        com.speedtrans.app.util.DiagLog.log("http", "非 2xx：${detail?.take(120) ?: ""}")
+                        if (r.code == 400 && level < 2) {
+                            com.speedtrans.app.util.DiagLog.log("http", "400 → 退让到 level ${level + 1} 重试")
+                            resend(level + 1)
+                            return
+                        }
+                        onDone(IOException(friendly(r.code) + " " + (detail ?: "")))
+                        return
+                    }
+                    try {
+                        val src = r.body!!.source()
+                        var sawStream = false
+                        val whole = StringBuilder()
+                        var newlinePending = false
+                        while (!src.exhausted()) {
+                            val rawLine = src.readUtf8Line() ?: break
+                            if (call.isCanceled()) break
+                            var data: String? = null
+                            val t = rawLine.trim()
+                            when {
+                                rawLine.startsWith("data:") -> data = rawLine.substring(5).trim()
+                                // NDJSON（ollama /api/chat 等）：整行就是 JSON
+                                t.startsWith("{") && t.endsWith("}") -> data = t
+                                else -> {
+                                    if (!sawStream) {
+                                        if (newlinePending) whole.append('\n')
+                                        whole.append(rawLine)
+                                        newlinePending = true
+                                    }
+                                    continue
+                                }
+                            }
+                            sawStream = true
+                            onAlive()
+                            if (data == "[DONE]") break
+                            val d = parseDelta(data)
+                            if (d.isNotEmpty()) onDelta(d)
+                        }
+                        if (!sawStream) {
+                            val f = parseFull(whole.toString())
+                            com.speedtrans.app.util.DiagLog.log("http", "非流式兜底 解析=${f.length}字（${whole.length}B）")
+                            if (f.isNotEmpty()) onDelta(f)
+                        }
+                        onDone(null)
+                    } catch (e: Exception) {
+                        onDone(if (call.isCanceled()) null else e)
+                    }
+                }
+            }
+        })
+    }
+
+    private fun friendly(code: Int): String = when (code) {
+        401 -> "401 鉴权失败：API Key 无效或过期"
+        403 -> "403 被拒绝：Key 无该模型权限？"
+        404 -> "404 未找到：地址缺 /chat/completions 尾巴，或模型名不存在"
+        429 -> "429 太频繁：被限流，稍后再试"
+        in 500..599 -> "HTTP $code 服务端故障"
+        else -> "HTTP $code"
+    }
+
+    /** 宽容解析：OpenAI / ollama / Gemini */
+    private fun parseDelta(data: String): String {
+        return try {
+            val o = JSONObject(data)
+            val ch = o.optJSONArray("choices")
+            if (ch != null && ch.length() > 0) {
+                val c0 = ch.optJSONObject(0) ?: return ""
+                val a = c0.optJSONObject("delta")?.optString("content", "") ?: ""
+                if (a.isNotEmpty()) return a
+                val b = c0.optJSONObject("message")?.optString("content", "") ?: ""
+                if (b.isNotEmpty()) return b
+                val t = c0.optString("text", "")
+                if (t.isNotEmpty()) return t
+                return ""
+            }
+            val resp = o.optString("response", "")           // ollama /api/generate
+            if (resp.isNotEmpty()) return resp
+            val msg = o.optJSONObject("message")?.optString("content", "") ?: ""
+            if (msg.isNotEmpty()) return msg                  // ollama /api/chat
+            return geminiText(o)                              // Gemini
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    /** Gemini：candidates[0].content.parts[*].text 全拼 */
+    private fun geminiText(o: JSONObject): String {
+        return try {
+            val cand = o.optJSONArray("candidates") ?: return ""
+            if (cand.length() == 0) return ""
+            val parts = cand.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return ""
+            val sb = StringBuilder()
+            for (i in 0 until parts.length()) sb.append(parts.optJSONObject(i)?.optString("text", "") ?: "")
+            sb.toString()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    /** 非流式整段 JSON 兜底：OpenAI / ollama / Gemini */
+    private fun parseFull(s: String): String {
+        return try {
+            val o = JSONObject(s)
+            val ch = o.optJSONArray("choices")
+            if (ch != null && ch.length() > 0) {
+                val m = ch.optJSONObject(0)?.optJSONObject("message")?.optString("content", "") ?: ""
+                if (m.isNotEmpty()) return m
+                val t = ch.optJSONObject(0)?.optString("text", "") ?: ""
+                if (t.isNotEmpty()) return t
+            }
+            val resp = o.optString("response", "")
+            if (resp.isNotEmpty()) return resp
+            val msg = o.optJSONObject("message")?.optString("content", "") ?: ""
+            if (msg.isNotEmpty()) return msg
+            geminiText(o)
+        } catch (_: Exception) {
+            ""
+        }
     }
 }

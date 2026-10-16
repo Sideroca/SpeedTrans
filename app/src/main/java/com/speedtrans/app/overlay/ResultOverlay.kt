@@ -194,14 +194,14 @@ class ResultOverlay(private val context: Context) {
 
         // 迷你返回键（面板右下角·固定长宽·灰白不抢眼）：返回键失灵时的保底关闭通道。
         // 图标 = 豆包箭头（已抠图、透明底、保持原方向）；点击 = 取消翻译 + 关闭面板；跟随"显示关闭按钮"开关。
-        if (st.showClose) {
+        if (st.showCornerClose) {   // 右下角关闭键：独立开关
             val backIcon = ImageView(ctx).apply {
                 setImageResource(R.drawable.ic_back_arrow)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                alpha = 0.45f                     // 更浅（原 0.62）：看得见，但不抢眼
-                // 符号缩 10%：箭头本体 32dp → 28.8dp（靠内距收缩）。
+                alpha = 0.30f                     // 2026-10-14 轻响：再降 1/3（0.45→0.30），更微不可查
+                // 符号缩 1/5：箭头本体 28.8dp → 23.0dp（靠内距收缩）。
                 // **只缩符号**——判定范围仍是下面那个 44×131dp 的整个盒子，一点没动。
-                setPadding(dpf(7.6f), 0, dpf(7.6f), 0)
+                setPadding(dpf(10.5f), 0, dpf(10.5f), 0)
                 contentDescription = "关闭"
                 setOnClickListener {
                     TranslateCoordinator.cancelActive()

@@ -175,7 +175,7 @@ internal fun SettingsActivity.bindIconStudio() {
             toast("请在系统弹窗中确认添加到桌面；应用本体可用「切换桌面图标」伪装隐藏")
         }
 }
-private fun SettingsActivity.restyleChips(row: LinearLayout, isOn: (Any) -> Boolean) {
+internal fun SettingsActivity.restyleChips(row: LinearLayout, isOn: (Any) -> Boolean) {
         val skin = currentSkin ?: ShellSkins.current(this)
         val d = resources.displayMetrics.density
         for (i in 0 until row.childCount) {
@@ -185,7 +185,7 @@ private fun SettingsActivity.restyleChips(row: LinearLayout, isOn: (Any) -> Bool
             c.setTextColor(ShellSkins.chipText(skin, on))
         }
 }
-private fun SettingsActivity.markColor(row: LinearLayout, hex: String, d: Float) {
+internal fun SettingsActivity.markColor(row: LinearLayout, hex: String, d: Float) {
         for (i in 0 until row.childCount) {
             val v = row.getChildAt(i)
             if (v.tag == hex) {

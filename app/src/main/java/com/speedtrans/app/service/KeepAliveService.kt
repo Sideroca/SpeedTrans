@@ -15,10 +15,12 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.speedtrans.app.R
 import com.speedtrans.app.store.SettingsStore
+import com.speedtrans.app.util.DiagLog
 
 /**
  * 前台保活 + 控制中心：
- * 常驻通知（划不掉），带两个按钮——「切换模式」「🖼 识图翻译」。
+ * 常驻通知（划不掉）——点通知条本身 = 切换模式；长按露出两个按钮
+ * 「隐藏悬浮球 / 召唤悬浮球」＋「🧩 沉浸式翻译」（2026-10-14）。
  * 模式：📄 仅文本（默认）/ 🖼 仅识图，与设置页同步。
  */
 class KeepAliveService : Service() {
@@ -30,16 +32,32 @@ class KeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        DiagLog.log("notif", "onStartCommand action=${intent?.action}")
         when (intent?.action) {
             ACTION_TOGGLE -> {
+                // 点通知条本身（轻响钦定机制）：只在 📄仅文本 ↔ 🖼仅识图 之间切；
+                // 若当前是 🧩沉浸式 → 单点即切回 📄仅文本（= 关闭沉浸式）。
+                // **沉浸式只能靠"长按通知条 → 点那个按钮"进入**，单点永远不会进沉浸式。
                 val st = SettingsStore(this)
-                st.translateMode = if (st.translateMode == "ocr") "text" else "ocr"
+                st.translateMode = when (st.translateMode) {
+                    "text" -> "ocr"
+                    "ocr" -> "text"
+                    else -> "text"
+                }
+                DiagLog.log("notif", "点条切换模式 → ${st.translateMode}")
             }
             ACTION_TOGGLE_BALL -> {
                 // 隐藏 = 摘窗（零误触）；服务照常连着，所以不影响自启动 / 无障碍状态。
                 val st = SettingsStore(this)
                 st.ballHidden = !st.ballHidden
                 BallService.instance?.syncBallVisibility()
+            }
+            ACTION_IMMERSIVE -> {
+                // 2026-10-15：通知条 = **模式开关**（不是翻译触发键）。
+                // 点它 → 切到「沉浸式」；已是沉浸式 → 切回「仅文本」。随后点悬浮球才翻译。
+                val st = SettingsStore(this)
+                st.translateMode = if (st.translateMode == "immersive") "text" else "immersive"
+                DiagLog.log("notif", "沉浸式键 → 模式=${st.translateMode}")
             }
         }
         // 任何命令都重建通知：标题始终显示当前模式（含设置页保存后的同步）
@@ -99,6 +117,9 @@ class KeepAliveService : Service() {
 
         /** 通知条左按钮：隐藏 / 召唤悬浮球 */
         const val ACTION_TOGGLE_BALL = "com.speedtrans.app.action.TOGGLE_BALL"
+
+        /** 通知条第二键：沉浸式翻译（走本服务 → 再转 BallService） */
+        const val ACTION_IMMERSIVE = "com.speedtrans.app.action.IMMERSIVE"
 
         /**
          * 无障碍服务是否**在系统设置里启用**（这才是"掉线"的真判据）。
@@ -162,6 +183,7 @@ class KeepAliveService : Service() {
             val st = SettingsStore(ctx)
             val modeName = when (st.translateMode) {
                 "ocr" -> "🖼 仅识图"
+                "immersive" -> "🧩 沉浸式"
                 else -> "📄 仅文本"
             }
             val b = NotificationCompat.Builder(ctx, CHANNEL_ID)
@@ -184,22 +206,22 @@ class KeepAliveService : Service() {
 
                 st.ballHidden -> b
                     .setContentTitle("闪译 · $modeName（球已隐藏）")
-                    .setContentText("点按通知条切换模式，长按召唤悬浮球")
+                    .setContentText("点按切换模式，长按召唤悬浮球")
                     .setContentIntent(togglePI(ctx))
                     .addAction(0, "召唤悬浮球", ballTogglePI(ctx))
-                    .addAction(0, "🖼 识图翻译", ocrPI(ctx))
+                    .addAction(R.drawable.ic_immersive, immActionTitle(ctx), immersivePI(ctx))
                     .build()
 
                 else -> b
                     .setContentTitle("闪译 · $modeName")
-                    // 文案（轻响钦定 2026-10-01）：点按 = 切换模式；**长按 = 展开通知**露出「隐藏悬浮球」按钮。
+                    // 文案（轻响钦定 2026-10-01）：点按 = 切换模式；**长按 = 展开通知**露出两个按钮。
                     // 长按展开是 **MIUI/HyperOS 给的手势**（AOSP 那边是下拉展开）——按钮本身一直在，
                     // 跟 ROM 无关（addAction 是 4.1 起的核心 API）。换非 MIUI 机型时把这句改成
                     // "长按/下拉" 即可两边通吃。
-                    .setContentText("点按通知条切换模式，长按关闭悬浮球")
+                    .setContentText("点按切换模式，长按→沉浸式翻译")
                     .setContentIntent(togglePI(ctx))   // 点通知条 = 立即循环切换（折叠态也生效）
                     .addAction(0, "隐藏悬浮球", ballTogglePI(ctx))
-                    .addAction(0, "🖼 识图翻译", ocrPI(ctx))
+                    .addAction(R.drawable.ic_immersive, immActionTitle(ctx), immersivePI(ctx))
                     .build()
             }
         }
@@ -217,9 +239,14 @@ class KeepAliveService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        private fun ocrPI(ctx: Context): PendingIntent = PendingIntent.getService(
+        /** 第二键标题：随模式变（已是沉浸式时显示「📄 仅文本」，方便切回） */
+        private fun immActionTitle(ctx: Context): String =
+            if (SettingsStore(ctx).translateMode == "immersive") "📄 仅文本" else "🧩 沉浸式翻译"
+
+        /** 通知条第二键：沉浸式模式开关（2026-10-15 起为"模式开关"，不是翻译触发键） */
+        private fun immersivePI(ctx: Context): PendingIntent = PendingIntent.getService(
             ctx, 2,
-            Intent(ctx, BallService::class.java).setAction(BallService.ACTION_OCR),
+            Intent(ctx, KeepAliveService::class.java).setAction(ACTION_IMMERSIVE),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 

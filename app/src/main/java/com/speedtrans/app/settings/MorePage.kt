@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.speedtrans.app.R
 import com.speedtrans.app.SettingsActivity
+import com.speedtrans.app.store.SettingsStore
 import com.speedtrans.app.theme.ShellSkins
 
 /**
@@ -78,4 +79,29 @@ internal fun SettingsActivity.bindPrompt() {
         findViewById<TextView>(R.id.tvPromptLabel).setTooltipText(
             "二选一：留空 = 使用内置极速翻译词；填写任意内容 = 完全以你的为准（可删可改，也能加一句小小的问候）"
         )
+        // 沉浸式提示词：**预填内置结构词**（可见可改可删）；留空 = 回退内置（防呆）
+        findViewById<EditText>(R.id.etImmPrompt).setText(
+            store.immersivePrompt.ifBlank { SettingsStore.DEFAULT_IMMERSIVE_PROMPT }
+        )
+        findViewById<TextView>(R.id.tvImmPromptLabel).setTooltipText(
+            "留空 = 使用内置极速结构词（逐块翻译、保留 ⟦编号⟧，靠它把译文贴回原位）；填写任意内容 = 完全以你的为准"
+        )
+
+        // 「🧩 沉浸式翻译」整行 = 展开/收起（整块选项都收在里面；行内紧跟一个小三角）
+        val row = findViewById<LinearLayout>(R.id.rowImmToggle)
+        val arrow = findViewById<android.widget.ImageView>(R.id.ivImmArrow)
+        val box = findViewById<LinearLayout>(R.id.boxImm)
+        // 水波：中性灰（跟随主题时会出现"怪颜色"，且必须给遮罩否则炸成大圆）
+        row.background = android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x1F000000),
+            null,
+            android.graphics.drawable.ColorDrawable(0xFFFFFFFF.toInt())
+        )
+        arrow.rotation = 0f
+        row.setOnClickListener {
+            val show = box.visibility != View.VISIBLE
+            box.visibility = if (show) View.VISIBLE else View.GONE
+            // 收起=▼（朝下）；展开=▶（朝右，直角对外，像"播放"）
+            arrow.animate().rotation(if (show) -90f else 0f).setDuration(150).start()
+        }
 }

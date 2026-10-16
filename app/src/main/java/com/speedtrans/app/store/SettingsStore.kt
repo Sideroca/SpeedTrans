@@ -124,10 +124,17 @@ class SettingsStore(context: Context) {
         get() = sp.getBoolean("ball_hidden", false)
         set(v) = sp.edit().putBoolean("ball_hidden", v).apply()
 
-    /** 📄仅文本 / 🖼仅识图（两态；历史 smart 值自动迁移为仅文本） */
+    /** 📄仅文本 / 🖼仅识图 / 🧩沉浸式（三态；历史 smart 值自动迁移为仅文本） */
     var translateMode: String
         get() = sp.getString("translate_mode", "text")!!.let { if (it == "smart") "text" else it }
-        set(v) = sp.edit().putString("translate_mode", if (v == "ocr") "ocr" else "text").apply()
+        set(v) = sp.edit().putString(
+            "translate_mode",
+            when (v) {
+                "ocr" -> "ocr"
+                "immersive" -> "immersive"
+                else -> "text"
+            }
+        ).apply()
 
     /** 译文文字大小（sp，12~24） */
     var overlayTextSize: Int
@@ -154,6 +161,11 @@ class SettingsStore(context: Context) {
         get() = sp.getBoolean("show_copy", true)
         set(v) = sp.edit().putBoolean("show_copy", v).apply()
 
+    /** 显示右下角关闭键（译文面板 / 沉浸式叠层的迷你返回键） */
+    var showCornerClose: Boolean
+        get() = sp.getBoolean("show_corner_close", true)
+        set(v) = sp.edit().putBoolean("show_corner_close", v).apply()
+
     /** 标题栏显示「✕」关闭按钮 */
     var showClose: Boolean
         get() = sp.getBoolean("show_close", true)
@@ -170,6 +182,52 @@ class SettingsStore(context: Context) {
         set(v) = sp.edit().putInt("overlay_btn_scale", v).apply()
 
     val overlayButtonScale: Float get() = overlayButtonScalePct / 100f
+
+    // ---------- 沉浸式翻译 ----------
+
+    /**
+     * 沉浸式返回小窗位置（归一化 **中心点**，0~1；<0 = 未设置 → 默认右下角）。
+     * 用归一化坐标存 → 横竖屏进入都在正确位置。
+     */
+    var immersiveBtnXNorm: Float
+        get() = sp.getFloat("immersive_btn_x", -1f)
+        set(v) = sp.edit().putFloat("immersive_btn_x", v).apply()
+
+    var immersiveBtnYNorm: Float
+        get() = sp.getFloat("immersive_btn_y", -1f)
+        set(v) = sp.edit().putFloat("immersive_btn_y", v).apply()
+
+    /**
+     * 沉浸式显示方式：false = **纯译文**（用页面底色覆盖、擦掉原文）；
+     * true = **中英对照**（块内先原文后译文）。默认纯译文。
+     */
+    var immersiveBilingual: Boolean
+        get() = sp.getBoolean("immersive_bilingual", false)
+        set(v) = sp.edit().putBoolean("immersive_bilingual", v).apply()
+
+    /** 覆盖底色不透明度（%，60~100；默认 100 = 完全擦掉原文） */
+    var immersiveCoverAlphaPct: Int
+        get() = sp.getInt("immersive_cover_alpha", 100).coerceIn(60, 100)
+        set(v) = sp.edit().putInt("immersive_cover_alpha", v.coerceIn(60, 100)).apply()
+
+    /** 字号自动跟随原文行高（false = 用 immersiveTextSize） */
+    var immersiveFontAuto: Boolean
+        get() = sp.getBoolean("immersive_font_auto", true)
+        set(v) = sp.edit().putBoolean("immersive_font_auto", v).apply()
+
+    /** 沉浸式固定字号（sp，12~24；仅 immersiveFontAuto=false 时生效） */
+    var immersiveTextSize: Int
+        get() = sp.getInt("immersive_text_size", 16).coerceIn(12, 24)
+        set(v) = sp.edit().putInt("immersive_text_size", v.coerceIn(12, 24)).apply()
+
+    /**
+     * 沉浸式自定义提示词。**防呆**（与通用提示词同规则）：
+     * 留空 = 用内置结构词（`DEFAULT_IMMERSIVE_PROMPT`）；填写任意内容 = 完全以用户为准。
+     * ⚠️ 若改坏了"一段对一段"的结构，对位会失败并回退底部面板。
+     */
+    var immersivePrompt: String
+        get() = sp.getString("immersive_prompt", "")!!.trim()
+        set(v) = sp.edit().putString("immersive_prompt", v.trim()).apply()
 
     // ---------- 撞色条独立选色 ----------
 
@@ -286,6 +344,26 @@ class SettingsStore(context: Context) {
                     "只输出译文本身：不要解释、不要注释、不要复述原文；保持原有换行。" +
                     "代码、链接、人名等专有名词保持原样。" +
                     "无论内容是什么语言，输出都必须使用简体中文。"
+
+        /**
+         * 沉浸式翻译 · 内置结构词（**唯一事实源**；设置页预填/可删可改，留空即回退到此）。
+         * 关键约束：逐块翻译、块数与顺序一致、每块以 ⟦编号⟧ 开头 —— 对位靠它。
+         */
+        const val DEFAULT_IMMERSIVE_PROMPT =
+            "你是极速沉浸式翻译引擎。用户会发来若干段文本，每段以 ⟦编号⟧ 开头。\n" +
+                    "请把每一段翻译成简体中文，并严格遵守以下规则：\n\n" +
+                    "1. 只输出译文，不要解释、不要注释、不要复述原文。\n\n" +
+                    "2. 输出的段数、编号、顺序必须与输入完全一致；每段同样以 ⟦编号⟧ 开头。\n\n" +
+                    "3. 代码、链接、专有名词保持原样不翻译。\n\n" +
+                    "4. 无论原文是什么语言，输出都必须是简体中文。\n\n" +
+                    "5. 即使某段本来无需翻译，也要照常输出该段并保留其编号。"
+
+        /**
+         * 沉浸式 · **逐块**兜底提示词（单块请求用；对位不依赖模型，任何模型/MT 模型都能用）。
+         */
+        const val DEFAULT_BLOCK_PROMPT =
+            "把用户发来的这段文字翻译成简体中文。只输出译文本身：不要解释、不要注释、不要复述原文。" +
+                    "代码、链接、专有名词保持原样不翻译。无论原文是什么语言，输出必须是简体中文。"
 
         /** 最终版：绝不预置任何密钥（用户自行填写，本地保存） */
         const val DEFAULT_API_KEY = ""
