@@ -669,8 +669,16 @@ class BallService : AccessibilityService() {
             if (raw != null && n.isVisibleToUser) {
                 val r = android.graphics.Rect()
                 n.getBoundsInScreen(r)
+                val area = r.width().toLong() * r.height()
+                val screenArea = resources.displayMetrics.widthPixels.toLong() * screenH
                 if (r.width() > 0 && r.height() >= dp(6) && r.bottom > 0 && r.top < screenH &&
-                    raw.length >= 2 && raw.any { it.isLetter() }
+                    raw.length >= 2 && raw.any { it.isLetter() } &&
+                    // ① 已经是中文 → 无需翻译（浏览器工具栏那种"打开主页/查看2个标签页"就靠这条滤掉）
+                    !isMostlyCjk(raw) &&
+                    // ② 巨型容器（>35% 屏面积）不是正文
+                    area <= screenArea * 35 / 100 &&
+                    // ③ 有文字子节点的容器不要（要叶子节点，避免一个框套住整段）
+                    !hasTextChild(n)
                 ) {
                     if (total + raw.length <= st.maxChars) {
                         total += raw.length
@@ -687,6 +695,37 @@ class BallService : AccessibilityService() {
         }
         walk(root, 0)
         return out
+    }
+
+    /** 文本是否"绝大部分是汉字/假名/谚文"（是 → 无需翻译） */
+    private fun isMostlyCjk(t: String): Boolean {
+        var cjk = 0
+        var letters = 0
+        for (c in t) {
+            if (c.isLetter()) {
+                letters++
+                val b = Character.UnicodeBlock.of(c)
+                if (b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+                    b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+                    b == Character.UnicodeBlock.HIRAGANA ||
+                    b == Character.UnicodeBlock.KATAKANA ||
+                    b == Character.UnicodeBlock.HANGUL_SYLLABLES
+                ) cjk++
+            }
+        }
+        return letters > 0 && cjk * 100 / letters >= 50
+    }
+
+    /** 该节点是否有"带文字的子孙"（有 → 它是容器，跳过；只取真正承载文字的叶子） */
+    private fun hasTextChild(n: AccessibilityNodeInfo, depth: Int = 0): Boolean {
+        if (depth > 6) return false
+        for (i in 0 until n.childCount) {
+            val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
+            val t = c.text?.toString()?.trim()
+            if (!t.isNullOrEmpty()) return true
+            if (hasTextChild(c, depth + 1)) return true
+        }
+        return false
     }
 
     /** OCR 块 → 沉浸式条目（换算屏幕坐标 + 采样页面底色/文字色 + 推断字号；限量保首字快） */
