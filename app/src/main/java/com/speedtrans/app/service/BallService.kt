@@ -507,6 +507,7 @@ class BallService : AccessibilityService() {
         ocrBusy = true
         val t0 = android.os.SystemClock.elapsedRealtime()
         a11yOwned.clear()
+        val st = SettingsStore(this)
         ov.showStatus("📷 正在静默截屏…")
 
         takeScreenshot(
@@ -694,108 +695,100 @@ class BallService : AccessibilityService() {
     private val a11yOwned = ArrayList<AccessibilityNodeInfo>()
 
     private fun collectA11yItems(): List<ImmersiveItem> {
+        val st = SettingsStore(this)
         val t0 = android.os.SystemClock.elapsedRealtime()
+        a11yOwned.clear()
         val rootNode = rootInActiveWindow ?: return emptyList()
-        // 结构性定位"网页内容容器"：Chromium / GeckoView 的 root web area 恒为 android.webkit.WebView
-        // → 只遍历它的子树，浏览器工具栏/地址栏（外部的原生 View）**天然进不来**（不再靠逐条过滤）
         val anchor = findWebAnchor(rootNode)
-        com.speedtrans.app.util.DiagLog.log(
-            "a11y", if (anchor != null) "命中网页内容容器 → 只扫子树" else "无网页容器 → 扫整树"
-        )
         val root = anchor ?: rootNode
         val anchorRect = android.graphics.Rect()
         if (anchor != null) anchor.getBoundsInScreen(anchorRect)
-        val out = ArrayList<ImmersiveItem>()
-        val d = resources.displayMetrics.density
-        val st = SettingsStore(this)
-        val screenH = resources.displayMetrics.heightPixels
-        var total = 0
-        val seen = HashSet<String>()          // "文本@左,上,宽x高" 去重（替代原 hasTextChild）
-        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
-            if (n == null || depth > 60 || out.size >= 300) return
-            if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
-            // 文本：优先 text；为空则用 contentDescription（Compose/Flutter/RN 常见）
-            // —— 浏览器工具栏那类"只有描述的图标"已被"只扫网页内容子树"结构性排除，这里可放心恢复
-            val hasText = !n.text?.toString()?.trim().isNullOrEmpty()
-            // 只有描述、没有 text 的**可点图标**（浏览器菜单/工具栏那类）→ 不当作正文
-            if (!hasText && n.isClickable && !n.contentDescription.isNullOrEmpty()) return
-            val raw = (n.text?.toString()?.trim()?.ifEmpty { null }
+        val dm = resources.displayMetrics
+        val viewport = android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels)
+
+        fun textOf(n: AccessibilityNodeInfo): String? =
+            (n.text?.toString()?.trim()?.ifEmpty { null }
                 ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null })
-            if (raw != null && n.isVisibleToUser) {
-                val r = android.graphics.Rect()
-                n.getBoundsInScreen(r)
-                // 裁掉"锚点之外 / 屏幕之外"的部分（防"一张卡比屏幕还高、中文铺满"）
-                if (anchor != null && !r.intersect(anchorRect)) {
-                    // 完全在锚点外 → 丢弃
-                } else {
-                    val scr = android.graphics.Rect(0, 0, resources.displayMetrics.widthPixels, screenH)
-                    r.intersect(scr)
-                }
-                val area = r.width().toLong() * r.height()
-                val screenArea = resources.displayMetrics.widthPixels.toLong() * screenH
-                if (!n.isPassword &&
-                    r.width() > 0 && r.height() >= dp(6) && r.bottom > 0 && r.top < screenH &&
-                    raw.length >= 2 && raw.any { it.isLetter() } &&
-                    // ① 已经是中文 → 无需翻译（浏览器工具栏那种"打开主页/查看2个标签页"就靠这条滤掉）
-                    !isMostlyCjk(raw) &&
-                    // ② 巨型容器（>35% 屏面积）不是正文
-                    area <= screenArea * 35 / 100 &&
-                    // ③ 有文字子节点的容器不要（要叶子节点，避免一个框套住整段）
-                    // ④ URL / 域名 / 查询串（地址栏那类）不要
-                    !looksLikeUrl(raw)
-                ) {
-                    val key = raw + "@" + r.left + "," + r.top + "," + r.width() + "x" + r.height()
-                    if (!seen.add(key)) return
-                    if (total + raw.length <= st.maxChars) {
-                        total += raw.length
-                        // 行级精确：能拿到"逐字矩形"就按行切（贴得更准）；拿不到就按整节点（兜底）
-                        val lines = splitLines(n, raw)
-                        if (lines != null && lines.isNotEmpty()) {   // 有一行也用文字真实矩形（不退回触摸盒子）
-                            for (ln in lines) {
-                                if (out.size >= 300) break
-                                out.add(
-                                    ImmersiveItem(
-                                        out.size + 1, ln.first, ln.second, 0, 0,
-                                        st.immersiveTextSize.toFloat()
-                                    )
-                                )
-                            }
-                        } else {
-                            out.add(
-                                ImmersiveItem(
-                                    out.size + 1, raw, r, 0, 0,
-                                    // 无障碍节点是多行容器：按块高推字号会算出 26sp → 巨大；
-                                    // 统一用"沉浸式固定字号"（默认 16sp），可预期、可调
-                                    st.immersiveTextSize.toFloat()
-                                )
-                            )
-                        }
-                    }
-                }
-            }
+
+        // ── 后序遍历：记录所有"带文字"节点 + 标记其子树里是否还有带文字节点 ──
+        class C(val text: String, val rect: android.graphics.Rect, var childHasText: Boolean)
+        val all = ArrayList<C>()
+        var visited = 0
+        fun dfs(n: AccessibilityNodeInfo?, depth: Int): Boolean {
+            if (n == null || depth > 80) return false
+            if (n.packageName?.toString() == packageName) return false
+            visited++
+            val raw = textOf(n)
+            var childHas = false
             for (i in 0 until n.childCount) {
                 val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
                 a11yOwned.add(c)
-                walk(c, depth + 1)
+                if (dfs(c, depth + 1)) childHas = true
             }
+            if (raw != null) {
+                val r = android.graphics.Rect()
+                n.getBoundsInScreen(r)
+                all.add(C(raw, r, childHas))
+                return true
+            }
+            return childHas
         }
-        walk(root, 0)
-        if (Build.VERSION.SDK_INT < 33) {
-            a11yOwned.forEach { runCatching { it.recycle() } }   // 防节点池耗尽（API33+ 自动管理）
+        dfs(root, 0)
+
+        // ── 判别式：只收"最深的带文字节点"（子树内没有别的带文字节点）→ 天然去重、不会整树清零 ──
+        val deepest = all.filter { !it.childHasText }
+
+        // ── 剩余极少数过滤（每条计数，日志自证）──
+        val drop = HashMap<String, Int>()
+        fun dropIt(k: String) { drop[k] = (drop[k] ?: 0) + 1 }
+        val seen = HashSet<String>()
+        val out = ArrayList<ImmersiveItem>()
+        var total = 0
+        for (c in deepest) {
+            val t = c.text
+            if (t.isEmpty()) { dropIt("空"); continue }
+            if (isMostlyCjk(t)) { dropIt("纯中文"); continue }
+            if (!t.any { it.isLetter() }) { dropIt("无字母"); continue }
+            if (isWholeUrl(t)) { dropIt("整条URL"); continue }
+            val r = android.graphics.Rect(c.rect)
+            if (r.width() <= 0 || r.height() <= 0) { dropIt("矩形无效"); continue }
+            if (!r.intersect(viewport)) { dropIt("不在视口"); continue }
+            val key = t + "@" + c.rect.left + "," + c.rect.top + "," + c.rect.width() + "x" + c.rect.height()
+            if (!seen.add(key)) { dropIt("重复"); continue }
+            if (total + t.length > st.maxChars) { dropIt("超字数上限"); continue }
+            total += t.length
+            out.add(ImmersiveItem(out.size + 1, t, r, 0, 0, st.immersiveTextSize.toFloat()))
+            if (out.size >= 300) break
         }
-        a11yOwned.clear()
+
+        // ── 自检日志：一份日志即可定案 ──
+        val ar = if (anchor != null) {
+            val rr = android.graphics.Rect(); anchor.getBoundsInScreen(rr)
+            "(${rr.left},${rr.top}) ${rr.width()}x${rr.height()} class=${anchor.className}"
+        } else "无"
         com.speedtrans.app.util.DiagLog.log(
-            "a11y", "遍历完成 条目=${out.size} 耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
+            "a11y",
+            "锚点=$ar | 访问=$visited 文本节点=${all.size} 最深=${deepest.size} 保留=${out.size} " +
+                    "丢弃=${drop} 字符=$total 耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
         )
+        val sample = out.take(5).joinToString(" | ") { "${it.index}:\"${it.original.take(16)}\"@${it.rect.left},${it.rect.top}" }
+        com.speedtrans.app.util.DiagLog.log("a11y", "抽样：$sample")
+        if (all.isNotEmpty() && out.isEmpty()) {
+            com.speedtrans.app.util.DiagLog.log("a11y", "⚠️ 有文本却被清空 → 规则=${drop.keys}")
+        }
+        if (Build.VERSION.SDK_INT < 33) a11yOwned.forEach { runCatching { it.recycle() } }
+        a11yOwned.clear()
         return out
     }
 
-    /** 文本是否"绝大部分是汉字/假名/谚文"（是 → 无需翻译） */
-    /**
-     * 找"网页内容容器"（root web area）：className == android.webkit.WebView，取可见面积最大者。
-     * Chromium / GeckoView 都用这个常量给 root web area 命名 → 一条判据通吃主流浏览器。
-     * 只有它确实占屏幕一大块（≥35% 屏面积）才采用；找不到就退回整树（非浏览器 App 通常很干净）。
-     */
+    /** "整条就是 URL/域名"（只在整条时丢；包含链接的正文不丢） */
+    private fun isWholeUrl(t: String): Boolean {
+        val s0 = t.trim()
+        if (s0.contains(' ')) return false
+        if (s0.startsWith("http://") || s0.startsWith("https://")) return true
+        return Regex("^[A-Za-z0-9%._-]+\\.[A-Za-z]{2,}(/\\S*)?$").matches(s0)
+    }
+
     /**
      * 行级精确：用"逐字矩形"把节点文本按行切开（每行一个矩形）。
      * 拿不到（节点不提供/异常）→ 返回 null，调用方退回"整节点一块"。
