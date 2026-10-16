@@ -305,7 +305,7 @@ class BallService : AccessibilityService() {
             }
         }
         val ballW = if (st.ballImageAsIs && imagePath0.isNotEmpty()) asIsW else widthPx
-        val hPx = if (shape == "rectH") (sizePx * 0.62f).toInt() else sizePx
+        val hPx = if (shape == "rectH") (sizePx * 0.376f).toInt() else sizePx   // 面积与"竖长方形"相等
         val lp = WindowManager.LayoutParams(
             ballW, hPx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -709,6 +709,9 @@ class BallService : AccessibilityService() {
             if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
             // 文本：优先 text；为空则用 contentDescription（Compose/Flutter/RN 常见）
             // —— 浏览器工具栏那类"只有描述的图标"已被"只扫网页内容子树"结构性排除，这里可放心恢复
+            val hasText = !n.text?.toString()?.trim().isNullOrEmpty()
+            // 只有描述、没有 text 的**可点图标**（浏览器菜单/工具栏那类）→ 不当作正文
+            if (!hasText && n.isClickable && !n.contentDescription.isNullOrEmpty()) return
             val raw = (n.text?.toString()?.trim()?.ifEmpty { null }
                 ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null })
             if (raw != null && n.isVisibleToUser) {
@@ -739,7 +742,7 @@ class BallService : AccessibilityService() {
                         total += raw.length
                         // 行级精确：能拿到"逐字矩形"就按行切（贴得更准）；拿不到就按整节点（兜底）
                         val lines = splitLines(n, raw)
-                        if (lines != null && lines.size > 1) {
+                        if (lines != null && lines.isNotEmpty()) {   // 有一行也用文字真实矩形（不退回触摸盒子）
                             for (ln in lines) {
                                 if (out.size >= 300) break
                                 out.add(
@@ -1089,6 +1092,11 @@ class BallService : AccessibilityService() {
         }
         "cut" -> com.speedtrans.app.theme.ShellSkins.CutCornerDrawable(color, dp(8).toFloat(), 0, 0f)
         "rect" -> GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 0f
+            setColor(color)
+        }
+        "rectH" -> GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = 0f
             setColor(color)
