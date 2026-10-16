@@ -283,7 +283,7 @@ class BallService : AccessibilityService() {
         // 竖长方形：宽收窄、高不变（长边从上到下）
         val widthPx = when (shape) {
             "rect" -> (sizePx * 0.62f).toInt()          // 长方形（竖）：宽收窄
-            "rectH" -> (sizePx * 1.65f).toInt()         // 长方形（横）：宽拉长（高度在下面收窄，面积与竖版相当）
+            "rectH" -> sizePx                            // 长方形（横）= 竖版长宽对调
             else -> sizePx
         }
 
@@ -305,7 +305,7 @@ class BallService : AccessibilityService() {
             }
         }
         val ballW = if (st.ballImageAsIs && imagePath0.isNotEmpty()) asIsW else widthPx
-        val hPx = if (shape == "rectH") (sizePx * 0.376f).toInt() else sizePx   // 面积与"竖长方形"相等
+        val hPx = if (shape == "rectH") (sizePx * 0.62f).toInt() else sizePx    // 横版高度 = 竖版宽度（长宽对调）
         val lp = WindowManager.LayoutParams(
             ballW, hPx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -640,7 +640,7 @@ class BallService : AccessibilityService() {
         }
     }
 
-    private fun startImmersiveInner() {
+    private fun startImmersiveInner(retry: Int = 0) {
         if (ImmersiveCoordinator.active) {
             DiagLog.log("imm", "跳过：已在沉浸式中")
             return
@@ -671,6 +671,12 @@ class BallService : AccessibilityService() {
         // 好处：坐标是控件的真实矩形（不再有"识别框偏移"）、零识别错字、且**不用截屏/OCR**（更快）
         val items = collectA11yItems()
         DiagLog.log("imm", "无障碍节点条目=${items.size}")
+        if (items.isEmpty() && retry == 0) {
+            // 树可能瞬时不可用（上一轮叠层刚摘/页面正在重排）→ 300ms 后重试一次
+            com.speedtrans.app.util.DiagLog.log("a11y", "首次为空 → 300ms 后重试")
+            mainHandler.postDelayed({ startImmersiveInner(1) }, 300)
+            return
+        }
         if (items.isEmpty()) {
             toast("没读到可读文本：可能是图片/画布页面、或浏览器的隐私/无痕模式（那类请用「仅识图」）")
             return

@@ -586,39 +586,18 @@
                         android:layout_height="1dp"
                         android:layout_weight="1" />
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_horizontal"
-                        android:orientation="vertical">
-
-                        <FrameLayout
-                            android:id="@+id/btnTuhun"
-                            android:layout_width="34dp"
-                            android:layout_height="34dp">
-
-                            <ImageView
-                                android:id="@+id/ivTuhunBall"
-                                android:layout_width="30dp"
-                                android:layout_height="30dp"
-                                android:layout_gravity="center"
-                                android:contentDescription="吐魂球"
-                                android:src="@drawable/ball_tuhun" />
-                        </FrameLayout>
-
-                        <TextView
-                            android:id="@+id/tvTuhunTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="吐魂"
-                            android:textSize="10.5sp" />
-                    </LinearLayout>
+                    
                 </LinearLayout>
 
-                <RadioGroup
+                        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+<RadioGroup
                     android:id="@+id/rgSize"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:orientation="horizontal">
@@ -643,6 +622,41 @@
                         android:layout_marginStart="12dp"
                         android:text="大" />
                 </RadioGroup>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+    <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical">
+
+                            <FrameLayout
+                                android:id="@+id/btnTuhun"
+                                android:layout_width="34dp"
+                                android:layout_height="34dp">
+
+                                <ImageView
+                                    android:id="@+id/ivTuhunBall"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="吐魂球"
+                                    android:src="@drawable/ball_tuhun" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tvTuhunTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="吐魂"
+                                android:textSize="10.5sp" />
+                        </LinearLayout>
+        </LinearLayout>
 
                                 <Switch
                     android:id="@+id/swImgAsIs"
