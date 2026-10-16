@@ -694,6 +694,64 @@ class BallService : AccessibilityService() {
     /** 本次遍历 getChild() 出来的节点（API<33 需回收，否则节点池耗尽） */
     private val a11yOwned = ArrayList<AccessibilityNodeInfo>()
 
+    /**
+     * 只取"屏幕上看得见"的那段文字（屏幕外的一律不翻）：
+     * ① 有逐字矩形 → 取"字符中心落在视口内"的区间（最准）；
+     * ② 没有 → 按"块在屏幕上方露出的比例 + 可见高度比例"估算区间。
+     */
+    private fun visibleText(
+        n: AccessibilityNodeInfo,
+        raw: String,
+        rect: android.graphics.Rect,
+        vp: android.graphics.Rect
+    ): String {
+        if (raw.isEmpty()) return raw
+        val rects = charRects(n, raw)
+        if (rects != null) {
+            var a = -1
+            var b = -1
+            for (i in rects.indices) {
+                val cy = (rects[i].top + rects[i].bottom) / 2f
+                if (cy >= vp.top && cy < vp.bottom) {
+                    if (a < 0) a = i
+                    b = i
+                }
+            }
+            if (a >= 0 && b >= a) return raw.substring(a, b + 1).trim()
+        }
+        val h = rect.height()
+        if (h <= 0) return raw
+        val above = ((-rect.top).coerceAtLeast(0)).toFloat() / h
+        val visH = (minOf(rect.bottom, vp.bottom) - maxOf(rect.top, vp.top)).coerceAtLeast(0).toFloat()
+        val s0 = (raw.length * above).toInt().coerceIn(0, raw.length)
+        val e0 = (raw.length * (above + visH / h)).toInt().coerceIn(s0, raw.length)
+        return raw.substring(s0, e0).trim()
+    }
+
+    /** 逐字矩形（窗口坐标）；拿不到返回 null */
+    private fun charRects(n: AccessibilityNodeInfo, text: String): ArrayList<android.graphics.RectF>? {
+        return try {
+            val args = android.os.Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, text.length)
+            }
+            if (!n.refreshWithExtraData(
+                    AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args
+                )
+            ) return null
+            @Suppress("DEPRECATION")
+            val arr: Array<*> = (n.extras.getParcelableArray(
+                AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY
+            ) ?: return null)
+            if (arr.size < text.length) return null
+            val res = ArrayList<android.graphics.RectF>(arr.size)
+            for (o in arr) res.add((o as? android.graphics.RectF) ?: return null)
+            res
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun collectA11yItems(): List<ImmersiveItem> {
         val st = SettingsStore(this)
         val t0 = android.os.SystemClock.elapsedRealtime()
@@ -711,7 +769,7 @@ class BallService : AccessibilityService() {
                 ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null })
 
         // ── 后序遍历：记录所有"带文字"节点 + 标记其子树里是否还有带文字节点 ──
-        class C(val text: String, val rect: android.graphics.Rect, var childHasText: Boolean)
+        class C(val node: AccessibilityNodeInfo, val text: String, val rect: android.graphics.Rect, var childHasText: Boolean)
         val all = ArrayList<C>()
         var visited = 0
         fun dfs(n: AccessibilityNodeInfo?, depth: Int): Boolean {
@@ -728,7 +786,7 @@ class BallService : AccessibilityService() {
             if (raw != null) {
                 val r = android.graphics.Rect()
                 n.getBoundsInScreen(r)
-                all.add(C(raw, r, childHas))
+                all.add(C(n, raw, r, childHas))
                 return true
             }
             return childHas
@@ -744,8 +802,10 @@ class BallService : AccessibilityService() {
         val seen = HashSet<String>()
         val out = ArrayList<ImmersiveItem>()
         var total = 0
+        val vp = android.graphics.Rect(viewport)
         for (c in deepest) {
-            val t = c.text
+            // 2026-10-16 轻响钦定：**只翻当前屏幕上看得见的那部分**（无障碍可能读到屏幕外内容，一律不翻）
+            val t = visibleText(c.node, c.text, c.rect, vp)
             if (t.isEmpty()) { dropIt("空"); continue }
             if (isMostlyCjk(t)) { dropIt("纯中文"); continue }
             if (!t.any { it.isLetter() }) { dropIt("无字母"); continue }
