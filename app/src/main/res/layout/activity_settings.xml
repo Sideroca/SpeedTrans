@@ -534,14 +534,14 @@
                         android:id="@+id/rbRounded"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="28dp"
                         android:text="圆角方形" />
 
                     <RadioButton
                         android:id="@+id/rbCut"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="28dp"
                         android:text="切角八边形" />
                 </RadioGroup>
 
@@ -570,14 +570,14 @@
                         android:id="@+id/rbRect"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="28dp"
                         android:text="长方形（竖）" />
 
                     <RadioButton
                         android:id="@+id/rbRectH"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="28dp"
                         android:text="长方形（横）" />
                 </RadioGroup>
 
@@ -649,7 +649,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="图片按原样显示（保留比例与透明区，不裁成形状）" />
+                    android:text="图片球不裁剪（按原图比例显示）" />
 
 <LinearLayout
                     android:layout_width="match_parent"

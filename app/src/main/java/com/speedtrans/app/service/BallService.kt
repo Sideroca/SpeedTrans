@@ -714,7 +714,9 @@ class BallService : AccessibilityService() {
                         out.add(
                             ImmersiveItem(
                                 out.size + 1, raw, r, 0, 0,
-                                ((r.height() / d) * 0.62f).coerceIn(10f, 26f)
+                                // 无障碍节点是多行容器：按块高推字号会算出 26sp → 巨大。
+                                // 统一用"沉浸式固定字号"（默认 16sp），可预期、可调
+                                st.immersiveTextSize.toFloat()
                             )
                         )
                     }
