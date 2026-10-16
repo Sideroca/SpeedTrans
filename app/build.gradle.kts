@@ -11,7 +11,7 @@ android {
         applicationId = "com.speedtrans.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 75
+        versionCode = 76
         versionName = "4.2"
     }
 

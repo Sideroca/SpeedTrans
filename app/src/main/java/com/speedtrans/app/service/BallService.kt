@@ -710,6 +710,7 @@ class BallService : AccessibilityService() {
         val st = SettingsStore(this)
         val screenH = resources.displayMetrics.heightPixels
         var total = 0
+        val seen = HashSet<String>()          // "文本@左,上,宽x高" 去重（替代原 hasTextChild）
         fun walk(n: AccessibilityNodeInfo?, depth: Int) {
             if (n == null || depth > 60 || out.size >= 300) return
             if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
@@ -740,10 +741,11 @@ class BallService : AccessibilityService() {
                     // ② 巨型容器（>35% 屏面积）不是正文
                     area <= screenArea * 35 / 100 &&
                     // ③ 有文字子节点的容器不要（要叶子节点，避免一个框套住整段）
-                    !hasTextChild(n) &&
                     // ④ URL / 域名 / 查询串（地址栏那类）不要
                     !looksLikeUrl(raw)
                 ) {
+                    val key = raw + "@" + r.left + "," + r.top + "," + r.width() + "x" + r.height()
+                    if (!seen.add(key)) return
                     if (total + raw.length <= st.maxChars) {
                         total += raw.length
                         // 行级精确：能拿到"逐字矩形"就按行切（贴得更准）；拿不到就按整节点（兜底）
