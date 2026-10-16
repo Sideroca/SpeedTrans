@@ -194,6 +194,12 @@ class SettingsActivity : AppCompatActivity() {
         val skin = ShellSkins.current(this)
         currentSkin = skin
         findViewById<View>(R.id.rootSettings).setBackgroundColor(skin.bg)
+        // 底衬（2026-10-16）：坞 118dp 原本是透的 → 内容滚过会与五键叠字。
+        // 补一层"透明 → 底色"的竖向渐变，既挡住叠字，又不切出生硬横线。
+        findViewById<View>(R.id.bottomDock).background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(skin.bg and 0x00FFFFFF, skin.bg, skin.bg)
+        )
         // 系统栏图标明暗随皮肤底色走（浅底黑图标 / 深底白图标）
         val lightBars = Color.luminance(skin.bg) > 0.5f
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
