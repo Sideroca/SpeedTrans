@@ -684,6 +684,7 @@ class BallService : AccessibilityService() {
 
     /** 无障碍节点取词：每个"可见文本节点"一条（文本 + 真实屏幕矩形），不做行合并 */
     private fun collectA11yItems(): List<ImmersiveItem> {
+        val t0 = android.os.SystemClock.elapsedRealtime()
         val rootNode = rootInActiveWindow ?: return emptyList()
         // 结构性定位"网页内容容器"：Chromium / GeckoView 的 root web area 恒为 android.webkit.WebView
         // → 只遍历它的子树，浏览器工具栏/地址栏（外部的原生 View）**天然进不来**（不再靠逐条过滤）
@@ -692,6 +693,8 @@ class BallService : AccessibilityService() {
             "a11y", if (anchor != null) "命中网页内容容器 → 只扫子树" else "无网页容器 → 扫整树"
         )
         val root = anchor ?: rootNode
+        val anchorRect = android.graphics.Rect()
+        if (anchor != null) anchor.getBoundsInScreen(anchorRect)
         val out = ArrayList<ImmersiveItem>()
         val d = resources.displayMetrics.density
         val st = SettingsStore(this)
@@ -700,14 +703,24 @@ class BallService : AccessibilityService() {
         fun walk(n: AccessibilityNodeInfo?, depth: Int) {
             if (n == null || depth > 60 || out.size >= 300) return
             if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
-            // 只认 node.text：浏览器工具栏/菜单/地址栏这些"只有 contentDescription 的图标节点"会被自然排除
-            val raw = n.text?.toString()?.trim()?.ifEmpty { null }
+            // 文本：优先 text；为空则用 contentDescription（Compose/Flutter/RN 常见）
+            // —— 浏览器工具栏那类"只有描述的图标"已被"只扫网页内容子树"结构性排除，这里可放心恢复
+            val raw = (n.text?.toString()?.trim()?.ifEmpty { null }
+                ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null })
             if (raw != null && n.isVisibleToUser) {
                 val r = android.graphics.Rect()
                 n.getBoundsInScreen(r)
+                // 裁掉"锚点之外 / 屏幕之外"的部分（防"一张卡比屏幕还高、中文铺满"）
+                if (anchor != null && !r.intersect(anchorRect)) {
+                    // 完全在锚点外 → 丢弃
+                } else {
+                    val scr = android.graphics.Rect(0, 0, resources.displayMetrics.widthPixels, screenH)
+                    r.intersect(scr)
+                }
                 val area = r.width().toLong() * r.height()
                 val screenArea = resources.displayMetrics.widthPixels.toLong() * screenH
-                if (r.width() > 0 && r.height() >= dp(6) && r.bottom > 0 && r.top < screenH &&
+                if (!n.isPassword &&
+                    r.width() > 0 && r.height() >= dp(6) && r.bottom > 0 && r.top < screenH &&
                     raw.length >= 2 && raw.any { it.isLetter() } &&
                     // ① 已经是中文 → 无需翻译（浏览器工具栏那种"打开主页/查看2个标签页"就靠这条滤掉）
                     !isMostlyCjk(raw) &&
@@ -734,6 +747,9 @@ class BallService : AccessibilityService() {
             for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1)
         }
         walk(root, 0)
+        com.speedtrans.app.util.DiagLog.log(
+            "a11y", "遍历完成 条目=${out.size} 耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
+        )
         return out
     }
 
