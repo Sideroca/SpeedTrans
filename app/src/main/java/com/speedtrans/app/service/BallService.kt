@@ -283,7 +283,7 @@ class BallService : AccessibilityService() {
         // 竖长方形：宽收窄、高不变（长边从上到下）
         val widthPx = when (shape) {
             "rect" -> (sizePx * 0.62f).toInt()          // 长方形（竖）：宽收窄
-            "rectH" -> (sizePx * 1.65f).toInt()         // 长方形（横）：长边在上下 → 宽拉长
+            "rectH" -> (sizePx * 1.65f).toInt()         // 长方形（横）：宽拉长（高度在下面收窄，面积与竖版相当）
             else -> sizePx
         }
 
@@ -305,8 +305,9 @@ class BallService : AccessibilityService() {
             }
         }
         val ballW = if (st.ballImageAsIs && imagePath0.isNotEmpty()) asIsW else widthPx
+        val hPx = if (shape == "rectH") (sizePx * 0.62f).toInt() else sizePx
         val lp = WindowManager.LayoutParams(
-            ballW, sizePx,
+            ballW, hPx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -692,8 +693,8 @@ class BallService : AccessibilityService() {
         fun walk(n: AccessibilityNodeInfo?, depth: Int) {
             if (n == null || depth > 60 || out.size >= 300) return
             if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
+            // 只认 node.text：浏览器工具栏/菜单/地址栏这些"只有 contentDescription 的图标节点"会被自然排除
             val raw = n.text?.toString()?.trim()?.ifEmpty { null }
-                ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null }
             if (raw != null && n.isVisibleToUser) {
                 val r = android.graphics.Rect()
                 n.getBoundsInScreen(r)
