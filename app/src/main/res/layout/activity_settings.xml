@@ -749,7 +749,7 @@
                     android:layout_height="wrap_content"
                     android:text="面板高度（占屏幕比例）"
                     android:textSize="13sp" 
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="24dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -783,7 +783,7 @@
                     android:layout_height="wrap_content"
                     android:text="译文文字大小"
                     android:textSize="13sp" 
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="24dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -815,7 +815,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="✕ 关闭按钮位置"
                     android:textSize="13sp" />
 
@@ -842,27 +842,27 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="显示的按钮"
                     android:textSize="13sp" />
 
                 <Switch
                     android:id="@+id/swShowCopy"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="显示「复制」按钮" />
 
                 <Switch
                     android:id="@+id/swShowClose"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="显示「✕ 关闭」按钮" />
 
                 <Switch
                     android:id="@+id/swAccumulate"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="译文累积（面板不关时，新译文追加在下方）" />
@@ -872,7 +872,7 @@
                     android:layout_height="wrap_content"
                     android:text="标题栏按钮距面板边缘"
                     android:textSize="13sp" 
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="24dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -905,13 +905,13 @@
                     android:id="@+id/swCornerClose"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="显示右下角关闭键（面板 / 沉浸式）" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:text="🎨 状态条颜色（译文面板标题条，独立于主题）"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -922,7 +922,7 @@
                     android:paddingEnd="16dp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:scrollbars="none">
 
                     <LinearLayout
@@ -936,7 +936,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="悬浮页面板按钮大小"
                     android:textSize="13sp" />
 
@@ -993,7 +993,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="8dp"
                     android:text="样式 → 背景色 → 图案色（44 色库），预览满意后创建到桌面。"
                     android:textSize="12sp" />
 
@@ -1001,13 +1001,13 @@
                     android:id="@+id/ivStudioPreview"
                     android:layout_width="160dp"
                     android:layout_height="160dp"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:contentDescription="图标预览" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="样式"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -1016,13 +1016,13 @@
                     android:id="@+id/studioStyleRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="8dp"
                     android:orientation="horizontal" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="背景颜色"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -1030,7 +1030,7 @@
                 <HorizontalScrollView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="8dp"
                     android:scrollbars="none">
 
                     <LinearLayout
@@ -1043,7 +1043,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:orientation="horizontal">
 
                     <Button
@@ -1067,7 +1067,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:text="或用你自己的图片 + 名字：选图 → 取景（挑照片哪一块）→ 创建桌面独立入口（原应用图标可拖进文件夹隐藏）："
                     android:textSize="12sp" />
 
@@ -1075,7 +1075,7 @@
                     android:id="@+id/etShortcutName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="8dp"
                     android:hint="桌面入口名称"
                     android:inputType="text"
                     android:textSize="13sp" />
@@ -1089,7 +1089,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:text="若点「创建」后没有弹窗：系统设置 → 应用管理 → 闪译 → 权限管理 → 「桌面快捷方式」→ 允许，再试一次。"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -1105,7 +1105,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:text="📖 使用说明"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -1114,7 +1114,7 @@
                     android:id="@+id/tvUsage"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:padding="14dp"
                     android:text="使用方法：
 · 持续增长的内容（如模型思考）：自动增量翻译
@@ -1138,7 +1138,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="32dp"
                     android:text="🐧 开发者联系与支持"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -1147,7 +1147,7 @@
                     android:id="@+id/cardContact"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="vertical"
                     android:padding="14dp">
 
@@ -1162,7 +1162,7 @@
                         android:id="@+id/btnCopyContact"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="16dp"
                         android:text="点一下复制"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -1171,7 +1171,7 @@
                     android:id="@+id/tvSign"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:gravity="center"
                     android:text="✦ glm5.3flash(๑ت๑) · 为极速而生的闪译\ndeepseek-v4.1-flash-expires-on-0910 ∠( ᐛ 」∠)_"
                     android:textSize="12sp" />
@@ -1180,7 +1180,7 @@
                     android:id="@+id/tvVersion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:gravity="center"
                     android:textSize="12sp" />
 
@@ -1188,7 +1188,7 @@
                     android:id="@+id/btnCheckUpdate"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:gravity="center"
                     android:text="检查更新" />
 
@@ -1196,7 +1196,7 @@
                     android:id="@+id/btnEgg"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="24dp"
                     android:gravity="center"
                     android:text="🏒 空气曲棍球（彩蛋）" />
             </LinearLayout>
@@ -1235,7 +1235,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginLeft="20dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:layout_marginRight="20dp"
             android:layout_marginBottom="20dp"
             android:text="保存全部设置" />

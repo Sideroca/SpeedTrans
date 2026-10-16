@@ -337,6 +337,13 @@ class ImmersiveOverlay(private val context: Context) {
         val lp = FrameLayout.LayoutParams(w, FrameLayout.LayoutParams.WRAP_CONTENT)
         lp.leftMargin = left
         lp.topMargin = (item.rect.top - pad).coerceAtLeast(0)
+        if (blocks.size < 3) {
+            com.speedtrans.app.util.DiagLog.log(
+                "ui",
+                "块${item.index} 原文框=(${item.rect.left},${item.rect.top}) ${item.rect.width()}x${item.rect.height()}" +
+                        " → 落点=(${lp.leftMargin},${lp.topMargin}) 宽=$w 字号=${"%.1f".format(item.textSizeSp * 1.22f)}"
+            )
+        }
         box.addView(tv, lp)
         blocks[item.index] = tv
         texts[item.index] = tv
