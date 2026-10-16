@@ -89,6 +89,11 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("ball_size", 52)
         set(v) = sp.edit().putInt("ball_size", v).apply()
 
+    /** 图片球"按原样显示"（不裁成圆/方，保留图片自身比例与透明区；盒子仍是矩形，判定范围不变） */
+    var ballImageAsIs: Boolean
+        get() = sp.getBoolean("ball_img_asis", false)
+        set(v) = sp.edit().putBoolean("ball_img_asis", v).apply()
+
     /** 自定义图片路径（空 = 使用文字球）。图片存于应用私有目录。 */
     var ballImagePath: String
         get() = sp.getString("ball_image", "")!!

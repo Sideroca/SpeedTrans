@@ -118,6 +118,12 @@ internal fun SettingsActivity.bindBallAppearance() {
             BallService.instance?.refreshBall()
         }
 
+        findViewById<Switch>(R.id.swImgAsIs).isChecked = store.ballImageAsIs
+        findViewById<Switch>(R.id.swImgAsIs).setOnCheckedChangeListener { _, on ->
+            store.ballImageAsIs = on
+            BallService.instance?.refreshBall()
+        }
+
         findViewById<Button>(R.id.btnPickImage).setOnClickListener {
             pickBallImage.launch("image/*")
         }

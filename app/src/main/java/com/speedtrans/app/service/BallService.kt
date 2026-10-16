@@ -287,8 +287,26 @@ class BallService : AccessibilityService() {
             else -> sizePx
         }
 
+        val imagePath0 = st.ballImagePath
+        // 图片球"原样显示"：按图片自身比例定盒子（高=尺寸，宽按比例，限幅），不裁切、不套形状
+        var asIsW = widthPx
+        if (st.ballImageAsIs && imagePath0.isNotEmpty()) {
+            try {
+                val b = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                if (imagePath0.startsWith("res:")) {
+                    val id = resources.getIdentifier(imagePath0.removePrefix("res:"), "drawable", packageName)
+                    if (id != 0) BitmapFactory.decodeResource(resources, id, b)
+                } else BitmapFactory.decodeFile(imagePath0, b)
+                if (b.outWidth > 0 && b.outHeight > 0) {
+                    val ar = b.outWidth.toFloat() / b.outHeight
+                    asIsW = (sizePx * ar).toInt().coerceIn((sizePx * 0.5f).toInt(), (sizePx * 2.6f).toInt())
+                }
+            } catch (_: Exception) {
+            }
+        }
+        val ballW = if (st.ballImageAsIs && imagePath0.isNotEmpty()) asIsW else widthPx
         val lp = WindowManager.LayoutParams(
-            widthPx, sizePx,
+            ballW, sizePx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -317,12 +335,18 @@ class BallService : AccessibilityService() {
         } else if (imgPath.isNotEmpty() && File(imgPath).exists()) {
             ImageView(this).apply {
                 setImageBitmap(decodeScaled(imgPath, sizePx * 2))
-                // 中心裁剪填满球面：横图竖图都不留空边（业界头像裁剪标准做法）
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                clipToOutline = true
-                outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(v: View, o: Outline) {
-                        ballOutline(o, shape, v.width, v.height, st.ballSizeDp / 4)
+                if (st.ballImageAsIs) {
+                    // 原样显示：保留比例与透明区，不裁切、不套形状（盒子仍按图片比例）
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setBackgroundColor(0x00000000)
+                } else {
+                    // 中心裁剪填满球面：横图竖图都不留空边（业界头像裁剪标准做法）
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    clipToOutline = true
+                    outlineProvider = object : android.view.ViewOutlineProvider() {
+                        override fun getOutline(v: View, o: Outline) {
+                            ballOutline(o, shape, v.width, v.height, st.ballSizeDp / 4)
+                        }
                     }
                 }
             }
