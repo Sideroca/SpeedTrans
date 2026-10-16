@@ -637,110 +637,56 @@ class BallService : AccessibilityService() {
         }
         // qwen-mt 不再拦：编排层对 MT 模型直接走"逐块请求"（单条 user 协议），对位不依赖模型
 
-        DiagLog.log("imm", "开始截屏…（langs=${st.ocrLanguages}）")
-        // 注意：这里**不弹提示**（轻响反馈"弹窗反复弹、很焦虑"）——只在失败时提示
-
-        // 进来前先收掉普通译文面板（避免两套叠层同时挂屏）
-        TranslateCoordinator.closeOverlay()
-
-        // 记下当前前台**应用**窗口（包名 + 窗口 id）：之后换 App 或同 App 换窗（网页跳转）就自动关
-        val baseWin = windows.firstOrNull {
-            it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION
+        // 2026-10-16 轻响钦定：沉浸式取词 = **只走无障碍节点**（不做 OCR 回退）
+        // 好处：坐标是控件的真实矩形（不再有"识别框偏移"）、零识别错字、且**不用截屏/OCR**（更快）
+        val items = collectA11yItems()
+        DiagLog.log("imm", "无障碍节点条目=${items.size}")
+        if (items.isEmpty()) {
+            toast("这个页面没有可读文本（图片/画布类页面请用「仅识图」模式）")
+            return
         }
-        val basePkg = baseWin?.root?.packageName?.toString()
-            ?: rootInActiveWindow?.packageName?.toString()
-        val baseWinId = baseWin?.id ?: -1
-        if (basePkg == null) DiagLog.log("imm", "警告：basePkg=null（本次不自动关）")
+        val aw = windows.firstOrNull { it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        ImmersiveCoordinator.start(
+            this, aw?.root?.packageName?.toString(), items, aw?.id ?: -1
+        )
+        return
 
-        ocrBusy = true
-        takeScreenshot(
-            android.view.Display.DEFAULT_DISPLAY,
-            mainExecutor,
-            object : TakeScreenshotCallback {
-                override fun onSuccess(result: ScreenshotResult) {
-                  try {
-                    val hw = result.hardwareBuffer
-                    val raw = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
-                        ?.copy(Bitmap.Config.ARGB_8888, false)
-                    hw.close()
-                    if (raw == null) {
-                        DiagLog.log("imm", "截屏位图转换失败")
-                        ocrBusy = false
-                        toast("截屏转换失败")
-                        return
+    }
+
+    /** 无障碍节点取词：每个"可见文本节点"一条（文本 + 真实屏幕矩形），不做行合并 */
+    private fun collectA11yItems(): List<ImmersiveItem> {
+        val root = rootInActiveWindow ?: return emptyList()
+        val out = ArrayList<ImmersiveItem>()
+        val d = resources.displayMetrics.density
+        val st = SettingsStore(this)
+        val screenH = resources.displayMetrics.heightPixels
+        var total = 0
+        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
+            if (n == null || depth > 60 || out.size >= 300) return
+            if (n.packageName?.toString() == packageName) return          // 排除本应用（含译文面板自身）
+            val raw = n.text?.toString()?.trim()?.ifEmpty { null }
+                ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null }
+            if (raw != null && n.isVisibleToUser) {
+                val r = android.graphics.Rect()
+                n.getBoundsInScreen(r)
+                if (r.width() > 0 && r.height() >= dp(6) && r.bottom > 0 && r.top < screenH &&
+                    raw.length >= 2 && raw.any { it.isLetter() }
+                ) {
+                    if (total + raw.length <= st.maxChars) {
+                        total += raw.length
+                        out.add(
+                            ImmersiveItem(
+                                out.size + 1, raw, r, 0, 0,
+                                ((r.height() / d) * 0.62f).coerceIn(10f, 26f)
+                            )
+                        )
                     }
-                    DiagLog.log("imm", "截屏成功 ${raw.width}x${raw.height}，开始 OCR")
-                    val rawW = raw.width
-                    val rawH = raw.height
-                    val r = if (rawW > 900) 900f / rawW else 1f
-                    val bmp = if (r != 1f)
-                        Bitmap.createScaledBitmap(raw, 900, (rawH * r).toInt(), true)
-                    else raw
-                    if (bmp !== raw) raw.recycle()
-                    val back = if (r != 1f) rawW.toFloat() / 900f else 1f
-
-                    // 排除系统栏（状态栏 + 导航栏；横屏导航栏在侧边也一并排除）
-                    val inPx = systemBarInsets()
-                    fun toBmp(rc: android.graphics.Rect) = if (r == 1f) rc else android.graphics.Rect(
-                        (rc.left * r).toInt(), (rc.top * r).toInt(),
-                        (rc.right * r).toInt(), (rc.bottom * r).toInt()
-                    )
-                    val exclude = buildList {
-                        if (inPx.top > 0) add(toBmp(android.graphics.Rect(0, 0, rawW, inPx.top)))
-                        if (inPx.bottom > 0 && inPx.bottom < rawH)
-                            add(toBmp(android.graphics.Rect(0, rawH - inPx.bottom, rawW, rawH)))
-                        if (inPx.left > 0) add(toBmp(android.graphics.Rect(0, 0, inPx.left, rawH)))
-                        if (inPx.right > 0) add(toBmp(android.graphics.Rect(rawW - inPx.right, 0, rawW, rawH)))
-                    }
-
-                    OcrEngine.recognizeBlocks(
-                        this@BallService, bmp, exclude,
-                        onResult = { blocks ->
-                            // ML Kit 回调默认在**主线程**；采样最多约 14 万像素 + 组装 → 挪到后台线程，别卡界面
-                            Thread {
-                                var items: List<ImmersiveItem> = emptyList()
-                                try {
-                                    items = buildImmersiveItems(blocks, back, bmp)
-                                } catch (t: Throwable) {
-                                    DiagLog.log("imm", "组装条目异常：${t.message}")
-                                } finally {
-                                    bmp.recycle()
-                                }
-                                DiagLog.log("imm", "OCR 块=${blocks.size} → 过滤后条目=${items.size}")
-                                val sample = items.take(3).joinToString("; ") {
-                                    "${it.index}:${it.rect.left},${it.rect.top},${it.rect.width()}x${it.rect.height()}"
-                                }
-                                DiagLog.log("imm", "前几处坐标 $sample")
-                                val n = items.size
-                                val total = blocks.size
-                                mainHandler.post {
-                                    // 复位与"启动编排"同一帧 → 消灭空隙重入（否则那段空隙里点球会开第二层）
-                                    ocrBusy = false
-                                    if (n == 0) toast("识别到 $total 处，但都不像文字（已过滤）")
-                                    else ImmersiveCoordinator.start(this@BallService, basePkg, items, baseWinId)
-                                }
-                            }.start()
-                        },
-                        onFail = { e ->
-                            bmp.recycle()
-                            ocrBusy = false
-                            DiagLog.log("imm", "OCR 失败: ${e?.message}")
-                            mainHandler.post { toast("识别失败：${e?.message ?: "请重试"}") }
-                        }
-                    )
-                  } catch (e: Throwable) {
-                    ocrBusy = false
-                    DiagLog.log("imm", "截屏回调异常：${e.javaClass.simpleName}: ${e.message}")
-                  }
-                }
-
-                override fun onFailure(errorCode: Int) {
-                    ocrBusy = false
-                    DiagLog.log("imm", "截屏失败 code=$errorCode")
-                    mainHandler.post { toast("截屏失败（code $errorCode）") }
                 }
             }
-        )
+            for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1)
+        }
+        walk(root, 0)
+        return out
     }
 
     /** OCR 块 → 沉浸式条目（换算屏幕坐标 + 采样页面底色/文字色 + 推断字号；限量保首字快） */

@@ -319,21 +319,14 @@ class ImmersiveOverlay(private val context: Context) {
             setLineSpacing(0f, 1.15f)
             setIncludeFontPadding(false)
             setPadding(dp(6), dp(2), dp(6), dp(2))
-            // 两层：① 不透明"页面底色"把原文彻底擦掉（保证原文绝不透出）；
-            //        ② 可透光的深色卡片（由不透明度滑条控制）——所以"模块可透光，原文不许透"
-            val r = dp(4).toFloat()
-            val base = GradientDrawable().apply {
+            // 取词已改为"无障碍节点"（不再截屏）→ 没有采样底色；只用**单层深色卡**：
+            // 100% = 完全不透（原文被盖住）；调低 = 原文透出（这是你的滑条语义）
+            background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = r
-                setColor(withAlpha(item.bg, 100))
-            }
-            val top = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = r
+                cornerRadius = dp(4).toFloat()
                 setColor(withAlpha(card, coverAlphaPct))
-                setStroke(dp(2), 0xFFFF0000.toInt())   // 诊断描边：确认"我的框"落在哪（定位后删）
+                setStroke(dp(2), 0xFFFF0000.toInt())   // 诊断描边（定位后删）
             }
-            background = android.graphics.drawable.LayerDrawable(arrayOf(base, top))
         }
         // 关键：覆盖高度**至少=原文块高度**。否则译文比原文短时只盖住上半截，
         // 原文下半截全露出来 → "长文像是没翻"（真机实测的根因）
