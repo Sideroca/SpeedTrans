@@ -301,10 +301,13 @@ class ImmersiveOverlay(private val context: Context) {
     /** 纯译文 / 丙：底色铺满整块，译文写在上面（不透明度由滑条决定） */
     private fun makeCoverBlock(box: FrameLayout, item: ImmersiveItem): View? {
         val d = context.resources.displayMetrics.density
-        val pad = dp(1)
-        val left = (item.rect.left - pad).coerceIn(0, (screenW - dp(24)).coerceAtLeast(0))
+        // 2026-10-16 真机图证：只按 OCR 框贴 → 原文尾巴从卡片右边露出来（"中英混排"的真相）。
+        // 覆盖框**四边各外扩 6dp**，完整吞掉原文（宁可多盖一点，也不要露字）
+        val padX = dp(6)
+        val padY = dp(5)
+        val left = (item.rect.left - padX).coerceIn(0, (screenW - dp(24)).coerceAtLeast(0))
         val maxW = (screenW - left - dp(2)).coerceAtLeast(dp(40))
-        val w = (item.rect.width() + pad * 2).coerceAtLeast(dp(48)).coerceAtMost(maxW)
+        val w = (item.rect.width() + padX * 2).coerceAtLeast(dp(48)).coerceAtMost(maxW)
 
         // 2026-10-15 轻响定稿：**不用"采样页面底色"**（白底页=白块，等于没底色）。
         // 改为**深色卡片**：不透明度滑条直接控制这块深色的浓淡（100%=实心黑；调低=原文透出）。
@@ -328,15 +331,16 @@ class ImmersiveOverlay(private val context: Context) {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = r
                 setColor(withAlpha(card, coverAlphaPct))
+                setStroke(dp(2), 0xFFFF0000.toInt())   // 诊断描边：确认"我的框"落在哪（定位后删）
             }
             background = android.graphics.drawable.LayerDrawable(arrayOf(base, top))
         }
         // 关键：覆盖高度**至少=原文块高度**。否则译文比原文短时只盖住上半截，
         // 原文下半截全露出来 → "长文像是没翻"（真机实测的根因）
-        tv.minimumHeight = item.rect.height() + pad * 2
+        tv.minimumHeight = item.rect.height() + padY * 2
         val lp = FrameLayout.LayoutParams(w, FrameLayout.LayoutParams.WRAP_CONTENT)
         lp.leftMargin = left
-        lp.topMargin = (item.rect.top - pad).coerceAtLeast(0)
+        lp.topMargin = (item.rect.top - padY).coerceAtLeast(0)
         if (blocks.size < 3) {
             com.speedtrans.app.util.DiagLog.log(
                 "ui",
