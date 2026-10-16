@@ -68,10 +68,11 @@ internal fun SettingsActivity.bindBallAppearance() {
                 "cut" -> R.id.rbCut
                 "triangle" -> R.id.rbTriangle
                 "rect" -> R.id.rbRect
+                "rectH" -> R.id.rbRectH
                 else -> R.id.rbCircle
             }
         }
-        (if (selectedShape == "triangle" || selectedShape == "rect") rgShapeRow2 else rgShapeRow1)
+        (if (selectedShape == "triangle" || selectedShape == "rect" || selectedShape == "rectH") rgShapeRow2 else rgShapeRow1)
             .check(shapeIdOf(selectedShape))
         var shapeMutating = false   // 防止两组互清时的嵌套回调把选择改回去（"点两下才生效"的根因之一）
         val onShape = { id: Int ->
@@ -82,6 +83,7 @@ internal fun SettingsActivity.bindBallAppearance() {
                     R.id.rbCut -> "cut"
                     R.id.rbTriangle -> "triangle"
                     R.id.rbRect -> "rect"
+                    R.id.rbRectH -> "rectH"
                     else -> "circle"
                 }
                 (if (rgShapeRow1.checkedRadioButtonId == id) rgShapeRow2 else rgShapeRow1).clearCheck()
@@ -94,7 +96,7 @@ internal fun SettingsActivity.bindBallAppearance() {
         rgShapeRow1.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
         rgShapeRow2.setOnCheckedChangeListener { _, id -> if (id != -1) onShape(id) }
         // 双保险：每个单选按钮再挂点击——"再点一次同一个形状"也重新应用+刷新（防 RadioGroup 不回调）
-        for (rid in intArrayOf(R.id.rbCircle, R.id.rbRounded, R.id.rbCut, R.id.rbTriangle, R.id.rbRect)) {
+        for (rid in intArrayOf(R.id.rbCircle, R.id.rbRounded, R.id.rbCut, R.id.rbTriangle, R.id.rbRect, R.id.rbRectH)) {
             findViewById<android.widget.RadioButton>(rid).setOnClickListener { onShape(rid) }
         }
 

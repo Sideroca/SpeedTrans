@@ -572,6 +572,13 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
                         android:text="长方形（竖）" />
+
+                    <RadioButton
+                        android:id="@+id/rbRectH"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:text="长方形（横）" />
                 </RadioGroup>
 
                     <Space

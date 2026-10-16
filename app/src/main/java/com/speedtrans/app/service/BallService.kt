@@ -281,7 +281,11 @@ class BallService : AccessibilityService() {
         val sizePx = dp(st.ballSizeDp)
         val shape = st.ballShape
         // 竖长方形：宽收窄、高不变（长边从上到下）
-        val widthPx = if (shape == "rect") (sizePx * 0.62f).toInt() else sizePx
+        val widthPx = when (shape) {
+            "rect" -> (sizePx * 0.62f).toInt()          // 长方形（竖）：宽收窄
+            "rectH" -> (sizePx * 1.65f).toInt()         // 长方形（横）：长边在上下 → 宽拉长
+            else -> sizePx
+        }
 
         val lp = WindowManager.LayoutParams(
             widthPx, sizePx,
@@ -909,7 +913,7 @@ class BallService : AccessibilityService() {
     private fun ballOutline(o: Outline, shape: String, w: Int, h: Int, cornerDp: Int) {
         when (shape) {
             "roundrect" -> o.setRoundRect(0, 0, w, h, dp(cornerDp).toFloat())
-            "rect" -> o.setRect(0, 0, w, h)
+            "rect", "rectH" -> o.setRect(0, 0, w, h)
             "cut" -> {
                 val c = dp(8).toFloat()
                 val p = Path()
