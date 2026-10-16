@@ -506,6 +506,7 @@ class BallService : AccessibilityService() {
         }
         ocrBusy = true
         val t0 = android.os.SystemClock.elapsedRealtime()
+        a11yOwned.clear()
         ov.showStatus("📷 正在静默截屏…")
 
         takeScreenshot(
@@ -671,7 +672,7 @@ class BallService : AccessibilityService() {
         val items = collectA11yItems()
         DiagLog.log("imm", "无障碍节点条目=${items.size}")
         if (items.isEmpty()) {
-            toast("这个页面没有可读文本（图片/画布类页面请用「仅识图」模式）")
+            toast("没读到可读文本：可能是图片/画布页面、或浏览器的隐私/无痕模式（那类请用「仅识图」）")
             return
         }
         val aw = windows.firstOrNull { it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
@@ -683,6 +684,9 @@ class BallService : AccessibilityService() {
     }
 
     /** 无障碍节点取词：每个"可见文本节点"一条（文本 + 真实屏幕矩形），不做行合并 */
+    /** 本次遍历 getChild() 出来的节点（API<33 需回收，否则节点池耗尽） */
+    private val a11yOwned = ArrayList<AccessibilityNodeInfo>()
+
     private fun collectA11yItems(): List<ImmersiveItem> {
         val t0 = android.os.SystemClock.elapsedRealtime()
         val rootNode = rootInActiveWindow ?: return emptyList()
@@ -733,20 +737,42 @@ class BallService : AccessibilityService() {
                 ) {
                     if (total + raw.length <= st.maxChars) {
                         total += raw.length
-                        out.add(
-                            ImmersiveItem(
-                                out.size + 1, raw, r, 0, 0,
-                                // 无障碍节点是多行容器：按块高推字号会算出 26sp → 巨大。
-                                // 统一用"沉浸式固定字号"（默认 16sp），可预期、可调
-                                st.immersiveTextSize.toFloat()
+                        // 行级精确：能拿到"逐字矩形"就按行切（贴得更准）；拿不到就按整节点（兜底）
+                        val lines = splitLines(n, raw)
+                        if (lines != null && lines.size > 1) {
+                            for (ln in lines) {
+                                if (out.size >= 300) break
+                                out.add(
+                                    ImmersiveItem(
+                                        out.size + 1, ln.first, ln.second, 0, 0,
+                                        st.immersiveTextSize.toFloat()
+                                    )
+                                )
+                            }
+                        } else {
+                            out.add(
+                                ImmersiveItem(
+                                    out.size + 1, raw, r, 0, 0,
+                                    // 无障碍节点是多行容器：按块高推字号会算出 26sp → 巨大；
+                                    // 统一用"沉浸式固定字号"（默认 16sp），可预期、可调
+                                    st.immersiveTextSize.toFloat()
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
-            for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1)
+            for (i in 0 until n.childCount) {
+                val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
+                a11yOwned.add(c)
+                walk(c, depth + 1)
+            }
         }
         walk(root, 0)
+        if (Build.VERSION.SDK_INT < 33) {
+            a11yOwned.forEach { runCatching { it.recycle() } }   // 防节点池耗尽（API33+ 自动管理）
+        }
+        a11yOwned.clear()
         com.speedtrans.app.util.DiagLog.log(
             "a11y", "遍历完成 条目=${out.size} 耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
         )
@@ -759,6 +785,69 @@ class BallService : AccessibilityService() {
      * Chromium / GeckoView 都用这个常量给 root web area 命名 → 一条判据通吃主流浏览器。
      * 只有它确实占屏幕一大块（≥35% 屏面积）才采用；找不到就退回整树（非浏览器 App 通常很干净）。
      */
+    /**
+     * 行级精确：用"逐字矩形"把节点文本按行切开（每行一个矩形）。
+     * 拿不到（节点不提供/异常）→ 返回 null，调用方退回"整节点一块"。
+     */
+    private fun splitLines(
+        n: AccessibilityNodeInfo,
+        text: String
+    ): List<Pair<String, android.graphics.Rect>>? {
+        return try {
+            val args = android.os.Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, text.length)
+            }
+            if (!n.refreshWithExtraData(
+                    AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args
+                )
+            ) return null
+            @Suppress("DEPRECATION")
+            val arr: Array<*> = (n.extras.getParcelableArray(
+                AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY
+            ) ?: return null)
+            if (arr.size < text.length || text.isEmpty()) return null
+            val rects = ArrayList<android.graphics.RectF>(arr.size)
+            for (o in arr) {
+                val rf = o as? android.graphics.RectF ?: return null
+                rects.add(rf)
+            }
+            val res = ArrayList<Pair<String, android.graphics.Rect>>()
+            var start = 0
+            var i = 1
+            var curMid = (rects[0].top + rects[0].bottom) / 2f
+            var curH = rects[0].height()
+
+            fun flush(endExclusive: Int) {
+                if (endExclusive <= start) return
+                val r = android.graphics.Rect(Int.MAX_VALUE, Int.MAX_VALUE, Int.MIN_VALUE, Int.MIN_VALUE)
+                for (k in start until endExclusive) {
+                    val rf = rects[k]
+                    r.left = minOf(r.left, rf.left.toInt())
+                    r.top = minOf(r.top, rf.top.toInt())
+                    r.right = maxOf(r.right, rf.right.toInt())
+                    r.bottom = maxOf(r.bottom, rf.bottom.toInt())
+                }
+                val seg = text.substring(start, endExclusive).trim()
+                if (seg.isNotEmpty() && r.width() > 0 && r.height() > 0) res.add(seg to r)
+            }
+
+            while (i < text.length) {
+                val m = (rects[i].top + rects[i].bottom) / 2f
+                if (kotlin.math.abs(m - curMid) > maxOf(6f, curH * 0.6f)) {
+                    flush(i); start = i; curMid = m; curH = rects[i].height()
+                }
+                i++
+            }
+            flush(text.length)
+            com.speedtrans.app.util.DiagLog.log("a11y", "逐字矩形→行数=${res.size}")
+            if (res.isEmpty()) null else res
+        } catch (e: Exception) {
+            com.speedtrans.app.util.DiagLog.log("a11y", "逐字矩形不可用：${e.message?.take(40)}")
+            null
+        }
+    }
+
     private fun findWebAnchor(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         var best: AccessibilityNodeInfo? = null
         var bestArea = 0L
@@ -778,6 +867,7 @@ class BallService : AccessibilityService() {
             }
             for (i in 0 until n.childCount) {
                 val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
+                a11yOwned.add(c)
                 q.add(c)
             }
         }
