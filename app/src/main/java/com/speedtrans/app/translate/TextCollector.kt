@@ -30,10 +30,17 @@ object TextCollector {
      * @param excludePackage 跳过该包名的节点子树。本应用的译文面板是可聚焦窗口，
      *                       可能成为活动窗口，不排除会把面板自身 UI 文字当原文抓走
      */
-    fun collectWithRects(root: AccessibilityNodeInfo, excludePackage: String? = null): Collected {
+    fun collectWithRects(
+        root: AccessibilityNodeInfo,
+        excludePackage: String? = null,
+        /** 只翻这个 y 以下（屏幕坐标）；默认 0 = 当前屏幕 + 下方，屏幕上方不要 */
+        topLimit: Int = 0,
+        /** 只翻到这个 y（默认不限）；普通模式传“当前屏 + 半屏”，避免把整篇文章全发出去 */
+        bottomLimit: Int = Int.MAX_VALUE
+    ): Collected {
         val found = ArrayList<RectText>()
         try {
-            dfs(root, 0, found, excludePackage)
+            dfs(root, 0, found, excludePackage, topLimit, bottomLimit)
         } catch (_: Exception) {
         }
         if (found.isEmpty()) return Collected("", emptyList())
@@ -83,23 +90,31 @@ object TextCollector {
         return Collected(out.joinToString("\n"), uniq.map { it.rect })
     }
 
-    private fun dfs(node: AccessibilityNodeInfo, depth: Int, out: ArrayList<RectText>, excludePackage: String?) {
+    private fun dfs(
+        node: AccessibilityNodeInfo,
+        depth: Int,
+        out: ArrayList<RectText>,
+        excludePackage: String?,
+        topLimit: Int,
+        bottomLimit: Int
+    ) {
         if (depth > MAX_DEPTH || out.size > MAX_NODES) return
         if (excludePackage != null && node.packageName?.toString() == excludePackage) return
         val text = node.text?.toString()
         val desc = node.contentDescription?.toString()
-        val t = when {
+        val raw = when {
             !text.isNullOrBlank() -> text
             !desc.isNullOrBlank() -> desc
             else -> null
         }
-        if (t != null && node.isVisibleToUser) {
+        if (raw != null && node.isVisibleToUser) {
             val r = Rect()
             node.getBoundsInScreen(r)
-            // 不要求 top >= 0：长文本节点（LLM 思考全文等）顶部滚出屏幕时仍携带全文，
-            // 旧检查会把整段 CoT 一起丢；现在只要求"还露出屏幕范围"（bottom > 0）
-            if (r.width() > 0 && r.height() > 0 && r.bottom > 0) {
-                out.add(RectText(t, r))
+            // 只保留 [topLimit, bottomLimit) 的内容：屏幕上方不翻，屏幕下方只预翻半屏。
+            if (r.width() > 0 && r.height() > 0 && r.bottom > topLimit && r.top < bottomLimit) {
+                val t = if (r.top < topLimit || r.bottom > bottomLimit)
+                    trimWindow(node, raw, r, topLimit, bottomLimit) else raw
+                if (!t.isNullOrBlank()) out.add(RectText(t, r))
             }
         }
         for (i in 0 until node.childCount) {
@@ -109,9 +124,58 @@ object TextCollector {
                 continue
             } ?: continue
             try {
-                dfs(c, depth + 1, out, excludePackage)
+                dfs(c, depth + 1, out, excludePackage, topLimit, bottomLimit)
             } catch (_: Exception) {
             }
         }
+    }
+
+    /** 节点跨出 [topLimit, bottomLimit) 时，用逐字矩形裁掉窗口外的字符；拿不到就按比例估。 */
+    private fun trimWindow(
+        node: AccessibilityNodeInfo,
+        raw: String,
+        r: Rect,
+        topLimit: Int,
+        bottomLimit: Int
+    ): String? {
+        try {
+            val args = android.os.Bundle().apply {
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX, 0)
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_LENGTH, raw.length)
+            }
+            if (node.refreshWithExtraData(
+                    AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args
+                )
+            ) {
+                @Suppress("DEPRECATION")
+                val arr = node.extras.getParcelableArray(
+                    AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY
+                )
+                if (arr != null && arr.size >= raw.length) {
+                    var start = -1
+                    var end = -1
+                    for (i in 0 until raw.length) {
+                        val rf = arr[i] as? android.graphics.RectF ?: continue
+                        if (rf.bottom > topLimit && rf.top < bottomLimit) {
+                            if (start < 0) start = i
+                            end = i
+                        }
+                    }
+                    if (start >= 0 && end >= start) {
+                        return raw.substring(start, end + 1).trim()
+                    }
+                    return null
+                }
+            }
+        } catch (_: Exception) {
+        }
+        val h = r.height()
+        if (h <= 0) return raw
+        val startRatio = ((topLimit - r.top).toFloat() / h).coerceIn(0f, 1f)
+        val endRatio = ((bottomLimit - r.top).toFloat() / h).coerceIn(0f, 1f)
+        val start = (raw.length * startRatio).toInt().coerceIn(0, raw.length)
+        val end = (raw.length * endRatio).toInt().coerceIn(start, raw.length)
+        if (end <= start) return null
+        return raw.substring(start, end).trim()
     }
 }

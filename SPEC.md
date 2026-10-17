@@ -11,8 +11,9 @@
 - 仓库：github.com/Sideroca/SpeedTrans（Private；**已脱敏**——零预置密钥、已关云备份/换机迁移）
 - 构建：GitHub Actions 云端（本地 aarch64 无法编译），workflow 在 `.github/workflows/build.yml`
 - 签名：`debug.keystore` 已提交仓库（固定签名，所有版本可互相覆盖安装）
-- 当前版本：**v3.9-beta11（versionCode 16 / versionName 3.9）**
-- 近期动态（2026-09-11）：桌面图标链路定稿（自适应 **A 档 58%** + 方形 70%，1024px 高清、同一 potrace 矢量艺术稿）；图标工坊双样式均 1:1（potrace；解析器支持 M/m/C/c/L/l/Z）；通知小图标=点阵球；**极速优化**（流式合批上屏 ~30ms/批 + 连接预热 DNS/TCP/TLS + 完成显示首字耗时）；识图文字净化（去开头空白/折叠空行）；旧伪装别名自愈（主界面+服务连接双通道）；零预置密钥 + 禁云备份/换机迁移
+- 当前版本：**v4.2.14（versionCode 93 / versionName 4.2.14）**
+- 近期动态（2026-10-17）：沉浸式翻译大修——逐字矩形修正（`EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX/LENGTH`）、叠层窗口原点补偿、按视觉行/栏拆分、重叠节点并查集合并、同栏相邻行合并（每卡最多 4 行）、整屏统一底色、无痕替换（截屏取页面底色/字色）+ 深色卡兜底、“无痕程度”滑条；原生 App 无逐字矩形时用 `StaticLayout` 估算拆行；普通文本模式加 WebView 锚点、URL 清洗、屏幕上方不翻 + 仅预翻半屏、高相似前缀续段（带上一段译文末尾 160 字）；动画滚动不再误关沉浸式。
+- 旧动态（2026-09-11）：桌面图标链路定稿（自适应 **A 档 58%** + 方形 70%，1024px 高清、同一 potrace 矢量艺术稿）；图标工坊双样式均 1:1（potrace；解析器支持 M/m/C/c/L/l/Z）；通知小图标=点阵球；**极速优化**（流式合批上屏 ~30ms/批 + 连接预热 DNS/TCP/TLS + 完成显示首字耗时）；识图文字净化（去开头空白/折叠空行）；旧伪装别名自愈（主界面+服务连接双通道）；零预置密钥 + 禁云备份/换机迁移
 - **图标修改铁律**：任何图标类改动，先在 /workspace 出「真机效果预览」（含各种遮罩/深浅壁纸）给轻响确认，再推；尺寸档位参考 A58/B61/C66/D72/E80（安全区上限 61%）
 
 ### 三个目标（设计哲学，轻响钦定 2026-09-10）
@@ -28,15 +29,22 @@
 ```
 无障碍服务 BallService（取词引擎，唯一已实现引擎）
   ├─ 绘制悬浮球（文字球/自定义图片球，外观可配置）
-  ├─ 单击 → TextCollector 遍历节点树取词（含节点屏幕坐标，可做"原位显示"）
+  ├─ 普通文本：TextCollector 只取 WebView 子树（无 WebView 回退整树）
+  │    · topLimit=0 / bottomLimit=屏高×1.5：屏幕上不翻，当前屏+半屏
+  │    · URL/域名在 TranslateCoordinator 发请求前清洗，不进 AI
+  ├─ 沉浸式：collectA11yItems → 逐字矩形分行/分栏 → 过滤/并查集合并/相邻行合并
+  │    · 无逐字矩形（Qwen/Compose/TextView）→ StaticLayout 按宽度估算拆行
+  │    · 截屏只取页面底色/字色（不 OCR）；无痕替换失败处回退深色卡
   └─ TranslateCoordinator（翻译编排单例）
-       ├─ 增量翻译：新文本 startsWith 旧文本 → 只翻新增尾巴（带【续段】标记+规则重申）
+       ├─ 增量：严格前缀 + 高相似前缀（旧文≥200字、LCP≥85%、词/行边界）→ 只发新增尾巴
+       │    · 上一段译文末尾 160 字作为 system 衔接参考，不重传原文前缀
        ├─ 相同内容 → 0 请求秒回
        └─ TranslateEngine（OpenAI 兼容流式，SSE）
             ├─ qwen-mt-* 模型自动切翻译特化协议（单 user 消息 + translation_options）
             ├─ DashScope 域名自动 enable_thinking=false（关闭 qwen3 思考，首字提速关键）
             └─ 自定义提示词：通用模型走 system，MT 模型走 domains
 ResultOverlay（译文面板：高度/按钮显隐/左右/边距可调，不自动滚动，返回键关闭）
+ImmersiveCoordinator / ImmersiveOverlay（沉浸式编排 + 原位叠层 + 返回小窗）
 KeepAliveService（前台保活，划掉最近任务不掉球）
 windowSoftInputMode=adjustResize + setDecorFitsSystemWindows(false) + 手动 insets（状态栏/键盘适配；
 XML 的 fitsSystemWindows 已弃用，全仓仅 activity_crop 保留）
@@ -54,6 +62,12 @@ XML 的 fitsSystemWindows 已弃用，全仓仅 activity_crop 保留）
 8. **CompoundButton（Radio/Check/Switch）不能套用实心按钮染色**（浅色主题白字消失），单独处理
 9. **github push 偶发 GnuTLS 网络抖动**，重试 2-3 次即可
 10. **用户规矩**：UI 先讨论定稿 → 用户点头 → 才 push（push 会自动触发构建）
+11. **逐字矩形参数键别写错**：必须用 `EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX / _LENGTH`，不是 `ACTION_ARGUMENT_SELECTION_*`；写错会静默返回空，日志 `字形框=0/N`。
+12. **叠层窗口原点**：`TYPE_APPLICATION_OVERLAY` 的 `(0,0)` 常被系统放在状态栏下方；用 `getLocationOnScreen()` 实测 originX/originY，否则所有卡片整体下移。
+13. **节点级卡片会重叠**：a11y 里整段节点和段内一行经常同时存在；先并查集合并重叠，再按同栏相邻行合并（每卡最多 4 行），否则白卡/黑卡互相盖。
+14. **原生 App 没有逐字矩形**：Qwen/Compose/普通 TextView 用 `StaticLayout` 按控件宽度估算换行；否则整段一张巨卡，字也按段高算成 24sp 巨字。
+15. **无痕替换要一屏一策**：逐行判断会一半白一半黑；按整屏无痕覆盖率 ≥60% 统一页面底色，否则统一深色卡。截屏只取色，不 OCR。
+16. **动画会发 `TYPE_VIEW_SCROLLED`**：不能用它关闭沉浸式（轮播/视频/动画会误关）；只认 `TYPE_TOUCH_INTERACTION_START` / `TYPE_VIEW_CLICKED`。
 
 ## 四、模型与 API（已实测有效）
 
@@ -157,10 +171,15 @@ app/src/main/java/com/speedtrans/app/
 ├── service/KeepAliveService.kt      前台保活：常驻通知（specialUse 类型，防 MIUI 杀）
 ├── overlay/ResultOverlay.kt         译文面板：撞色条标题栏（barBg/barText）+ 高度/按钮/边距
 │                                    + 可聚焦窗口监听返回键 + removeViewImmediate 即时关闭
+│                                    + 自绘滚动条 / 半透明标题条（内容从条下穿过）
+├── overlay/ImmersiveOverlay.kt      沉浸式叠层：原位卡片/无痕补丁/返回小窗/原点补偿
+├── translate/ImmersiveCoordinator.kt 沉浸式编排：结构化 ⟦n⟧ + 逐块兜底 + 并发3
 ├── translate/TranslateEngine.kt     流式引擎：qwen-mt 协议自动切换 / enable_thinking=false
 │                                    / 提示词防呆兜底（ifBlank→DEFAULT） / 续段标记
-├── translate/TextCollector.kt       节点树取词：可见性过滤+位置排序+同行合并+坐标记录
-├── translate/TranslateCoordinator.kt 编排单例：增量判断（startsWith）/秒回缓存/忙碌忽略
+├── translate/TextCollector.kt       节点树取词：WebView 子树 + 可见性过滤 + 位置排序
+│                                    + 同行合并 + topLimit/bottomLimit 窗口裁剪
+├── translate/TranslateCoordinator.kt 编排单例：严格/高相似前缀增量 + 上一段译文衔接
+│                                    + URL 清洗 + 秒回缓存 + 忙碌忽略
 ├── theme/ThemeEngine.kt             64 套 Palette（现代 18 + 中国传统色 46）+ cardDrawable/barGradient 绘制工具
 │                                    （v2.3 曾有的 applyTo 树染色已于 2026-10-01 删除：被重构架空后无人调用）
 ├── theme/ShellSkins.kt              皮肤参数化（切角八边形 Drawable）；applyShell = 按控件 id 的树染色（设置页）
@@ -179,7 +198,7 @@ app/src/main/res/xml/
 ```
 ## 七、未排期候选
 
-- 原位显示：译文面板定位到主体文本节点坐标附近（TextCollector 已记录 Rect），"沉浸式翻译"同款思路；坐标失败回退底部
+- 沉浸式滚动连续模式：滚动后重新取当前可见行、命中翻译缓存秒贴（当前仍是“一屏一翻”）
 - 面板暗色毛玻璃半透明
 - 厂商权限引导页适配（vivo/OPPO/荣耀的权限入口 intent 差异）
 - 开源流程：SettingsStore.DEFAULT_API_KEY 改为构建注入（GitHub Secrets）+ git 历史脱敏（现有历史含 key，需新起干净仓库或 filter）

@@ -298,6 +298,40 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="无痕程度（100% = 页面底色擦掉原文；0% = 深色卡片）"
+                        android:layout_marginTop="16dp"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/sbImmSeamless"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp"
+                            android:minHeight="0dp"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="100"
+                            android:progress="100" />
+
+                        <TextView
+                            android:id="@+id/tvImmSeamlessVal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="52dp"
+                            android:text="100%"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="覆盖不透明度（100% = 纯译文；调低 = 原文透出）"
                         android:layout_marginTop="16dp"
                         android:textSize="13sp" />
@@ -521,7 +555,7 @@
                     android:id="@+id/rgShapeRow1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="20dp"
                     android:orientation="horizontal">
 
                     <RadioButton
@@ -631,8 +665,8 @@
     <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:gravity="center_horizontal"
-                            android:orientation="vertical">
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
 
                             <FrameLayout
                                 android:id="@+id/btnTuhun"
@@ -652,7 +686,7 @@
                                 android:id="@+id/tvTuhunTitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
+                                android:layout_marginStart="4dp"
                                 android:text="吐魂"
                                 android:textSize="10.5sp" />
                         </LinearLayout>
@@ -668,7 +702,7 @@
 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="24dp"
                     android:orientation="horizontal">
 
                     <Button
@@ -889,6 +923,13 @@
                     android:text="显示「✕ 关闭」按钮" />
 
                 <Switch
+                    android:id="@+id/swCornerClose"
+                    android:layout_marginTop="12dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="显示悬浮页返回图标（隐藏后仍可点）" />
+
+                <Switch
                     android:id="@+id/swAccumulate"
                     android:layout_marginTop="12dp"
                     android:layout_width="match_parent"
@@ -927,14 +968,20 @@
                         android:text="8dp"
                         android:textSize="14sp"
                         android:textStyle="bold" />
-                </LinearLayout>
 
-                <Switch
-                    android:id="@+id/swCornerClose"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="显示右下角关闭键（面板 / 沉浸式）" />
+                    <TextView
+                        android:id="@+id/btnPadDefault"
+                        android:layout_width="wrap_content"
+                        android:layout_height="30dp"
+                        android:layout_marginStart="4dp"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:gravity="center"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:text="默认"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="wrap_content"

@@ -143,11 +143,19 @@ class BallService : AccessibilityService() {
         // 回桌面（launcher 到前台）→ 关闭译文面板，与返回键行为一致。
         // HOME 键不允许被无障碍过滤键拦截（系统限制），所以走"窗口变化 + launcher 当前活跃"这条路。
         // 轻响 2026-10-15 钦定：**只有用户自己碰屏幕才关**（页面自己放动画绝不动它）
+        // 2026-10-17 「小贴」：TYPE_VIEW_SCROLLED(4096) 不能直接当"用户操作"——
+        // Chrome 工具栏收起/页面布局变化都会发这个事件，点球后 40ms 就把它误关了
+        // （日志里连续多次 type=4096 → close）。现在只认点击/触摸；滚动还要求
+        // 过了启动保护期且 scrollDelta 非 0。
+        // 2026-10-17：不再用 TYPE_VIEW_SCROLLED 关闭。轮播/视频/动画自己滚动
+        // 也会发这个事件，会把译文瞬间关掉。真正的用户滚动会先来
+        // TYPE_TOUCH_INTERACTION_START，由下面这一支关闭。
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
-            event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
             event.eventType == AccessibilityEvent.TYPE_TOUCH_INTERACTION_START
         ) {
             if (ImmersiveCoordinator.active) {
+                // 点悬浮球本身也可能补一个 click/touch 事件；刚启动的 1 秒内不理
+                if (ImmersiveCoordinator.recentlyStarted(1000L)) return
                 DiagLog.log("imm", "用户操作（type=${event.eventType}）→ 关闭沉浸式")
                 ImmersiveCoordinator.close()
             }
@@ -461,8 +469,20 @@ class BallService : AccessibilityService() {
                         w.root?.packageName?.toString() != packageName
             }?.root ?: root
         }
-        val c = if (root != null) TextCollector.collectWithRects(root, packageName)
-                else TextCollector.Collected("", emptyList())
+        // 2026-10-17：普通文本模式也只扫 WebView 子树（若存在），
+        // 地址栏/标签栏/Chrome 菜单这些原生 UI 不再混进译文、也不再发给 AI。
+        a11yOwned.clear()
+        val anchor = if (root != null) findWebAnchor(root) else null
+        val target = anchor ?: root
+        val screenH = resources.displayMetrics.heightPixels
+        val c = if (target != null) TextCollector.collectWithRects(
+            target, packageName,
+            topLimit = 0,
+            // 当前屏 + 半屏，够衔接，又不会把整篇文章 8000 字全发出去
+            bottomLimit = (screenH * 3) / 2
+        ) else TextCollector.Collected("", emptyList())
+        if (Build.VERSION.SDK_INT < 33) a11yOwned.forEach { runCatching { it.recycle() } }
+        a11yOwned.clear()
         val maxChars = SettingsStore(this).maxChars
         var text = c.text
         if (text.length > maxChars) text = text.take(maxChars) + "\n…[内容过长已截断]"
@@ -668,26 +688,67 @@ class BallService : AccessibilityService() {
         }
         // qwen-mt 不再拦：编排层对 MT 模型直接走"逐块请求"（单条 user 协议），对位不依赖模型
 
-        // 2026-10-16 轻响钦定：沉浸式取词 = **只走无障碍节点**（不做 OCR 回退）
-        // 好处：坐标是控件的真实矩形（不再有"识别框偏移"）、零识别错字、且**不用截屏/OCR**（更快）
-        val items = collectA11yItems()
+        // 2026-10-17 「小贴」：无痕替换需要一张截屏取页面底色（不做 OCR，文字仍走无障碍）。
+        // 截屏失败就退回深色卡片，功能不受影响。
+        captureImmersive(retry)
+    }
+
+    private fun captureImmersive(retry: Int) {
+        ocrBusy = true
+        try {
+            takeScreenshot(
+                android.view.Display.DEFAULT_DISPLAY,
+                mainExecutor,
+                object : TakeScreenshotCallback {
+                    override fun onSuccess(result: ScreenshotResult) {
+                        val hw = result.hardwareBuffer
+                        val raw = Bitmap.wrapHardwareBuffer(hw, result.colorSpace)
+                            ?.copy(Bitmap.Config.ARGB_8888, false)
+                        hw.close()
+                        mainHandler.post { finishCapture(raw, retry) }
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        mainHandler.post { finishCapture(null, retry) }
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            DiagLog.log("imm", "截屏异常：${e.message?.take(60)} → 深色卡兜底")
+            ocrBusy = false
+            mainHandler.post { finishCapture(null, retry) }
+        }
+    }
+
+    private fun finishCapture(raw: Bitmap?, retry: Int) {
+        val items = try {
+            collectA11yItems(raw)
+        } catch (e: Exception) {
+            DiagLog.log("imm", "取词异常：${e.javaClass.simpleName}: ${e.message?.take(60)}")
+            emptyList()
+        } finally {
+            raw?.recycle()
+        }
+        startImmersiveWithItems(items, retry)
+    }
+
+    private fun startImmersiveWithItems(items: List<ImmersiveItem>, retry: Int) {
+        ocrBusy = false
         DiagLog.log("imm", "无障碍节点条目=${items.size}")
-        if (items.isEmpty() && retry == 0) {
-            // 树可能瞬时不可用（上一轮叠层刚摘/页面正在重排）→ 300ms 后重试一次
-            com.speedtrans.app.util.DiagLog.log("a11y", "首次为空 → 300ms 后重试")
-            mainHandler.postDelayed({ startImmersiveInner(1) }, 300)
+        if (items.isEmpty() && retry < 3) {
+            // 页面/窗口可能瞬时还没准备好（Cloudflare 验证、首屏渲染）→ 多给几次机会
+            com.speedtrans.app.util.DiagLog.log("a11y", "第 ${retry + 1} 次为空 → 300ms 后重试")
+            mainHandler.postDelayed({ startImmersiveInner(retry + 1) }, 300)
             return
         }
         if (items.isEmpty()) {
-            toast("没读到可读文本：可能是图片/画布页面、或浏览器的隐私/无痕模式（那类请用「仅识图」）")
+            toast("没读到可读文本：页面可能还没加载完，等 1 秒再点一次；图片/隐私页请用「仅识图」")
             return
         }
         val aw = windows.firstOrNull { it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
         ImmersiveCoordinator.start(
             this, aw?.root?.packageName?.toString(), items, aw?.id ?: -1
         )
-        return
-
     }
 
     /** 无障碍节点取词：每个"可见文本节点"一条（文本 + 真实屏幕矩形），不做行合并 */
@@ -696,44 +757,219 @@ class BallService : AccessibilityService() {
 
     /**
      * 只取"屏幕上看得见"的那段文字（屏幕外的一律不翻）：
-     * ① 有逐字矩形 → 取"字符中心落在视口内"的区间（最准）；
-     * ② 没有 → 按"块在屏幕上方露出的比例 + 可见高度比例"估算区间。
+     * ① 有逐字矩形 → 取"字符中心落在视口内"的区间（最准），并返回这些字符的并集矩形；
+     * ② 没有 → 按"块在屏幕上方露出的比例 + 可见高度比例"估算区间，退回节点框。
      */
+    private data class VisibleText(
+        val text: String,
+        val rect: android.graphics.Rect,
+        val glyph: Boolean,
+        /** true = 没有逐字矩形，用 StaticLayout 估算出来的行框 */
+        val estimated: Boolean = false
+    )
+
     private fun visibleText(
         n: AccessibilityNodeInfo,
         raw: String,
         rect: android.graphics.Rect,
         vp: android.graphics.Rect
-    ): String {
-        if (raw.isEmpty()) return raw
+    ): VisibleText {
+        if (raw.isEmpty()) return VisibleText(raw, android.graphics.Rect(rect), false)
         val rects = charRects(n, raw)
         if (rects != null) {
             var a = -1
             var b = -1
             for (i in rects.indices) {
-                val cy = (rects[i].top + rects[i].bottom) / 2f
-                if (cy >= vp.top && cy < vp.bottom) {
+                val rf = rects[i] ?: continue
+                // 用矩形相交而不是"字符中心"：边缘上只露出一半的行也算可见，
+                // 否则卡片的第一个可见行会被整行丢掉，看起来又"偏下"了。
+                if (rf.bottom > vp.top.toFloat() && rf.top < vp.bottom.toFloat()) {
                     if (a < 0) a = i
                     b = i
                 }
             }
-            if (a >= 0 && b >= a) return raw.substring(a, b + 1).trim()
+            if (a >= 0 && b >= a) {
+                // 2026-10-17 「小贴」：不再只拿逐字矩形判断可见区间，**顺手把它的并集当卡片矩形**。
+                // 节点框含 padding/行高/点击热区，逐字框才是文字真正占的地方。
+                val union = android.graphics.Rect(Int.MAX_VALUE, Int.MAX_VALUE, Int.MIN_VALUE, Int.MIN_VALUE)
+                for (i in a..b) {
+                    val rf = rects[i] ?: continue
+                    union.left = minOf(union.left, rf.left.toInt())
+                    union.top = minOf(union.top, rf.top.toInt())
+                    union.right = maxOf(union.right, rf.right.toInt())
+                    union.bottom = maxOf(union.bottom, rf.bottom.toInt())
+                }
+                if (union.width() > 0 && union.height() > 0 && union.intersect(vp)) {
+                    val aa = a.coerceIn(0, raw.length - 1)
+                    val bb = b.coerceIn(aa, raw.length - 1)
+                    val t = raw.substring(aa, bb + 1).trim()
+                    if (t.isNotEmpty()) return VisibleText(t, union, true)
+                }
+            }
         }
         val h = rect.height()
-        if (h <= 0) return raw
+        if (h <= 0) return VisibleText(raw, android.graphics.Rect(rect), false)
         val above = ((-rect.top).coerceAtLeast(0)).toFloat() / h
         val visH = (minOf(rect.bottom, vp.bottom) - maxOf(rect.top, vp.top)).coerceAtLeast(0).toFloat()
         val s0 = (raw.length * above).toInt().coerceIn(0, raw.length)
         val e0 = (raw.length * (above + visH / h)).toInt().coerceIn(s0, raw.length)
-        return raw.substring(s0, e0).trim()
+        val clipped = android.graphics.Rect(rect)
+        clipped.intersect(vp)
+        return VisibleText(raw.substring(s0, e0).trim(), clipped, false)
     }
 
-    /** 逐字矩形（窗口坐标）；拿不到返回 null */
-    private fun charRects(n: AccessibilityNodeInfo, text: String): ArrayList<android.graphics.RectF>? {
+    /**
+     * 2026-10-17 「小贴」：把一个节点按**视觉行**切开（一行一张无痕补丁）。
+     * 同时按 x 间距断栏：同一水平带上的左右两栏不会并成一条超宽行。
+     * 拿不到逐字矩形 → 退回整节点一条（深色卡兜底）。
+     */
+    private fun visibleLines(
+        n: AccessibilityNodeInfo,
+        raw: String,
+        rect: android.graphics.Rect,
+        vp: android.graphics.Rect,
+        allowFallback: Boolean = true
+    ): List<VisibleText> {
+        if (raw.isEmpty()) return emptyList()
+        val rects = charRects(n, raw)
+            ?: return if (allowFallback) fallbackLines(raw, rect, vp) else emptyList()
+
+        class Line(
+            val start: Int,
+            var end: Int,
+            var left: Float,
+            var top: Float,
+            var right: Float,
+            var bottom: Float,
+            var cy: Float,
+            var h: Float
+        )
+
+        val lines = ArrayList<Line>()
+        val gap = dp(24).toFloat()
+        for (i in rects.indices) {
+            val rf = rects[i] ?: continue
+            if (rf.bottom <= vp.top.toFloat() || rf.top >= vp.bottom.toFloat()) continue
+            val cy = (rf.top + rf.bottom) / 2f
+            val last = lines.lastOrNull()
+            val same = last != null &&
+                    kotlin.math.abs(cy - last.cy) <= maxOf(6f, last.h * 0.6f) &&
+                    rf.left - last.right <= gap && last.left - rf.right <= gap
+            if (!same) {
+                lines.add(Line(i, i, rf.left, rf.top, rf.right, rf.bottom, cy, rf.height()))
+            } else {
+                last.end = i
+                last.left = minOf(last.left, rf.left)
+                last.top = minOf(last.top, rf.top)
+                last.right = maxOf(last.right, rf.right)
+                last.bottom = maxOf(last.bottom, rf.bottom)
+                last.cy = (last.top + last.bottom) / 2f
+                last.h = maxOf(last.h, rf.height())
+            }
+        }
+        if (lines.isEmpty()) return if (allowFallback) fallbackLines(raw, rect, vp) else emptyList()
+        // 有些原生 App 会把整段文字返回成一个“超高的单行”矩形；这种情况同样用 StaticLayout 拆。
+        if (lines.size == 1 && (lines[0].bottom - lines[0].top) > dp(60)) {
+            return if (allowFallback) fallbackLines(raw, rect, vp) else emptyList()
+        }
+
+        val out = ArrayList<VisibleText>(lines.size)
+        for (ln in lines) {
+            val union = android.graphics.Rect(Int.MAX_VALUE, Int.MAX_VALUE, Int.MIN_VALUE, Int.MIN_VALUE)
+            var any = false
+            for (i in ln.start..ln.end) {
+                val rf = rects[i] ?: continue
+                any = true
+                union.left = minOf(union.left, rf.left.toInt())
+                union.top = minOf(union.top, rf.top.toInt())
+                union.right = maxOf(union.right, rf.right.toInt())
+                union.bottom = maxOf(union.bottom, rf.bottom.toInt())
+            }
+            if (!any || union.width() <= 0 || union.height() <= 0) continue
+            if (!union.intersect(vp)) continue
+            val t = raw.substring(ln.start, ln.end + 1).trim()
+            if (t.isNotEmpty()) out.add(VisibleText(t, union, true))
+        }
+        return if (out.isEmpty()) {
+            if (allowFallback) fallbackLines(raw, rect, vp) else emptyList()
+        } else out
+    }
+
+    /**
+     * 2026-10-17 「小贴」：原生 App（Qwen/Compose/普通 TextView）经常不提供逐字矩形，
+     * 一个长文本节点只能拿到整段大矩形。这里用 StaticLayout 按节点宽度估算换行，
+     * 再按行切成多个矩形——仍然只用无障碍文字，不截图 OCR。
+     */
+    private fun fallbackLines(
+        raw: String,
+        rect: android.graphics.Rect,
+        vp: android.graphics.Rect
+    ): List<VisibleText> {
+        if (raw.isEmpty() || rect.width() <= 2 || rect.height() <= 2) return emptyList()
+        fun one(): List<VisibleText> {
+            val r = android.graphics.Rect(rect)
+            if (!r.intersect(vp)) return emptyList()
+            val t = raw.trim()
+            return if (t.isEmpty()) emptyList() else listOf(VisibleText(t, r, false))
+        }
+        return try {
+            val density = resources.displayMetrics.density
+            val baseSp = SettingsStore(this).immersiveTextSize.toFloat().coerceIn(10f, 24f)
+            val width = rect.width()
+
+            fun buildLayout(textSizePx: Float): android.text.StaticLayout {
+                val paint = android.text.TextPaint().apply {
+                    textSize = textSizePx
+                    typeface = android.graphics.Typeface.DEFAULT
+                    isAntiAlias = true
+                }
+                return android.text.StaticLayout.Builder
+                    .obtain(raw, 0, raw.length, paint, width)
+                    .setIncludePad(false)
+                    .setLineSpacing(0f, 1f)
+                    .build()
+            }
+
+            fun layoutHeight(l: android.text.StaticLayout): Int =
+                if (l.lineCount > 0) l.getLineBottom(l.lineCount - 1) else 0
+
+            val basePx = baseSp * density
+            var layout = buildLayout(basePx)
+            if (layoutHeight(layout) <= 0) return one()
+            val scale = rect.height().toFloat() / layoutHeight(layout)
+            val targetPx = (basePx * scale).coerceIn(8f * density, 24f * density)
+            layout = buildLayout(targetPx)
+            if (layoutHeight(layout) <= 0) return one()
+            val yScale = rect.height().toFloat() / layoutHeight(layout)
+            val out = ArrayList<VisibleText>()
+            for (i in 0 until layout.lineCount) {
+                val start = layout.getLineStart(i)
+                val end = layout.getLineEnd(i)
+                if (end <= start || start >= raw.length) continue
+                val t = raw.substring(start, end.coerceAtMost(raw.length)).trim()
+                if (t.isEmpty()) continue
+                val top = rect.top + (layout.getLineTop(i) * yScale).toInt()
+                val bottom = rect.top + (layout.getLineBottom(i) * yScale).toInt()
+                if (bottom <= top) continue
+                val lr = android.graphics.Rect(rect.left, top, rect.right, bottom)
+                if (!lr.intersect(vp)) continue
+                out.add(VisibleText(t, lr, true, estimated = true))
+            }
+            if (out.isEmpty()) one() else out
+        } catch (_: Exception) {
+            one()
+        }
+    }
+
+    /** 逐字矩形（屏幕坐标）；拿不到返回 null。数组里个别字符可为 null（屏幕外）。 */
+    private fun charRects(n: AccessibilityNodeInfo, text: String): ArrayList<android.graphics.RectF?>? {
         return try {
             val args = android.os.Bundle().apply {
-                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
-                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, text.length)
+                // 2026-10-17 「小贴」：必须用**字符位置**专用参数键。
+                // 之前误用了 ACTION_ARGUMENT_SELECTION_*（文本选择参数），TextView/Chrome
+                // 读不到 start/length → 直接返回 → 所有节点都拿不到逐字矩形（日志 字形框=0/N）。
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX, 0)
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_LENGTH, text.length)
             }
             if (!n.refreshWithExtraData(
                     AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args
@@ -744,16 +980,17 @@ class BallService : AccessibilityService() {
                 AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY
             ) ?: return null)
             if (arr.size < text.length) return null
-            val res = ArrayList<android.graphics.RectF>(arr.size)
-            for (o in arr) res.add((o as? android.graphics.RectF) ?: return null)
+            val res = ArrayList<android.graphics.RectF?>(arr.size)
+            for (o in arr) res.add(o as? android.graphics.RectF)
             res
         } catch (_: Exception) {
             null
         }
     }
 
-    private fun collectA11yItems(): List<ImmersiveItem> {
+    private fun collectA11yItems(bmp: Bitmap? = null): List<ImmersiveItem> {
         val st = SettingsStore(this)
+        val density = resources.displayMetrics.density
         val t0 = android.os.SystemClock.elapsedRealtime()
         a11yOwned.clear()
         val rootNode = rootInActiveWindow ?: return emptyList()
@@ -764,19 +1001,22 @@ class BallService : AccessibilityService() {
         val dm = resources.displayMetrics
         val viewport = android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels)
 
-        fun textOf(n: AccessibilityNodeInfo): String? =
-            (n.text?.toString()?.trim()?.ifEmpty { null }
-                ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null })
-
         // ── 后序遍历：记录所有"带文字"节点 + 标记其子树里是否还有带文字节点 ──
-        class C(val node: AccessibilityNodeInfo, val text: String, val rect: android.graphics.Rect, var childHasText: Boolean)
+        class C(
+            val node: AccessibilityNodeInfo,
+            val text: String,
+            val fromDesc: Boolean,
+            val rect: android.graphics.Rect,
+            var childHasText: Boolean
+        )
         val all = ArrayList<C>()
         var visited = 0
         fun dfs(n: AccessibilityNodeInfo?, depth: Int): Boolean {
             if (n == null || depth > 80) return false
             if (n.packageName?.toString() == packageName) return false
             visited++
-            val raw = textOf(n)
+            val rawText = n.text?.toString()?.trim()?.ifEmpty { null }
+            val raw = rawText ?: n.contentDescription?.toString()?.trim()?.ifEmpty { null }
             var childHas = false
             for (i in 0 until n.childCount) {
                 val c = try { n.getChild(i) } catch (_: Exception) { null } ?: continue
@@ -786,7 +1026,7 @@ class BallService : AccessibilityService() {
             if (raw != null) {
                 val r = android.graphics.Rect()
                 n.getBoundsInScreen(r)
-                all.add(C(n, raw, r, childHas))
+                all.add(C(n, raw, rawText == null, r, childHas))
                 return true
             }
             return childHas
@@ -796,30 +1036,109 @@ class BallService : AccessibilityService() {
         // ── 判别式：只收"最深的带文字节点"（子树内没有别的带文字节点）→ 天然去重、不会整树清零 ──
         val deepest = all.filter { !it.childHasText }
 
+        // 装饰图片的 contentDescription 往往在页面重复很多次（截图里的“图案背景”）。
+        // 同一描述出现 ≥3 次 → 当装饰/背景处理，不翻译；唯一按钮描述（View docs）不受影响。
+        val descFreq = HashMap<String, Int>()
+        for (c in deepest) {
+            if (c.fromDesc) descFreq[c.text] = (descFreq[c.text] ?: 0) + 1
+        }
+
         // ── 剩余极少数过滤（每条计数，日志自证）──
         val drop = HashMap<String, Int>()
         fun dropIt(k: String) { drop[k] = (drop[k] ?: 0) + 1 }
         val seen = HashSet<String>()
         val out = ArrayList<ImmersiveItem>()
         var total = 0
+        var glyphUsed = 0
+        var seamlessUsed = 0
+        val descSamples = ArrayList<String>()
         val vp = android.graphics.Rect(viewport)
-        for (c in deepest) {
-            // 2026-10-16 轻响钦定：**只翻当前屏幕上看得见的那部分**（无障碍可能读到屏幕外内容，一律不翻）
-            val t = visibleText(c.node, c.text, c.rect, vp)
-            if (t.isEmpty()) { dropIt("空"); continue }
-            if (isMostlyCjk(t)) { dropIt("纯中文"); continue }
-            if (!t.any { it.isLetter() }) { dropIt("无字母"); continue }
-            if (isWholeUrl(t)) { dropIt("整条URL"); continue }
-            val r = android.graphics.Rect(c.rect)
-            if (r.width() <= 0 || r.height() <= 0) { dropIt("矩形无效"); continue }
-            if (!r.intersect(viewport)) { dropIt("不在视口"); continue }
-            val key = t + "@" + c.rect.left + "," + c.rect.top + "," + c.rect.width() + "x" + c.rect.height()
-            if (!seen.add(key)) { dropIt("重复"); continue }
-            if (total + t.length > st.maxChars) { dropIt("超字数上限"); continue }
-            total += t.length
-            out.add(ImmersiveItem(out.size + 1, t, r, 0, 0, st.immersiveTextSize.toFloat()))
-            if (out.size >= 300) break
+        outer@ for (c in deepest) {
+            // 同一 contentDescription 重复出现 ≥3 次 = 装饰图片/背景（“图案背景”）
+            if (c.fromDesc && (descFreq[c.text] ?: 0) >= 3) {
+                if (descSamples.size < 6) descSamples.add("重复:${c.text.take(18)}")
+                dropIt("重复图片描述"); continue
+            }
+            // 2026-10-17 「小贴」：只靠 contentDescription 的可点击/可聚焦节点 = 图标/按钮/logo，
+            // 不是正文（截图里的「打开菜单」「英国广播公司」就是这类；BBC 的描述有 31 个字符，
+            // 所以不能用"短文本"判断）。先丢，连逐字矩形都不用取。
+            if (c.fromDesc && (c.node.isClickable || c.node.isFocusable)) {
+                if (descSamples.size < 6) {
+                    descSamples.add("${c.text.take(18)}#${c.node.className}")
+                }
+                dropIt("图标描述"); continue
+            }
+            // 2026-10-17：有些页面（Google 结果、Chrome 虚拟节点）文字可见但节点矩形无效。
+            // 这类节点再用逐字矩形试一次；逐字矩形也没有才丢。
+            val lines = if (c.rect.width() <= 0 || c.rect.height() <= 0) {
+                if (!c.node.isVisibleToUser) { dropIt("矩形无效"); continue }
+                visibleLines(
+                    c.node, c.text,
+                    android.graphics.Rect(0, 0, viewport.width(), viewport.height()),
+                    vp,
+                    allowFallback = false
+                )
+            } else {
+                val nr = android.graphics.Rect(c.rect)
+                if (!nr.intersect(viewport)) { dropIt("不在视口"); continue }
+                // 2026-10-17：按视觉行切开，一行一条；左右栏用 x 间距断开。
+                visibleLines(c.node, c.text, c.rect, vp)
+            }
+            for (vt in lines) {
+                val t = vt.text
+                if (t.isEmpty()) { dropIt("空"); continue }
+                if (isMostlyCjk(t)) { dropIt("纯中文"); continue }
+                if (!t.any { it.isLetter() }) { dropIt("无字母"); continue }
+                if (isWholeUrl(t)) { dropIt("整条URL"); continue }
+                val r = android.graphics.Rect(vt.rect)
+                if (r.width() <= 0 || r.height() <= 0) { dropIt("矩形无效"); continue }
+                if (!r.intersect(viewport)) { dropIt("不在视口"); continue }
+                // 7~11px 的“行”多半是边缘残片/分隔线，单独成卡只会切字
+                if (r.height() < dp(6)) { dropIt("行高异常"); continue }
+                // 极窄节点（单个字母/标点/图标旁的字）单独建卡会变成一条竖字，
+                // 锚点又被贴到屏幕左边缘 → 就是截图里左上角那种诡异叠字。
+                if (r.width() < dp(12)) { dropIt("窄条"); continue }
+                if (r.left <= 0 && r.width() < dp(60)) { dropIt("左边缘窄条"); continue }
+                val key = t + "@" + r.left + "," + r.top + "," + r.width() + "x" + r.height()
+                if (!seen.add(key)) { dropIt("重复"); continue }
+                if (total + t.length > st.maxChars) { dropIt("超字数上限"); continue }
+                total += t.length
+                if (vt.glyph) glyphUsed++
+
+                // 无痕替换：从截屏采样这一行的页面底色/字色。采样不可靠（图片/渐变）
+                // 就继续用深色卡片兜底。
+                val colors = if (bmp != null && vt.glyph) sampleLineColors(bmp, r) else null
+                val seamless = colors?.ok == true
+                val bg = colors?.bg ?: 0
+                val ink = colors?.ink ?: 0
+                if (seamless) seamlessUsed++
+                // 字号优先跟随这一行的实际高度（immersiveFontAuto），否则用固定字号。
+                // 估算行（原生 App 没逐字矩形）的行高不可靠，直接用用户固定字号，避免 24sp 巨字。
+                val autoSp = if (vt.estimated) {
+                    st.immersiveTextSize.toFloat()
+                } else {
+                    (r.height() / density * 0.95f).coerceIn(10f, 18f)
+                }
+                val sp = if (st.immersiveFontAuto) autoSp else st.immersiveTextSize.toFloat()
+                out.add(ImmersiveItem(out.size + 1, t, r, bg, ink, sp, seamless))
+                if (out.size >= 300) break@outer
+            }
         }
+        // 2026-10-17 「小贴」：同一屏里 a11y 节点会互相嵌套/重叠（例如整段节点 + 段内一行）。
+        // 先把重叠项合并成一个视觉块，再做“整屏统一风格”，避免一张白底一张黑卡。
+        val beforeMerge = out.size
+        // 先并掉重叠节点，再把同一栏里紧挨着的行并成段落卡：
+        // 行级卡会各自长高，后一张压前一张；段落卡只长一次，内部行不会互盖。
+        val cleaned = applyGlobalStyle(
+            mergeAdjacentLines(mergeOverlapping(out)),
+            st.immersiveSeamlessPct
+        )
+        out.clear()
+        out.addAll(cleaned)
+        // 阅读序：从上到下、从左到右（也决定提示词顺序；叠放顺序在 overlay 里按面积再排）
+        out.sortWith(compareBy({ it.rect.top }, { it.rect.left }))
+        // 排序后重编号 1..N：否则模型看到的是跳号（⟦5⟧⟦2⟧…），结构化输出更容易乱
+        for (i in out.indices) out[i] = out[i].copy(index = i + 1)
 
         // ── 自检日志：一份日志即可定案 ──
         val ar = if (anchor != null) {
@@ -828,8 +1147,11 @@ class BallService : AccessibilityService() {
         } else "无"
         com.speedtrans.app.util.DiagLog.log(
             "a11y",
-            "锚点=$ar | 访问=$visited 文本节点=${all.size} 最深=${deepest.size} 保留=${out.size} " +
-                    "丢弃=${drop} 字符=$total 耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
+            "锚点=$ar | 访问=$visited 文本节点=${all.size} 最深=${deepest.size} " +
+                    "保留=$beforeMerge→合并后=${out.size} 字形框=$glyphUsed/$beforeMerge " +
+                    "无痕=$seamlessUsed/$beforeMerge 丢弃=${drop} " +
+                    "图标样例=$descSamples 字符=$total " +
+                    "耗时=${android.os.SystemClock.elapsedRealtime() - t0}ms"
         )
         val sample = out.take(5).joinToString(" | ") { "${it.index}:\"${it.original.take(16)}\"@${it.rect.left},${it.rect.top}" }
         com.speedtrans.app.util.DiagLog.log("a11y", "抽样：$sample")
@@ -839,6 +1161,206 @@ class BallService : AccessibilityService() {
         if (Build.VERSION.SDK_INT < 33) a11yOwned.forEach { runCatching { it.recycle() } }
         a11yOwned.clear()
         return out
+    }
+
+    private fun rectArea(r: android.graphics.Rect): Long =
+        r.width().toLong() * r.height().toLong()
+
+    private fun mergeText(a: String, b: String): String {
+        val na = a.trim().replace(Regex("\\s+"), " ")
+        val nb = b.trim().replace(Regex("\\s+"), " ")
+        if (na.isEmpty()) return nb
+        if (nb.isEmpty()) return na
+        if (na.contains(nb, ignoreCase = true)) return na
+        if (nb.contains(na, ignoreCase = true)) return nb
+        return "$na $nb"
+    }
+
+    /**
+     * 2026-10-17 「小贴」：无障碍树里“整段节点”和“段内一行”经常同时存在，矩形互相重叠；
+     * 不合并就会一张白卡一张黑卡/小卡压大卡。这里按相交面积 ≥ 较小者 25% 合并成视觉块。
+     */
+    private fun mergeOverlapping(items: List<ImmersiveItem>): List<ImmersiveItem> {
+        if (items.size <= 1) return items
+        val n = items.size
+        val parent = IntArray(n) { it }
+
+        fun find(x0: Int): Int {
+            var x = x0
+            while (parent[x] != x) {
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            }
+            return x
+        }
+
+        fun union(a: Int, b: Int) {
+            val ra = find(a)
+            val rb = find(b)
+            if (ra != rb) parent[ra] = rb
+        }
+
+        // 传递闭包：A 与 B 重叠、B 与 C 重叠 → A/B/C 必须是同一块。
+        // 之前用“贪心 + 只查已有组”，大组扩张后会和新组再次重叠（日志里同 y 两张卡）。
+        for (i in 0 until n) {
+            for (j in i + 1 until n) {
+                val inter = android.graphics.Rect(items[i].rect)
+                if (!inter.intersect(items[j].rect)) continue
+                val minA = minOf(rectArea(items[i].rect), rectArea(items[j].rect))
+                if (minA > 0 && rectArea(inter) * 100 / minA >= 25) union(i, j)
+            }
+        }
+
+        val buckets = LinkedHashMap<Int, MutableList<Int>>()
+        for (i in 0 until n) {
+            buckets.getOrPut(find(i)) { mutableListOf() }.add(i)
+        }
+
+        return buckets.values.mapIndexed { outIndex, ids ->
+            val group = ids.map { items[it] }
+            val base = group.maxByOrNull { rectArea(it.rect) } ?: group.first()
+            val rect = android.graphics.Rect(base.rect)
+            var text = base.original
+            var bg = base.bg
+            var ink = base.textColor
+            var sp = base.textSizeSp
+            var seamless = base.seamless
+            for (item in group.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))) {
+                if (item === base) continue
+                rect.union(item.rect)
+                text = mergeText(text, item.original)
+                sp = minOf(sp, item.textSizeSp)
+                if (bg == 0 && item.bg != 0) {
+                    bg = item.bg
+                    ink = item.textColor
+                }
+                seamless = seamless || item.seamless
+            }
+            ImmersiveItem(outIndex + 1, text, rect, bg, ink, sp, seamless)
+        }
+    }
+
+    /**
+     * 同一栏里紧挨着的视觉行 → 合并成一张段落卡。
+     * 行级卡各自按译文长高时会互相压；段落卡只有一张，译文在卡内自然排版。
+     */
+    private fun mergeAdjacentLines(items: List<ImmersiveItem>): List<ImmersiveItem> {
+        if (items.size <= 1) return items
+        class M(
+            var text: String,
+            val rect: android.graphics.Rect,
+            var bg: Int,
+            var ink: Int,
+            var sp: Float,
+            var seamless: Boolean,
+            var lines: Int
+        )
+        val groups = ArrayList<M>()
+        val gapPx = dp(8)
+        val maxLinesPerCard = 4
+        for (item in items.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))) {
+            val last = groups.lastOrNull()
+            if (last == null) {
+                groups.add(M(item.original, android.graphics.Rect(item.rect), item.bg, item.textColor, item.textSizeSp, item.seamless, 1))
+                continue
+            }
+            val xOverlap = minOf(last.rect.right, item.rect.right) - maxOf(last.rect.left, item.rect.left)
+            val minW = maxOf(1, minOf(last.rect.width(), item.rect.width()))
+            val vGap = item.rect.top - last.rect.bottom
+            val sameColumn = xOverlap * 2 >= minW
+            if (sameColumn && vGap in -gapPx..gapPx && last.lines < maxLinesPerCard) {
+                last.rect.union(item.rect)
+                last.text = mergeText(last.text, item.original)
+                last.sp = minOf(last.sp, item.textSizeSp)
+                if (last.bg == 0 && item.bg != 0) {
+                    last.bg = item.bg
+                    last.ink = item.textColor
+                }
+                last.seamless = last.seamless || item.seamless
+                last.lines++
+            } else {
+                groups.add(M(item.original, android.graphics.Rect(item.rect), item.bg, item.textColor, item.textSizeSp, item.seamless, 1))
+            }
+        }
+        return groups.mapIndexed { i, g ->
+            ImmersiveItem(i + 1, g.text, g.rect, g.bg, g.ink, g.sp, g.seamless)
+        }
+    }
+
+    /**
+     * 一屏一策：不允许一半白底一半黑卡。
+     * 无痕覆盖率达到 60% 就整屏用同一套页面底色/字色；否则整屏统一深色卡。
+     * 中间值交给 overlay 按“无痕程度”混合。
+     */
+    private fun applyGlobalStyle(items: List<ImmersiveItem>, pct: Int): List<ImmersiveItem> {
+        if (items.isEmpty() || pct <= 0) return items.map { it.copy(seamless = false) }
+        val good = items.filter { it.seamless && it.bg != 0 }
+        if (good.isEmpty()) return items.map { it.copy(seamless = false) }
+        if (good.size * 100 / items.size < 60) return items.map { it.copy(seamless = false) }
+
+        val counts = HashMap<Int, Int>()
+        good.forEach { counts[it.bg] = (counts[it.bg] ?: 0) + 1 }
+        val bg = counts.maxByOrNull { it.value }?.key ?: 0xFFFFFFFF.toInt()
+        val lum = (0.299 * ((bg shr 16) and 0xFF) +
+                0.587 * ((bg shr 8) and 0xFF) +
+                0.114 * (bg and 0xFF)) / 255.0
+        val ink = if (lum > 0.55) 0xFF000000.toInt() else 0xFFF5F5F5.toInt()
+        return items.map { it.copy(bg = bg, textColor = ink, seamless = true) }
+    }
+
+    /** 一行文字的无痕配色：页面底色 + 文字色；ok=false 表示背景不纯，回退深色卡 */
+    private data class LineColors(val bg: Int, val ink: Int, val ok: Boolean)
+
+    private fun sampleLineColors(bmp: Bitmap, screenRect: android.graphics.Rect): LineColors? {
+        if (screenRect.width() <= 0 || screenRect.height() <= 0) return null
+        val dm = resources.displayMetrics
+        val sx = bmp.width.toFloat() / dm.widthPixels
+        val sy = bmp.height.toFloat() / dm.heightPixels
+        val br = android.graphics.Rect(
+            (screenRect.left * sx).toInt(),
+            (screenRect.top * sy).toInt(),
+            (screenRect.right * sx).toInt(),
+            (screenRect.bottom * sy).toInt()
+        )
+        if (!br.intersect(0, 0, bmp.width, bmp.height)) return null
+        if (br.width() <= 0 || br.height() <= 0) return null
+
+        // 先取行内出现最多的颜色当底色、最显眼的异色当字色
+        val (bg0, ink0) = sampleColors(bmp, br)
+        val bg = bg0
+        val ink = if (colorDist(bg, ink0) >= 1600) ink0 else {
+            val lum = (0.299 * ((bg shr 16) and 0xFF) +
+                    0.587 * ((bg shr 8) and 0xFF) +
+                    0.114 * (bg and 0xFF)) / 255.0
+            if (lum > 0.55) 0xFF1A1A1A.toInt() else 0xFFEDEDED.toInt()
+        }
+
+        // 看行的外圈是否接近纯色：纯色 → 可以无痕；图片/渐变 → 深色卡兜底
+        val pad = maxOf(2, (br.height() * 0.18f).toInt())
+        val x0 = (br.left - pad).coerceAtLeast(0)
+        val y0 = (br.top - pad).coerceAtLeast(0)
+        val x1 = (br.right + pad).coerceAtMost(bmp.width - 1)
+        val y1 = (br.bottom + pad).coerceAtMost(bmp.height - 1)
+        val samples = ArrayList<Int>(48)
+        val stepX = maxOf(1, (x1 - x0) / 12)
+        val stepY = maxOf(1, (y1 - y0) / 6)
+        var x = x0
+        while (x <= x1) {
+            samples.add(bmp.getPixel(x, y0))
+            samples.add(bmp.getPixel(x, y1))
+            x += stepX
+        }
+        var y = y0
+        while (y <= y1) {
+            samples.add(bmp.getPixel(x0, y))
+            samples.add(bmp.getPixel(x1, y))
+            y += stepY
+        }
+        val close = samples.count { colorDist(it, bg) < 1200 }
+        val ok = samples.size >= 12 &&
+                close * 100 / samples.size >= 70 &&
+                colorDist(bg, ink) >= 1800
+        return LineColors(bg, ink, ok)
     }
 
     /** "整条就是 URL/域名"（只在整条时丢；包含链接的正文不丢） */
@@ -859,8 +1381,8 @@ class BallService : AccessibilityService() {
     ): List<Pair<String, android.graphics.Rect>>? {
         return try {
             val args = android.os.Bundle().apply {
-                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
-                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, text.length)
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX, 0)
+                putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_LENGTH, text.length)
             }
             if (!n.refreshWithExtraData(
                     AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args

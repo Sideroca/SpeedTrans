@@ -46,6 +46,10 @@ object ImmersiveCoordinator {
 
     val overlayVisible: Boolean get() = overlay?.visible == true
 
+    /** 启动保护期：刚点球时页面/自身补发的 click/touch/scroll 事件不算"用户操作" */
+    fun recentlyStarted(ms: Long = 1000L): Boolean =
+        active && android.os.SystemClock.elapsedRealtime() - startedAt < ms
+
     fun start(context: Context, pkg: String?, items: List<ImmersiveItem>, winId: Int = -1) {
         if (items.isEmpty()) return
         val app = context.applicationContext
@@ -59,12 +63,14 @@ object ImmersiveCoordinator {
         val ov = overlay ?: ImmersiveOverlay(app).also { overlay = it }
         ov.onClose = { close() }
         ov.clearViews()
-        ov.setItems(items)
+        // 2026-10-17 「小贴」：先 ensure 再 setItems——setItems 会按面积预建空卡，
+        // 保证叠放顺序稳定（root 未挂上时 makeBlock 会直接返回 null）。
         if (!ov.ensure()) {
             DiagLog.log("imm", "叠层 addView 失败 → 放弃（不置 active，球照常可用）")
             android.widget.Toast.makeText(app, "沉浸式叠层挂不上（悬浮窗权限？）", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
+        ov.setItems(items)
         active = true
         basePkg = pkg
         baseWinId = winId

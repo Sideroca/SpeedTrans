@@ -215,6 +215,15 @@ class SettingsStore(context: Context) {
         get() = sp.getInt("immersive_cover_alpha", 100).coerceIn(60, 100)
         set(v) = sp.edit().putInt("immersive_cover_alpha", v.coerceIn(60, 100)).apply()
 
+    /**
+     * 无痕程度（0~100，默认 100）。
+     * 100 = 用页面底色把原文完全擦掉（无痕替换）；0 = 完全用深色卡。
+     * 中间值 = 页面底色与深色卡按比例混合（给不同网页留退路）。
+     */
+    var immersiveSeamlessPct: Int
+        get() = sp.getInt("immersive_seamless_pct", 100).coerceIn(0, 100)
+        set(v) = sp.edit().putInt("immersive_seamless_pct", v.coerceIn(0, 100)).apply()
+
     /** 字号自动跟随原文行高（false = 用 immersiveTextSize） */
     var immersiveFontAuto: Boolean
         get() = sp.getBoolean("immersive_font_auto", true)

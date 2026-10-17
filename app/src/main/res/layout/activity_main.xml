@@ -45,6 +45,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginTop="18dp"
                     android:orientation="vertical">
 
                     <LinearLayout
@@ -55,8 +56,8 @@
 
                         <ImageView
                             android:id="@+id/ivBolt"
-                            android:layout_width="27dp"
-                            android:layout_height="27dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_home_bolt" />
 
@@ -66,7 +67,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="6dp"
                             android:text="闪译 SpeedTrans"
-                            android:textSize="21sp" />
+                            android:textSize="23sp" />
                     </LinearLayout>
 
                     <TextView
@@ -77,7 +78,7 @@
                         android:ellipsize="end"
                         android:singleLine="true"
                         android:text="点一下悬浮球 → 立即流式翻译屏幕文字（英→中）"
-                        android:textSize="11.5sp" />
+                        android:textSize="12.5sp" />
                 </LinearLayout>
 
                 <LinearLayout

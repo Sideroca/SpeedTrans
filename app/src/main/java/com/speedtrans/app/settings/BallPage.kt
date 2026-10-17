@@ -139,6 +139,31 @@ internal fun SettingsActivity.bindBallAppearance() {
             BallService.instance?.refreshBall()
             toast("已切换为「吐魂」图片球")
         }
+
+        // 吐魂球与「切角八边形」单选圆点对齐（球心同一垂直线）；只平移，不影响布局。
+        val tuhunBall = findViewById<View>(R.id.btnTuhun)
+        val tuhunBlock = tuhunBall.parent as? View
+        val cutOption = findViewById<View>(R.id.rbCut)
+        if (tuhunBlock != null) {
+            fun alignTuhun() {
+                if (cutOption.width <= 0 || tuhunBall.width <= 0) return
+                val cut = IntArray(2)
+                val ball = IntArray(2)
+                cutOption.getLocationOnScreen(cut)
+                tuhunBall.getLocationOnScreen(ball)
+                val target = cut[0] + cutOption.width / 2f
+                val current = ball[0] + tuhunBall.width / 2f
+                tuhunBlock.translationX = target - current
+            }
+            tuhunBlock.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    alignTuhun()
+                }
+            })
+            // 页面切换/字体加载会二次布局，补两次延迟对齐
+            tuhunBlock.postDelayed({ alignTuhun() }, 250)
+            tuhunBlock.postDelayed({ alignTuhun() }, 700)
+        }
 }
 private fun SettingsActivity.paintSwatch(v: View, hex: String, selected: Boolean) {
         v.background = GradientDrawable().apply {
@@ -225,8 +250,9 @@ internal fun SettingsActivity.bindPanelButtons() {
         listOf(R.id.sbBtnPad).forEach { fixSeekDrag(it) }
         findViewById<Switch>(R.id.swShowCopy).isChecked = store.showCopy
         findViewById<Switch>(R.id.swShowClose).isChecked = store.showClose
-        findViewById<Switch>(R.id.swCornerClose).isChecked = store.showCornerClose
         findViewById<Switch>(R.id.swAccumulate).isChecked = store.panelAccumulate
+
+        findViewById<Switch>(R.id.swCornerClose).isChecked = store.showCornerClose
 
         val rgSide = findViewById<RadioGroup>(R.id.rgBtnSide)
         rgSide.check(if (store.btnCloseLeft) R.id.rbSideLeft else R.id.rbSideRight)
@@ -235,6 +261,13 @@ internal fun SettingsActivity.bindPanelButtons() {
         val tvPad = findViewById<TextView>(R.id.tvBtnPadVal)
         sbPad.progress = store.btnPaddingDp.coerceIn(0, 24)
         tvPad.text = "${store.btnPaddingDp}dp"
+        findViewById<TextView>(R.id.btnPadDefault).setOnClickListener {
+            // 默认值：8dp（SettingsStore 的默认）
+            sbPad.progress = 8
+            tvPad.text = "8dp"
+            store.btnPaddingDp = 8
+            TranslateCoordinator.liveEdgePadding(8)
+        }
         sbPad.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
                 tvPad.text = "${p}dp"
@@ -253,8 +286,21 @@ internal fun SettingsActivity.bindPanelButtons() {
 // ---------- 沉浸式翻译（2026-10-14） ----------
 
 internal fun SettingsActivity.bindImmersive() {
-        listOf(R.id.sbImmCover, R.id.sbImmTextSize).forEach { fixSeekDrag(it) }
+        listOf(R.id.sbImmSeamless, R.id.sbImmCover, R.id.sbImmTextSize).forEach { fixSeekDrag(it) }
         findViewById<Switch>(R.id.swImmFontAuto).isChecked = store.immersiveFontAuto
+
+        val sbS = findViewById<SeekBar>(R.id.sbImmSeamless)
+        val tvS = findViewById<TextView>(R.id.tvImmSeamlessVal)
+        sbS.progress = store.immersiveSeamlessPct
+        tvS.text = "${store.immersiveSeamlessPct}%"
+        sbS.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                tvS.text = "$p%"
+            }
+
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
 
         val sbC = findViewById<SeekBar>(R.id.sbImmCover)
         val tvC = findViewById<TextView>(R.id.tvImmCoverVal)

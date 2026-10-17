@@ -61,6 +61,7 @@ internal fun SettingsActivity.save() {
         store.btnPaddingDp = findViewById<SeekBar>(R.id.sbBtnPad).progress
         store.barColorHex = selectedBarColor ?: ""
         // 沉浸式翻译（2026-10-14）
+        store.immersiveSeamlessPct = findViewById<SeekBar>(R.id.sbImmSeamless).progress
         store.immersiveCoverAlphaPct = findViewById<SeekBar>(R.id.sbImmCover).progress + 60
         store.immersiveFontAuto = findViewById<Switch>(R.id.swImmFontAuto).isChecked
         store.immersiveTextSize = findViewById<SeekBar>(R.id.sbImmTextSize).progress + 12

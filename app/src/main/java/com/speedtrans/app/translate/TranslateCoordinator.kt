@@ -85,6 +85,36 @@ object TranslateCoordinator {
         currentCall = null
     }
 
+    private val urlToken = Regex("(?i)(?:https?://|www\\.)\\S+")
+    private val domainToken = Regex("(?i)(?<![\\w@])(?:[a-z0-9-]+\\.)+[a-z]{2,}(?:/\\S*)?(?![\\w])")
+
+    /** 网址/域名不进 AI：整行只有 URL 的丢掉，行内 URL 替换为空格。 */
+    private fun sanitizeForAi(raw: String): String {
+        val sb = StringBuilder()
+        for (line0 in raw.split('\n')) {
+            val line = line0.trim()
+            if (line.isEmpty()) continue
+            val onlyUrl = line.startsWith("http://", true) ||
+                    line.startsWith("https://", true) ||
+                    Regex("^(?:www\\.)?(?:[a-z0-9-]+\\.)+[a-z]{2,}(?:/\\S*)?$", RegexOption.IGNORE_CASE)
+                        .matches(line)
+            if (onlyUrl) continue
+            var s = urlToken.replace(line, " ")
+            s = domainToken.replace(s, " ")
+            s = s.replace(Regex("[ \\t]{2,}"), " ").trim()
+            if (s.isNotEmpty()) sb.append(s).append('\n')
+        }
+        return sb.toString().trim()
+    }
+
+    /** 最长公共前缀长度（UTF-16 下标；足够做续段判断） */
+    private fun commonPrefixLength(a: String, b: String): Int {
+        var i = 0
+        val n = minOf(a.length, b.length)
+        while (i < n && a[i] == b[i]) i++
+        return i
+    }
+
     fun startTranslate(context: Context, rawText: String) {
         // 翻译进行中忽略新请求：连点视为未发生，一次只跑第一次的反应
         if (currentCall != null) return
@@ -96,9 +126,9 @@ object TranslateCoordinator {
         val wasOpen = ov.visible
         ov.ensure()
 
-        val text = rawText
+        val text = sanitizeForAi(rawText)
         if (text.length < 2) {
-            ov.showStatus("⚠️ 没有抓到屏幕文字")
+            ov.showStatus("⚠️ 只抓到网址/没有正文，未发请求")
             return
         }
 
@@ -123,11 +153,26 @@ object TranslateCoordinator {
             return
         }
 
-        // 2) 增量翻译：内容在增长（模型思考持续输出等场景）
-        val incremental = lastSource.isNotEmpty() &&
+        // 2) 增量翻译：严格前缀 + 高相似前缀（页面只多了一点 / 开头几乎一样）
+        val exactPrefix = lastSource.isNotEmpty() &&
                 text.length > lastSource.length &&
                 text.startsWith(lastSource)
-        val segment = if (incremental) text.substring(lastSource.length) else text
+        val lcp = if (lastSource.isEmpty()) 0 else commonPrefixLength(lastSource, text)
+        val fuzzyPrefix = !exactPrefix &&
+                lastSource.length >= 200 &&
+                text.length > lcp &&
+                lcp >= (lastSource.length * 0.85f).toInt() &&
+                lcp > 0 &&
+                text[lcp - 1].isWhitespace()   // 只在词/行边界续段，避免切在词中间
+        var incremental = exactPrefix || fuzzyPrefix
+        var segment = if (incremental) {
+            text.substring(if (exactPrefix) lastSource.length else lcp)
+        } else text
+        // 续段太短（只剩标点/一两个字）就退回整段，避免模型没有上下文
+        if (incremental && segment.trim().length < 2) {
+            incremental = false
+            segment = text
+        }
 
         // 2.5) 译文累积：面板开着 + 非增量 + 已有内容 → 不清空，追加新块
         val appendBlock = !incremental && accumulate && wasOpen && lastSource.isNotEmpty()
@@ -162,6 +207,7 @@ object TranslateCoordinator {
             engine!!.translate(
                 segment,
                 isContinuation = incremental,
+                contextTranslation = if (incremental) lastTranslation else "",
                 onDelta = { d ->
                     // 合批：高频 delta 先入缓冲，~30ms 一批上屏（大幅减少 TextView 重排 → 更快更顺）
                     synchronized(buf) { buf.append(d) }

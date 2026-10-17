@@ -72,9 +72,13 @@ class ResultOverlay(private val context: Context) {
                 ctx.resources.displayMetrics.density
             )
             elevation = dp(8).toFloat() // 空气感投影（iOS/线框主题为 0）
+            clipChildren = false
+            clipToPadding = false
         }
-        val col = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
+        // FrameLayout：滚动内容从状态条下面穿过，状态条半透明浮在上面
+        val col = FrameLayout(ctx).apply {
+            clipChildren = false
+            clipToPadding = false
             setPadding(dp(16), dp(8), dp(16), dp(10))
         }
 
@@ -92,6 +96,8 @@ class ResultOverlay(private val context: Context) {
                     barBg, pal.cardRadius.toFloat(),
                     ctx.resources.displayMetrics.density, pal.cardStroke
                 )
+            // 半透明状态条：滚动时译文从下面穿过（alpha 只调背景，不影响文字/按钮）
+            background?.alpha = 210
         }
         val btnClose = TextView(ctx).apply {
             text = "✕"
@@ -143,10 +149,16 @@ class ResultOverlay(private val context: Context) {
         }
 
         val scroll = ScrollView(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            )
+            // 滚动条整体向右挪 3dp：负右边距 + 关闭父级裁剪；
+            // 正文右侧 padding 也是 3dp，正好抵消，文字不会跟着移。
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).apply { rightMargin = -dp(4) }
+            clipChildren = false
+            clipToPadding = false
+            // 原生滚动条位置不可控，改用下面自绘的细条（可精确靠右）
+            isVerticalScrollBarEnabled = false
             // 只记录"手指是否在摸"（append 时的位置锁用）；不再做任何自动拉回——
             // 修复：流式滚动与手指"抢屏"。新原则：内容只追加，视图永不自动滚，整页滚动完全归用户
             setOnTouchListener { _, e ->
@@ -171,12 +183,56 @@ class ResultOverlay(private val context: Context) {
         }
         scroll.addView(out)
 
-        col.addView(top)
+        col.addView(top, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.TOP })
         topBar = top
         col.addView(scroll)
+        // 状态条浮在滚动内容之上；正文从条下开始，滚动时能从半透明条下穿过
+        top.bringToFront()
+        fun syncTopInset() {
+            scroll.setPadding(0, top.height + dp(4), 0, 0)
+        }
+        top.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncTopInset() }
+        top.post { syncTopInset() }
         panel.addView(col, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
         ))
+
+        // 自绘滚动条：3dp 宽，贴 panel 右边缘（比原生更靠右且完全可控）
+        val sbThumb = View(ctx).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(2).toFloat()
+                setColor(0x55808080)
+            }
+        }
+        panel.addView(sbThumb, FrameLayout.LayoutParams(dp(3), dp(40)).apply {
+            gravity = Gravity.TOP or Gravity.END
+            rightMargin = 0
+            topMargin = dp(8)
+        })
+        fun updateThumb() {
+            val visibleH = (scroll.height - top.height - dp(4)).coerceAtLeast(1)
+            val contentH = out.height
+            if (contentH <= visibleH + 1) {
+                sbThumb.visibility = View.GONE
+                return
+            }
+            sbThumb.visibility = View.VISIBLE
+            val thumbH = ((visibleH.toLong() * visibleH / contentH).toInt()).coerceAtLeast(dp(24))
+            val maxTop = (visibleH - thumbH).coerceAtLeast(1)
+            val maxScroll = (contentH - visibleH).coerceAtLeast(1)
+            val ratio = scroll.scrollY.toFloat() / maxScroll
+            val lp = sbThumb.layoutParams as FrameLayout.LayoutParams
+            lp.height = thumbH
+            lp.topMargin = top.height + dp(4) + (ratio * maxTop).toInt()
+            lp.rightMargin = 0
+            sbThumb.layoutParams = lp
+        }
+        scroll.setOnScrollChangeListener { _, _, _, _, _ -> updateThumb() }
+        out.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateThumb() }
+        scroll.post { updateThumb() }
+        top.post { updateThumb() }
 
         val screenH = ctx.resources.displayMetrics.heightPixels
         val panelH = (screenH * st.overlayHeightPct / 100f).toInt()
@@ -193,43 +249,42 @@ class ResultOverlay(private val context: Context) {
         rootBox.addView(panel)
 
         // 迷你返回键（面板右下角·固定长宽·灰白不抢眼）：返回键失灵时的保底关闭通道。
-        // 图标 = 豆包箭头（已抠图、透明底、保持原方向）；点击 = 取消翻译 + 关闭面板；跟随"显示关闭按钮"开关。
-        if (st.showCornerClose) {   // 右下角关闭键：独立开关
-            val backIcon = ImageView(ctx).apply {
-                setImageResource(R.drawable.ic_back_arrow)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                alpha = 0.30f                     // 2026-10-14 轻响：再降 1/3（0.45→0.30），更微不可查
-                // 符号缩 1/5：箭头本体 28.8dp → 23.0dp（靠内距收缩）。
-                // **只缩符号**——判定范围仍是下面那个 44×131dp 的整个盒子，一点没动。
-                setPadding(dpf(10.5f), 0, dpf(10.5f), 0)
-                contentDescription = "关闭"
-                setOnClickListener {
-                    TranslateCoordinator.cancelActive()
-                    close()
-                }
+        // 图标 = 豆包箭头（已抠图、透明底、保持原方向）；点击 = 取消翻译 + 关闭面板。
+        // 2026-10-17：「显示/隐藏」只改图标透明度，**44×131dp 的判定区始终在**。
+        val backIcon = ImageView(ctx).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            alpha = if (st.showCornerClose) 0.30f else 0f
+            // 符号缩 1/5：箭头本体 28.8dp → 23.0dp（靠内距收缩）。
+            // **只缩符号**——判定范围仍是下面那个 44×131dp 的整个盒子，一点没动。
+            setPadding(dpf(10.5f), 0, dpf(10.5f), 0)
+            contentDescription = "关闭"
+            setOnClickListener {
+                TranslateCoordinator.cancelActive()
+                close()
             }
-            // 固定长宽矩形：44dp × 131dp，钉在面板右下角（面板高度变化时随面板一起移动）
-            panel.addView(backIcon, FrameLayout.LayoutParams(dp(44), dp(131)).apply {
-                gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(2)
-                bottomMargin = dp(72)             // 先给保守值，随后按真实 inset 精确对齐
-            })
-            // 底边自动避开导航栏：真实 inset + 8dp；若系统没派发 inset 则保守保持 72dp
-            // （用 androidx ViewCompat 拿兼容版 insets——平台 getInsets 需要 API30，minSdk=26 不允许）
-            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(panel) { _, insets ->
-                val nb = insets.getInsets(
-                    androidx.core.view.WindowInsetsCompat.Type.systemBars()
-                ).bottom
-                val want = maxOf(nb + dp(8), dp(56))
-                val lp = backIcon.layoutParams as? FrameLayout.LayoutParams
-                if (lp != null && lp.bottomMargin != want) {
-                    lp.bottomMargin = want
-                    backIcon.layoutParams = lp
-                }
-                insets
-            }
-            panel.requestApplyInsets()
         }
+        // 固定长宽矩形：44dp × 131dp，钉在面板右下角（面板高度变化时随面板一起移动）
+        panel.addView(backIcon, FrameLayout.LayoutParams(dp(44), dp(131)).apply {
+            gravity = Gravity.BOTTOM or Gravity.END
+            rightMargin = dp(2)
+            bottomMargin = dp(72)             // 先给保守值，随后按真实 inset 精确对齐
+        })
+        // 底边自动避开导航栏：真实 inset + 8dp；若系统没派发 inset 则保守保持 72dp
+        // （用 androidx ViewCompat 拿兼容版 insets——平台 getInsets 需要 API30，minSdk=26 不允许）
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(panel) { _, insets ->
+            val nb = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            ).bottom
+            val want = maxOf(nb + dp(8), dp(56))
+            val lp = backIcon.layoutParams as? FrameLayout.LayoutParams
+            if (lp != null && lp.bottomMargin != want) {
+                lp.bottomMargin = want
+                backIcon.layoutParams = lp
+            }
+            insets
+        }
+        panel.requestApplyInsets()
 
         // 顶部 8%（状态栏带）不接管：下拉状态栏/截屏走系统；其余区域：点=关（滑动不关）
         val topGuardPx = (screenH * 0.08f).toInt()

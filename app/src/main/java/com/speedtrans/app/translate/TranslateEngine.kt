@@ -146,6 +146,8 @@ class TranslateEngine(private val store: SettingsStore) {
     fun translate(
         text: String,
         isContinuation: Boolean = false,
+        /** 续段时只带上一段译文的末尾，帮助句子衔接；绝不重传原文前缀 */
+        contextTranslation: String = "",
         onDelta: (String) -> Unit,
         onDone: (Throwable?) -> Unit,
         includeMax: Boolean = true,
@@ -168,10 +170,15 @@ class TranslateEngine(private val store: SettingsStore) {
         val appendix = if (store.customPrompt.isBlank() && !isMtModel)
             "\n\n" + SettingsStore.DEFAULT_USER_APPENDIX else ""
         val userContent = (if (isContinuation && !isMtModel) "【续段】$text" else text) + appendix
+        val contextHint = if (isContinuation && !isMtModel && contextTranslation.isNotBlank())
+            "\n【上一段译文末尾，仅供衔接参考，不要重复输出】" +
+                    contextTranslation.takeLast(160).trim()
+        else ""
         val systemPrompt = store.customPrompt.ifBlank { SettingsStore.DEFAULT_SYS_PROMPT } +
-                if (isContinuation && !isMtModel)
+                (if (isContinuation && !isMtModel)
                     "\n（注意：本条是此前内容的延续片段，所有规则对本段同样生效，输出仍然是简体中文。）"
-                else ""
+                else "") +
+                contextHint
 
         val body = JSONObject().apply {
             put("model", store.model)
@@ -280,7 +287,7 @@ class TranslateEngine(private val store: SettingsStore) {
                         if (includeMax && store.maxTokens > 0 && r.code == 400) {
                             // 把 onCallCreated 一并透传：重试另起的那一个 Call 也要能被编排层取消到
                             translate(
-                                text, isContinuation, onDelta, onDone,
+                                text, isContinuation, contextTranslation, onDelta, onDone,
                                 includeMax = false, onCallCreated = onCallCreated
                             )
                             return
