@@ -3,7 +3,7 @@
 **点一下悬浮球，当前屏幕文字立即流式翻译成中文。**
 安卓悬浮球流式翻译工具：无障碍取词 → LLM 流式中译 → 悬浮面板实时上屏，首字 1~2 秒。
 
-> **最新版：v4.2.17（versionCode 96）** · [⬇️ 直接下载 APK](https://github.com/Sideroca/SpeedTrans/releases/download/nightly/SpeedTrans.apk)
+> **最新版：v4.2.17（versionCode 96）** · [⬇️ 直接下载 APK](https://github.com/Sideroca/SpeedTrans-downloads/releases/latest/download/SpeedTrans.apk)
 > 固定直链，签名与历史版本一致，可直接覆盖安装。
 
 ![全部主题](docs/preview/all.png)
@@ -64,7 +64,7 @@
 
 ## 🚀 快速开始
 
-1. 下载安装：[⬇️ 直接下载最新版 APK](https://github.com/Sideroca/SpeedTrans/releases/download/nightly/SpeedTrans.apk)（或 Release / Actions 产物）
+1. 下载安装：[⬇️ 直接下载最新版 APK](https://github.com/Sideroca/SpeedTrans-downloads/releases/latest/download/SpeedTrans.apk)（或 Release / Actions 产物）
 2. 授予悬浮窗权限 + 开启无障碍服务（MIUI 会弹「危险」确认，放心允许）
 3. 首次使用：设置 → 🔌 接口 → 点选服务商（自动填地址 / 模型名）→ 粘贴你自己的 API Key → 保存
 4. 点球即用，日常无需打开本应用
