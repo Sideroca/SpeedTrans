@@ -64,7 +64,7 @@
 
 ## 🚀 快速开始
 
-1. 下载安装（Release 或 Actions 产物）
+1. 下载安装：[⬇️ 直接下载最新版 APK](https://github.com/Sideroca/SpeedTrans/releases/download/nightly/SpeedTrans.apk)（或 Release / Actions 产物）
 2. 授予悬浮窗权限 + 开启无障碍服务（MIUI 会弹「危险」确认，放心允许）
 3. 首次使用：设置 → 🔌 接口 → 点选服务商（自动填地址 / 模型名）→ 粘贴你自己的 API Key → 保存
 4. 点球即用，日常无需打开本应用
@@ -81,7 +81,7 @@ Android 13+ 通过微信 / QQ 等会话式安装器安装的 APK，无障碍开�
 ## 🏗️ 构建（GitHub Actions 云端出 APK，无需电脑）
 
 1. push 即触发构建（或 Actions → Build APK → Run workflow）
-2. 等 3~5 分钟 → 该次运行 → Artifacts → 下载 `SpeedTrans-debug-apk`
+2. 等 3~5 分钟 → 该次运行 → Artifacts → 下载 `SpeedTrans-apk`
 3. 解压得 arm64 APK，安装
 
 > 本仓库已开源（Apache-2.0）。代码不含预置密钥——接口 Key 由用户自行填写，仅存本机。
