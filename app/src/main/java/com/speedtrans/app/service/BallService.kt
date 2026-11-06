@@ -459,8 +459,29 @@ class BallService : AccessibilityService() {
 
     // ---------------- 抓取 + 按当前模式分发 + OCR ----------------
 
+    /**
+     * 当前最上层的第三方应用窗口。
+     * 浏览器抽屉/账号菜单等“浮动页”往往是独立 AccessibilityWindow，layer 比底页高；
+     * 先翻它，才不会把底页和浮动页一起翻。
+     */
+    private fun topThirdPartyAppWindow(): AccessibilityWindowInfo? {
+        return try {
+            windows.filter { w ->
+                w.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                        w.root != null &&
+                        w.root?.packageName?.toString() != packageName
+            }.sortedWith(
+                // 先按 layer 选“画在最上面”的窗口；浮层不一定拿 active
+                compareByDescending<AccessibilityWindowInfo> { it.layer }
+                    .thenByDescending { if (it.isActive) 1 else 0 }
+            ).firstOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun collectScreen(): TextCollector.Collected {
-        var root: AccessibilityNodeInfo? = rootInActiveWindow
+        var root: AccessibilityNodeInfo? = topThirdPartyAppWindow()?.root ?: rootInActiveWindow
         // 译文面板可聚焦，可能成为活动窗口：此时改取其下方最新的第三方应用窗口
         if (root?.packageName?.toString() == packageName) {
             // 找最顶层的第三方应用窗口（按 layer 降序；避免撞上旧的残留窗口）
@@ -745,7 +766,7 @@ class BallService : AccessibilityService() {
             toast("没读到可读文本：页面可能还没加载完，等 1 秒再点一次；图片/隐私页请用「仅识图」")
             return
         }
-        val aw = windows.firstOrNull { it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        val aw = topThirdPartyAppWindow()
         ImmersiveCoordinator.start(
             this, aw?.root?.packageName?.toString(), items, aw?.id ?: -1
         )
@@ -993,7 +1014,8 @@ class BallService : AccessibilityService() {
         val density = resources.displayMetrics.density
         val t0 = android.os.SystemClock.elapsedRealtime()
         a11yOwned.clear()
-        val rootNode = rootInActiveWindow ?: return emptyList()
+        // 浏览器抽屉/账号菜单等浮动页：优先当前最上层第三方窗口，避免底页+浮动页一起翻
+        val rootNode = topThirdPartyAppWindow()?.root ?: rootInActiveWindow ?: return emptyList()
         val anchor = findWebAnchor(rootNode)
         val root = anchor ?: rootNode
         val anchorRect = android.graphics.Rect()
@@ -1090,9 +1112,24 @@ class BallService : AccessibilityService() {
                 if (isMostlyCjk(t)) { dropIt("纯中文"); continue }
                 if (!t.any { it.isLetter() }) { dropIt("无字母"); continue }
                 if (isWholeUrl(t)) { dropIt("整条URL"); continue }
-                val r = android.graphics.Rect(vt.rect)
+                var r = android.graphics.Rect(vt.rect)
                 if (r.width() <= 0 || r.height() <= 0) { dropIt("矩形无效"); continue }
                 if (!r.intersect(viewport)) { dropIt("不在视口"); continue }
+                // 取色用原行框（墨迹框可能太紧，文字本身会污染底色判断）
+                val colorRect = android.graphics.Rect(r)
+
+                // 2026-10-17：像素描边——用截屏只找“墨迹在哪”，文字仍用无障碍。
+                // 被抽屉/浮层盖住的底层文字在截屏里没有墨迹，会在这里被丢掉。
+                if (bmp != null) {
+                    val ink = refineInkBox(bmp, r)
+                    if (ink.rect == null) {
+                        if (ink.confident) { dropIt("无墨迹/被遮挡"); continue }
+                        // 图片/渐变背景：不冒险，回退原节点框
+                    } else {
+                        r = ink.rect
+                    }
+                }
+
                 // 7~11px 的“行”多半是边缘残片/分隔线，单独成卡只会切字
                 if (r.height() < dp(6)) { dropIt("行高异常"); continue }
                 // 极窄节点（单个字母/标点/图标旁的字）单独建卡会变成一条竖字，
@@ -1107,7 +1144,7 @@ class BallService : AccessibilityService() {
 
                 // 无痕替换：从截屏采样这一行的页面底色/字色。采样不可靠（图片/渐变）
                 // 就继续用深色卡片兜底。
-                val colors = if (bmp != null && vt.glyph) sampleLineColors(bmp, r) else null
+                val colors = if (bmp != null && vt.glyph) sampleLineColors(bmp, colorRect) else null
                 val seamless = colors?.ok == true
                 val bg = colors?.bg ?: 0
                 val ink = colors?.ink ?: 0
@@ -1306,6 +1343,71 @@ class BallService : AccessibilityService() {
                 0.114 * (bg and 0xFF)) / 255.0
         val ink = if (lum > 0.55) 0xFF000000.toInt() else 0xFFF5F5F5.toInt()
         return items.map { it.copy(bg = bg, textColor = ink, seamless = true) }
+    }
+
+    /** 像素描边结果：rect=null 表示没找到墨迹或背景太杂；confident=false 时回退节点框 */
+    private data class InkBox(val rect: android.graphics.Rect?, val confident: Boolean, val ratio: Float)
+
+    /**
+     * 2026-10-17 「小贴」：不 OCR，只用截屏像素找这一行文字真正的墨迹范围。
+     * - 被浮层/抽屉盖住的底层文字：截屏里没有墨迹 → rect=null, confident=true → 丢弃
+     * - 图片/渐变背景：墨迹占比过高 → confident=false → 回退无障碍节点框
+     */
+    private fun refineInkBox(bmp: Bitmap, screenRect: android.graphics.Rect): InkBox {
+        val dm = resources.displayMetrics
+        val sx = bmp.width.toFloat() / dm.widthPixels
+        val sy = bmp.height.toFloat() / dm.heightPixels
+        val br = android.graphics.Rect(
+            (screenRect.left * sx).toInt(),
+            (screenRect.top * sy).toInt(),
+            (screenRect.right * sx).toInt(),
+            (screenRect.bottom * sy).toInt()
+        )
+        if (!br.intersect(0, 0, bmp.width, bmp.height)) return InkBox(null, true, 0f)
+        if (br.width() < 2 || br.height() < 2) return InkBox(null, true, 0f)
+
+        val (bg, _) = sampleColors(bmp, br)
+        val step = if (br.width().toLong() * br.height() > 20000) 2 else 1
+        var minX = Int.MAX_VALUE
+        var minY = Int.MAX_VALUE
+        var maxX = Int.MIN_VALUE
+        var maxY = Int.MIN_VALUE
+        var inkCount = 0
+        var total = 0
+        var y = br.top
+        while (y < br.bottom) {
+            var x = br.left
+            while (x < br.right) {
+                val c = bmp.getPixel(x, y)
+                total++
+                if (colorDist(c, bg) >= 1800) {
+                    inkCount++
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+                x += step
+            }
+            y += step
+        }
+        if (total == 0) return InkBox(null, true, 0f)
+        val ratio = inkCount.toFloat() / total
+        // 没墨迹：被遮挡/空白行
+        if (inkCount < maxOf(4, total / 800)) return InkBox(null, true, ratio)
+        // 墨迹占比过高：图片/渐变/复杂背景，回退节点框更稳
+        if (ratio > 0.60f) return InkBox(null, false, ratio)
+        if (maxX < minX || maxY < minY) return InkBox(null, true, ratio)
+
+        val ink = android.graphics.Rect(
+            (minX / sx).toInt(),
+            (minY / sy).toInt(),
+            ((maxX + 1) / sx).toInt(),
+            ((maxY + 1) / sy).toInt()
+        )
+        if (ink.width() < dp(2) || ink.height() < dp(2)) return InkBox(null, true, ratio)
+        if (!ink.intersect(screenRect)) return InkBox(null, true, ratio)
+        return InkBox(ink, true, ratio)
     }
 
     /** 一行文字的无痕配色：页面底色 + 文字色；ok=false 表示背景不纯，回退深色卡 */

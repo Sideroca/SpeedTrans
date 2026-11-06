@@ -44,7 +44,7 @@ IconStudio(快捷图标工坊) + HistoryStore(本地历史200条)
 ## 发布流程
 push → Actions 自动构建（3~5 分钟）→ Artifacts 下载 `SpeedTrans-debug-apk` → 覆盖安装。
 Release 直链流程：建 tag → POST release → 上传 APK 资产（脚本已跑通）。
-✅ 当前 versionCode 93 / versionName 4.2.14（已随功能 bump；发版前再核对）。
+✅ 当前 versionCode 96 / versionName 4.2.17（已随功能 bump；发版前再核对）。
 
 ## 红线仓库
 - 仓库已开源（Apache-2.0）；当前代码零预置密钥，绝不新增预置 Key；接口 Key 由用户自行填写。
