@@ -714,6 +714,7 @@ class BallService : AccessibilityService() {
         captureImmersive(retry)
     }
 
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
     private fun captureImmersive(retry: Int) {
         ocrBusy = true
         try {
